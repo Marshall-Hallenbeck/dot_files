@@ -1,11 +1,10 @@
 # If you come from bash you might have to change your $PATH.
 # fix PATH for the box I'm on, I'm just leaving these defaults since I normally try to keep the same folder structure
-export PATH=$HOME/bin:/usr/local/bin:$PATH:$HOME/.local/bin:$HOME/tools/phpggc/:$HOME/tools/nmap_pdf/:$HOME/tools/scripts/:/usr/local/go/bin/
-export GOPATH=$HOME/tools/go/
+export PATH=$HOME/bin:/usr/local/bin:$PATH:$HOME/.local/bin
 
 # Path to your oh-my-zsh installation.
 # Path depends on my username on the box. I can probably make this dynamic but whatever
-export ZSH="/home/marshall/.oh-my-zsh"
+export ZSH="$HOME/.oh-my-zsh"
 
 export HISTTIMEFORMAT="%m/%d/%y %T "
 
