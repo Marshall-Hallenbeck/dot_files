@@ -79,7 +79,7 @@ source $ZSH/oh-my-zsh.sh
 PROMPT='(%{$fg[green]%}%n@%M%{$fg[white]%})%{$fg[yellow]%}:%~ %{$fg[red]%}$(git_prompt_info)%{$reset_color%}
 $(virtualenv_prompt_info)-➤ '
 #-➤ '
-PROMPT=%{$fg[yellow]%}[%D{%m/%f/%y} %D{%L:%M:%S} %D{%Z}] '$PROMPT
+PROMPT='%{$fg[yellow]%}[%D{%m/%f/%y} %D{%L:%M:%S} %D{%Z}] '$PROMPT
 #- '
 
 # export MANPATH="/usr/local/man:$MANPATH"
