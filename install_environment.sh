@@ -1,7 +1,7 @@
 #!/bin/bash
 
 sudo apt update
-sudo apt install -y zsh tmux vim python3-pip
+sudo apt install -y zsh tmux vim python3-pip git
 wget "https://raw.githubusercontent.com/Marshall-Hallenbeck/dot_files/master/.bash_aliases" -O ~/.bash_aliases
 wget "https://raw.githubusercontent.com/Marshall-Hallenbeck/dot_files/master/.vimrc" -O ~/.vimrc
 git clone https://github.com/tmux-plugins/tpm ~/.tmux/plugins/tpm
