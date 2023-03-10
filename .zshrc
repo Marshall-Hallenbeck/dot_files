@@ -8,6 +8,8 @@ export ZSH="$HOME/.oh-my-zsh"
 
 export HISTTIMEFORMAT="%m/%d/%y %T "
 
+TIMEFMT=$'\n================\nCPU\t%P\nuser\t%*U\nsystem\t%*S\ntotal\t%*E'
+
 # Set name of the theme to load --- if set to "random", it will
 # load a random theme each time oh-my-zsh is loaded, in which case,
 # to know which specific one was loaded, run: echo $RANDOM_THEME
