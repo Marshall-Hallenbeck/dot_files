@@ -68,7 +68,7 @@ COMPLETION_WAITING_DOTS="true"
 # Custom plugins may be added to ~/.oh-my-zsh/custom/plugins/
 # Example format: plugins=(rails git textmate ruby lighthouse)
 # Add wisely, as too many plugins slow down shell startup.
-plugins=(colored-man-pages colorize copydir cp dircycle encode64 extract history sublime tmux vundle git pip python pyenv virtualenv virtualenvwrapper debian)
+plugins=(colored-man-pages colorize cp dircycle encode64 extract history sublime tmux vundle git pip python pyenv virtualenv virtualenvwrapper debian)
 
 source $ZSH/oh-my-zsh.sh
 
