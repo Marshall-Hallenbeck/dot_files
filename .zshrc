@@ -1,6 +1,10 @@
 # If you come from bash you might have to change your $PATH.
 # fix PATH for the box I'm on, I'm just leaving these defaults since I normally try to keep the same folder structure
 export PATH=$HOME/bin:/usr/local/bin:$PATH:$HOME/.local/bin
+# set GOLANG paths
+export GOROOT=/usr/local/go
+export GOPATH=$HOME/go
+export PATH=$GOPATH/bin:$GOROOT/bin:$HOME/.local/bin:$PATH
 
 # Path to your oh-my-zsh installation.
 # Path depends on my username on the box. I can probably make this dynamic but whatever
