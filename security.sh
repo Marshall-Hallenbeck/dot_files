@@ -4,7 +4,7 @@
 ### FOLDER STRUCTURE
 # requires a shell that supports brace expansion (zsh, bash, etc)
 echo "Creating folder structure"
-mkdir -p ~/pentest/{reviews,projects,lists/{user_pass,users,passwords},tools/{ad_and_windows/coercion,av_edr,c2,cloud,cred_dumping,exploits/cves,forensics,fuzzing,privesc/{windows,linux},recon/{osint,scanning},reporting,reversing/{windows,linux,multi},win_binaries/{custom,3rd_party}}}
+mkdir -p ~/pentest/{reviews,projects,lists/{user_pass,users,passwords}},tools/{ad_and_windows/coercion,av_edr,c2,cloud,cred_dumping,exploits/cves,forensics,fuzzing,privesc/{windows,linux},recon/{osint,scanning},reporting,reversing/{windows,linux,multi},win_binaries/{custom,3rd_party}}
 
 ### DEVELOPMENT
 echo "Downloading and installing dev stuff"
