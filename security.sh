@@ -3,13 +3,19 @@
 
 ### FOLDER STRUCTURE
 # requires a shell that supports brace expansion (zsh, bash, etc)
+# can combine these later, but it was easier to create them like this
 echo "Creating folder structure"
-mkdir -p ~/pentest/{reviews,projects,lists/{user_pass,users,passwords}},tools/{ad_and_windows/coercion,av_edr,c2,cloud,cred_dumping,exploits/cves,forensics,fuzzing,privesc/{windows,linux},recon/{osint,scanning},reporting,reversing/{windows,linux,multi},win_binaries/{custom,3rd_party}}
+mkdir -p ~/pentest/{reviews,projects,lists,tools}
+mkdir -p ~/pentest/lists/{user_pass,users,passwords}
+mkdir -p ~/pentest/tools/{ad_and_windows/coercion,av_edr,c2,cloud,cred_dumping,exploits/cves,forensics,fuzzing,privesc/{windows,linux},recon/{osint,scanning},reporting,reversing/{windows,linux,multi},win_binaries/{custom,3rd_party}}
 
 ### DEVELOPMENT
 echo "Downloading and installing dev stuff"
 echo "Installing dependencies"
 sudo apt install -y libssl-dev libffi-dev build-essential
+
+echo "Installing htop"
+sudo apt install -y htop
 
 echo "Installing Poetry"
 curl -sSL https://install.python-poetry.org | python3 -
