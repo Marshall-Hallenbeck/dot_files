@@ -9,7 +9,7 @@ mkdir -p ~/pentest/{reviews,projects,lists/{user_pass,users,passwords},tools/{ad
 ### DEVELOPMENT
 echo "Downloading and installing dev stuff"
 echo "Installing dependencies"
-sudo apt-get install -y libssl-dev libffi-dev build-essential
+sudo apt install -y libssl-dev libffi-dev build-essential
 
 echo "Installing Poetry"
 curl -sSL https://install.python-poetry.org | python3 -
