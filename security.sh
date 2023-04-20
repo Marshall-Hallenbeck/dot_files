@@ -72,3 +72,17 @@ nuclei -ut
 
 echo "Installing ffuf"
 go install github.com/ffuf/ffuf/v2@latest
+
+echo "Installing ScareCrow"
+echo "First installing dependencies"
+go get github.com/fatih/color
+go get github.com/yeka/zip
+go get github.com/josephspurrier/goversioninfo
+go get github.com/Binject/debug/pe
+go get github.com/awgh/rawreader
+
+git clone https://github.com/optiv/ScareCrow.git ~/pentest/tools/av_edr/
+cd ~/pentest/tools/av_edr/ScareCrow/
+go build ScareCrow.go
+echo "Installing ScareCrow to /usr/local/bin/"
+sudo cp ScareCrow /usr/local/bin/
