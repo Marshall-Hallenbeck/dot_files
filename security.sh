@@ -51,9 +51,9 @@ echo "Installing Golang"
 sudo apt install golang
 
 echo "Adding Golang path to .zshrc"
-echo 'export GOROOT=/usr/local/go' >> ~/.zshrc
-echo 'export GOPATH=$HOME/go' >> ~/.zshrc
-echo 'export PATH=$GOPATH/bin:$GOROOT/bin:$HOME/.local/bin:$PATH' >> ~/.zshrc 
+echo 'export GOROOT=/usr/lib/go' >> ~/.zshrc
+#echo 'export GOPATH=$HOME/go' >> ~/.zshrc
+#echo 'export PATH=$GOPATH/bin:$GOROOT/bin:$HOME/.local/bin:$PATH' >> ~/.zshrc 
 
 echo "Installing pipx"
 python3 -m pip install pipx
