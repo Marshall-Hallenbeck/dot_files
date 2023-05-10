@@ -7,7 +7,15 @@
 echo "Creating folder structure"
 mkdir -p ~/pentest/{reviews,projects,lists,tools}
 mkdir -p ~/pentest/lists/{user_pass,users,passwords}
-mkdir -p ~/pentest/tools/{ad_and_windows/coercion,av_edr,c2,cloud,cred_dumping,exploits/cves,forensics,fuzzing,privesc/{windows,linux},recon/{osint,scanning},reporting,reversing/{windows,linux,multi},win_binaries/{custom,3rd_party}}
+mkdir -p ~/pentest/tools/ad_and_windows/{coercion,av_edr,c2,cloud,cred_dumping}
+mkdir -p ~/pentest/tools/exploits/cves
+mkdir -p ~/pentest/tools/forensics
+mkdir -p ~/pentest/tools/fuzzing
+mkdir -p ~/pentest/tools/privesc/{windows,linux}
+mkdir -p ~/pentest/tools/recon/{osint,scanning}
+mkdir -p ~/pentest/tools/reporting
+mkdir -p ~/pentest/tools/reversing/{windows,linux,multi}
+mkdir -p ~/pentest/tools/win_binaries/{custom,3rd_party}
 
 ### DEVELOPMENT
 echo "Downloading and installing dev stuff"
