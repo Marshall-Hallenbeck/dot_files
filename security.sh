@@ -89,7 +89,7 @@ go get github.com/josephspurrier/goversioninfo
 go get github.com/Binject/debug/pe
 go get github.com/awgh/rawreader
 
-git clone https://github.com/optiv/ScareCrow.git ~/pentest/tools/av_edr/
+git clone https://github.com/optiv/ScareCrow.git ~/pentest/tools/av_edr/ScareCrow/
 cd ~/pentest/tools/av_edr/ScareCrow/
 go build ScareCrow.go
 echo "Installing ScareCrow to /usr/local/bin/"
