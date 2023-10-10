@@ -62,8 +62,10 @@ echo "Installing pipx"
 python3 -m pip install pipx
 pipx ensurepath
 
-echo "Installing CrackMapExec via pipx"
-pipx install crackmapexec
+echo "Installing NetExec via GitHub & pipx"
+git clone https://github.com/Pennyw0rth/NetExec.git ~/pentest/tools/ad_and_windows/
+cd ~/pentest/tools/ad_and_windows/NetExec/
+pipx install .
 
 echo "Installing Sliver via install script"
 curl https://sliver.sh/install|sudo bash
