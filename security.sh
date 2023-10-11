@@ -31,10 +31,6 @@ sudo apt install -y htop
 echo "Installing Poetry"
 curl -sSL https://install.python-poetry.org | python3 -
 
-echo "Downloading CrackMapExec from Git"
-git clone --recursive https://github.com/byt3bl33d3r/CrackMapExec ~/pentest/tools/ad_and_windows/
-# go to directory and `poetry install`, then you can `poetry run crackmapexec`
-
 echo "Downloading Impacket from Git"
 git clone https://github.com/fortra/impacket.git ~/pentest/tools/ad_and_windows/
 # to install the sample scripts/etc, run `python3 -m pip install .`
