@@ -5,20 +5,31 @@
 # requires a shell that supports brace expansion (zsh, bash, etc)
 # can combine these later, but it was easier to create them like this
 echo "Creating folder structure"
-mkdir -p ~/pentest/{reviews,projects,lists,tools}
-mkdir -p ~/pentest/lists/{user_pass,users,passwords}
-mkdir -p ~/pentest/tools/ad_and_windows/{coercion,av_edr}
+mkdir -p ~/pentest/reviews
+mkdir -p ~/pentest/projects
+mkdir -p ~/pentest/lists
+mkdir -p ~/pentest/tools
+mkdir -p ~/pentest/lists/user_pass
+mkdir -p ~/pentest/lists/users
+mkdir -p ~/pentest/lists/passwords
+mkdir -p ~/pentest/tools/ad_and_windows/coercion
+mkdir -p ~/pentest/tools/ad_and_windows/av_edr
 mkdir -p ~/pentest/tools/c2/
 mkdir -p ~/pentest/tools/cloud/
 mkdir -p ~/pentest/tools/cred_dumping/
 mkdir -p ~/pentest/tools/exploits/cves/
 mkdir -p ~/pentest/tools/forensics/
 mkdir -p ~/pentest/tools/fuzzing/
-mkdir -p ~/pentest/tools/privesc/{windows,linux}
-mkdir -p ~/pentest/tools/recon/{osint,scanning}
+mkdir -p ~/pentest/tools/privesc/windows
+mkdir -p ~/pentest/tools/privesc/linux
+mkdir -p ~/pentest/tools/recon/osint
+mkdir -p ~/pentest/tools/recon/scanning
 mkdir -p ~/pentest/tools/reporting/
-mkdir -p ~/pentest/tools/reversing/{windows,linux,multi}
-mkdir -p ~/pentest/tools/win_binaries/{custom,3rd_party}
+mkdir -p ~/pentest/tools/reversing/windows
+mkdir -p ~/pentest/tools/reversing/linux
+mkdir -p ~/pentest/tools/reversing/multi
+mkdir -p ~/pentest/tools/win_binaries/custom
+mkdir -p ~/pentest/tools/win_binaries/3rd_party
 
 ### DEVELOPMENT
 echo "Downloading and installing dev stuff"
