@@ -34,7 +34,12 @@ mkdir -p ~/pentest/tools/win_binaries/3rd_party
 ### DEVELOPMENT
 echo "Downloading and installing dev stuff"
 echo "Installing dependencies"
-sudo apt install -y libssl-dev libffi-dev build-essential
+sudo apt install -y libssl-dev libffi-dev build-essential python3.11-venv golang
+
+echo "Adding Golang path to .zshrc"
+echo 'export GOROOT=/usr/lib/go' >> ~/.zshrc
+#echo 'export GOPATH=$HOME/go' >> ~/.zshrc
+#echo 'export PATH=$GOPATH/bin:$GOROOT/bin:$HOME/.local/bin:$PATH' >> ~/.zshrc 
 
 echo "Installing htop"
 sudo apt install -y htop
@@ -56,14 +61,6 @@ sudo apt install odat
 
 echo "Installing Kerberos User Package"
 sudo apt install krb5-user
-
-echo "Installing Golang"
-sudo apt install golang
-
-echo "Adding Golang path to .zshrc"
-echo 'export GOROOT=/usr/lib/go' >> ~/.zshrc
-#echo 'export GOPATH=$HOME/go' >> ~/.zshrc
-#echo 'export PATH=$GOPATH/bin:$GOROOT/bin:$HOME/.local/bin:$PATH' >> ~/.zshrc 
 
 echo "Installing pipx"
 python3 -m pip install pipx
