@@ -67,9 +67,9 @@ python3 -m pip install pipx
 pipx ensurepath
 
 echo "Installing NetExec via GitHub & pipx"
-git clone https://github.com/Pennyw0rth/NetExec.git ~/pentest/tools/ad_and_windows/
-cd ~/pentest/tools/ad_and_windows/NetExec/
-pipx install .
+apt install pipx git
+pipx ensurepath
+pipx install git+https://github.com/Pennyw0rth/NetExec
 
 echo "Installing Sliver via install script"
 curl https://sliver.sh/install|sudo bash
