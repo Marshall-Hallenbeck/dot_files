@@ -62,14 +62,11 @@ sudo apt install odat
 echo "Installing Kerberos User Package"
 sudo apt install krb5-user
 
-echo "Installing pipx"
-python3 -m pip install pipx
-pipx ensurepath
-
 echo "Installing NetExec via GitHub & pipx"
 sudo apt install pipx git
 pipx ensurepath
 pipx install git+https://github.com/Pennyw0rth/NetExec
+register-python-argcomplete nxc >> ~/.zshrc
 
 echo "Installing Sliver via install script"
 curl https://sliver.sh/install|sudo bash
