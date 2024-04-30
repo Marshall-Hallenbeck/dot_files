@@ -52,15 +52,8 @@ git clone https://github.com/fortra/impacket.git ~/pentest/tools/ad_and_windows/
 # to install the sample scripts/etc, run `python3 -m pip install .`
 
 ### TOOLS
-echo "Downloading and installing tools"
-echo "Making sure nmap, netcat, and socat are installed"
-sudo apt install libpcap-dev nmap socat netcat-traditional
-
-echo "Installing odat (Oracle DB testing tool)"
-sudo apt install odat
-
-echo "Installing Kerberos User Package"
-sudo apt install krb5-user
+echo "Downloading and installing dependencies and tools via apt"
+sudo apt install libpcap-dev nmap socat netcat-traditional odat krb5-user cidrgrep 
 
 echo "Installing NetExec via GitHub & pipx"
 sudo apt install pipx git
