@@ -55,6 +55,9 @@ git clone https://github.com/fortra/impacket.git ~/pentest/tools/ad_and_windows/
 echo "Downloading and installing dependencies and tools via apt"
 sudo apt install libpcap-dev nmap socat netcat-traditional odat krb5-user cidrgrep 
 
+echo "Installing cidrize"
+pip install cidrize
+
 echo "Installing NetExec via GitHub & pipx"
 sudo apt install pipx git
 pipx ensurepath
