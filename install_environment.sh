@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# first, force IPv4 address because sometimes you'll get an ipv6 and no ipv4
+echo 'Acquire::ForceIPv4 "true";' | sudo tee /etc/apt/apt.conf.d/1000-force-ipv4-transport
+
 sudo apt update
 sudo apt install -y zsh tmux vim python3-pip git
 wget "https://raw.githubusercontent.com/Marshall-Hallenbeck/dot_files/master/.bash_aliases" -O ~/.bash_aliases

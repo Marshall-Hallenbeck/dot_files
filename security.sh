@@ -33,36 +33,33 @@ mkdir -p ~/pentest/tools/win_binaries/3rd_party
 
 ### DEVELOPMENT
 echo "Downloading and installing dev stuff"
-echo "Installing dependencies"
-sudo apt install -y libssl-dev libffi-dev build-essential python3.11-venv golang
+echo "Installing stuff via apt"
+sudo apt install -y libssl-dev libffi-dev build-essential python3.12 python3.12-venv golang htop pipx git libpcap-dev nmap socat netcat-traditional odat krb5-user cidrgrep 
 
 echo "Adding Golang path to .zshrc"
 echo 'export GOROOT=/usr/lib/go' >> ~/.zshrc
-#echo 'export GOPATH=$HOME/go' >> ~/.zshrc
-#echo 'export PATH=$GOPATH/bin:$GOROOT/bin:$HOME/.local/bin:$PATH' >> ~/.zshrc 
-
-echo "Installing htop"
-sudo apt install -y htop
+echo 'export GOPATH=$HOME/go' >> ~/.zshrc
+echo 'export PATH=$GOPATH/bin:$GOROOT/bin:$HOME/.local/bin:$PATH' >> ~/.zshrc 
 
 echo "Installing Poetry"
-curl -sSL https://install.python-poetry.org | python3 -
+curl -sSL https://install.python-poetry.org | python -
 
-echo "Downloading Impacket from Git"
-git clone https://github.com/fortra/impacket.git ~/pentest/tools/ad_and_windows/
+echo "Installing Impacket from Git"
+pipx install git+https://github.com/fortra/impacket.git
+#git clone https://github.com/fortra/impacket.git ~/pentest/tools/ad_and_windows/impacket
 # to install the sample scripts/etc, run `python3 -m pip install .`
 
 ### TOOLS
-echo "Downloading and installing dependencies and tools via apt"
-sudo apt install libpcap-dev nmap socat netcat-traditional odat krb5-user cidrgrep 
-
 echo "Installing cidrize"
 pip install cidrize
 
-echo "Installing NetExec via GitHub & pipx"
-sudo apt install pipx git
+echo "Installing NetExec via GitHub"
 pipx ensurepath
 pipx install git+https://github.com/Pennyw0rth/NetExec
 register-python-argcomplete nxc >> ~/.zshrc
+
+echo "Installing smbclientng"
+pipx install smbclientng
 
 echo "Installing Sliver via install script"
 curl https://sliver.sh/install|sudo bash
@@ -92,7 +89,7 @@ go get github.com/Binject/debug/pe
 go get github.com/awgh/rawreader
 
 git clone https://github.com/optiv/ScareCrow.git ~/pentest/tools/av_edr/ScareCrow/
-cd ~/pentest/tools/av_edr/ScareCrow/
+cd ~/pentest/tools/av_edr/ScareCrow/ || exit
 go build ScareCrow.go
 echo "Installing ScareCrow to /usr/local/bin/"
 sudo cp ScareCrow /usr/local/bin/
