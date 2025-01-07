@@ -34,7 +34,7 @@ mkdir -p ~/pentest/tools/win_binaries/3rd_party
 ### DEVELOPMENT
 echo "Downloading and installing dev stuff"
 echo "Installing stuff via apt"
-sudo apt install -y libssl-dev libffi-dev build-essential python3.12 python3.12-venv golang htop pipx git libpcap-dev nmap socat netcat-traditional odat krb5-user cidrgrep 
+sudo apt install -y libssl-dev libffi-dev build-essential python3 python3-venv golang htop pipx git libpcap-dev nmap socat netcat-traditional odat krb5-user cidrgrep 
 
 echo "Adding Golang path to .zshrc"
 echo 'export GOROOT=/usr/lib/go' >> ~/.zshrc
