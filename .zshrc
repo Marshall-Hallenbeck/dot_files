@@ -43,6 +43,8 @@ ZSH_THEME="agnoster"
 
 # Uncomment the following line to enable command auto-correction.
 ENABLE_CORRECTION="true"
+# only autocorrect commands, not arguments
+setopt nocorrectall; setopt correct
 
 # Uncomment the following line to display red dots whilst waiting for completion.
 COMPLETION_WAITING_DOTS="true"
