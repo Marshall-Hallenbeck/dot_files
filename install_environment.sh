@@ -6,27 +6,37 @@ echo 'Acquire::ForceIPv4 "true";' | sudo tee /etc/apt/apt.conf.d/1000-force-ipv4
 sudo apt update
 sudo apt install -y zsh tmux vim python3-pip git virtualenvwrapper
 
-# Check if python3 exists but python does not
-if command -v python3 &>/dev/null && ! command -v python &>/dev/null; then
-    echo "python not found, installing python-is-python3"
-    sudo apt install -y python-is-python3
+# Find and install the latest available Python 3 version
+# Add deadsnakes PPA for Ubuntu systems
+if grep -q "Ubuntu" /etc/os-release; then
+    echo "Adding deadsnakes PPA for Ubuntu to get newer Python versions"
+    sudo apt-get install -y software-properties-common
+    sudo add-apt-repository -y ppa:deadsnakes/ppa
+    sudo apt-get update
 fi
 
-# Check if python is version 3.11, if not, install it and set it as default
-if ! python --version 2>&1 | grep -q "Python 3.11"; then
-    echo "Python is not version 3.11, installing..."
-    # Add deadsnakes PPA for Ubuntu systems
-    if grep -q "Ubuntu" /etc/os-release; then
-        sudo apt install -y software-properties-common
-        sudo add-apt-repository -y ppa:deadsnakes/ppa
-    fi
-    sudo apt update
-    sudo apt install -y python3.11 python3.11-venv
-    sudo update-alternatives --install /usr/bin/python python /usr/bin/python3.11 1
-    sudo update-alternatives --set python /usr/bin/python3.11
-else
-    echo "Python 3.11 is already the default."
+# Find the latest python3.x package available from apt.
+# The output of search can be like "python3.9 - ...", so we pipe to cut.
+LATEST_PYTHON_PKG=$(apt-cache search --names-only '^python3\.[0-9]+$' | cut -d' ' -f1 | sort -V | tail -n 1)
+
+if [ -z "$LATEST_PYTHON_PKG" ]; then
+    echo "Could not find any specific python3.x package. Will use the default python3."
+    LATEST_PYTHON_PKG="python3"
 fi
+
+# For python3 we need python3-venv, for python3.11 we need python3.11-venv
+VENV_PKG="${LATEST_PYTHON_PKG}-venv"
+
+echo "Latest available Python package is $LATEST_PYTHON_PKG"
+echo "Installing $LATEST_PYTHON_PKG and $VENV_PKG..."
+sudo apt-get install -y "$LATEST_PYTHON_PKG" "$VENV_PKG"
+
+echo "Setting $LATEST_PYTHON_PKG as the default python..."
+PYTHON_EXECUTABLE="/usr/bin/$LATEST_PYTHON_PKG"
+sudo update-alternatives --install /usr/bin/python python "$PYTHON_EXECUTABLE" 1
+sudo update-alternatives --set python "$PYTHON_EXECUTABLE"
+
+echo "Default python is now: $(python --version 2>&1)"
 
 wget "https://raw.githubusercontent.com/Marshall-Hallenbeck/dot_files/master/.bash_aliases" -O ~/.bash_aliases
 wget "https://raw.githubusercontent.com/Marshall-Hallenbeck/dot_files/master/.vimrc" -O ~/.vimrc
