@@ -9,22 +9,56 @@ mkdir -p ~/pentest/{reviews,projects,lists/{user_pass,users,passwords},tools/{ad
 
 ### DEVELOPMENT
 echo "Downloading and installing dev stuff"
-echo "Installing stuff via apt"
-sudo apt install -y libssl-dev libffi-dev build-essential python3 python3-venv golang htop pipx git libpcap-dev nmap socat netcat-traditional odat krb5-user cidrgrep 
+echo "Installing necessary dependencies"
 
-pipx ensurepath --prepend
+
+PACKAGES=(libssl-dev libffi-dev build-essential python3 python3-venv htop pipx git libpcap-dev nmap socat netcat-traditional odat krb5-user cidrgrep)
+AVAILABLE_PACKAGES=()
+UNAVAILABLE_PACKAGES=()
+
+# Check each package for availability in apt
+for pkg in "${PACKAGES[@]}"; do
+    if apt-cache show "$pkg" > /dev/null 2>&1; then
+        AVAILABLE_PACKAGES+=("$pkg")
+    else
+        UNAVAILABLE_PACKAGES+=("$pkg")
+    fi
+done
+
+# Install available packages
+if [ ${#AVAILABLE_PACKAGES[@]} -gt 0 ]; then
+    echo "Installing available packages..."
+    if ! sudo apt install -y "${AVAILABLE_PACKAGES[@]}"; then
+        echo "Failed to install dependencies, exiting." >&2
+        exit 1
+    fi
+fi
+
+# Report unavailable packages
+if [ ${#UNAVAILABLE_PACKAGES[@]} -gt 0 ]; then
+    echo "The following packages were not found and could not be installed:"
+    printf -- " - %s\n" "${UNAVAILABLE_PACKAGES[@]}"
+fi
+
+# Conditionally install Go based on the OS version
+echo "Installing Go..."
+if lsb_release -d 2>/dev/null | grep -q "Ubuntu 20.04"; then
+    echo "Detected Ubuntu 20.04. Installing Go via Snap..."
+    if ! sudo snap install go --classic; then
+        echo "Failed to install Go via Snap. Exiting." >&2
+        exit 1
+    fi
+else
+    echo "Installing Go via apt..."
+    if ! sudo apt install -y golang; then
+        echo "Failed to install Go via apt. Please check if 'golang' is available in your repositories."
+    fi
+fi
+
+pipx ensurepath
 
 echo "Installing uv"
 pipx install uv
-
-echo "Adding Golang path to .zshrc"
-{
-    echo ""
-    echo "# Golang paths"
-    echo 'export GOROOT=/usr/lib/go'
-    echo "export GOPATH=\$HOME/go"
-    echo "export PATH=\$GOPATH/bin:\$GOROOT/bin:\$HOME/.local/bin:\$PATH"
-} >> ~/.zshrc
 
 echo "Sourcing .zshrc to apply Go paths for this session"
 # shellcheck disable=SC1090
@@ -58,22 +92,22 @@ chmod +x burp_suite_pro.sh
 ./burp_suite_pro.sh
 
 echo "Installing Project Discovery tools"
-go install -v github.com/projectdiscovery/pdtm/cmd/pdtm@latest
+go get github.com/projectdiscovery/pdtm/cmd/pdtm@latest
 pdtm -install-all
 
 echo "Installing ffuf"
-go install github.com/ffuf/ffuf/v2@latest
+go get github.com/ffuf/ffuf/v2@latest
 
 # echo "Installing ScareCrow"
-# echo "First installing dependencies"
-# go get github.com/fatih/color
-# go get github.com/yeka/zip
-# go get github.com/josephspurrier/goversioninfo
-# go get github.com/Binject/debug/pe
-# go get github.com/awgh/rawreader
+echo "First installing dependencies"
+go get github.com/fatih/color
+go get github.com/yeka/zip
+go get github.com/josephspurrier/goversioninfo
+go get github.com/Binject/debug/pe
+go get github.com/awgh/rawreader
 
-# git clone https://github.com/optiv/ScareCrow.git ~/pentest/tools/av_edr/ScareCrow/
-# cd ~/pentest/tools/av_edr/ScareCrow/ || exit
-# go build ScareCrow.go
-# echo "Installing ScareCrow to /usr/local/bin/"
-# sudo cp ScareCrow /usr/local/bin/
+git clone https://github.com/optiv/ScareCrow.git ~/pentest/tools/av_edr/ScareCrow/
+cd ~/pentest/tools/av_edr/ScareCrow/ || exit
+go build ScareCrow.go
+echo "Installing ScareCrow to /usr/local/bin/"
+sudo cp ScareCrow /usr/local/bin/
