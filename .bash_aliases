@@ -33,7 +33,11 @@ alias xclipx='tr -d "\n" | xclip -selection c'
 alias curlv='curl -v'
 alias exploitdb='cd /usr/share/exploitdb/'
 alias listening_ports='sudo netstat -plnt'
-alias myip='hostname --all-ip-addresses | awk {"print $1"}'
+# function because awk
+function myip()
+{
+    hostname --all-ip-addresses | awk '{ print $1 }'
+}
 alias ncv='nc -v'
 alias start_bundle='bundle exec rails s' # fuck ruby
 alias msfconsole='msfconsole -y /usr/share/metasploit-framework/config/database.yml'
