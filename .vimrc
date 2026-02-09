@@ -24,6 +24,10 @@ command! Sudosave w !sudo tee %
 
 let python_highlight_all = 1
 
+" pastetoggle is deprecated in Vim 8.2+ (bracketed paste handles this automatically)
+" Uncomment if using an older Vim version:
+" set pastetoggle=<F2>
+
 " Tell vim to remember certain things when we exit
 "  '10  :  marks will be remembered for up to 10 previously edited files
 "  "100 :  will save up to 100 lines for each register
@@ -31,3 +35,5 @@ let python_highlight_all = 1
 "  %    :  saves and restores the buffer list
 "  n... :  where to save the viminfo files
 set viminfo='10,\"100,:20,%,n~/.viminfo
+
+cabbrev doc Pydocstring

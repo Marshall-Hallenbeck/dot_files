@@ -41,7 +41,7 @@ function myip()
     hostname --all-ip-addresses | awk '{ print $1 }'
 }
 alias ncv='nc -v'
-alias start_bundle='bundle exec rails s'
+alias start_bundle='bundle exec rails s' # fuck ruby
 alias msfconsole='msfconsole -y /usr/share/metasploit-framework/config/database.yml'
 alias fix_encoding='export LC_ALL=en_US.UTF-8; export LANG=en_US.UTF-8' # useful for Ruby BS
 # instead of aliasing just getent ahostsv4 I gotta clean up the results
