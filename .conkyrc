@@ -2,7 +2,7 @@ conky.config = {
     use_xft = true,
     xftalpha = 0.8,
     update_interval = 1.0,
-    total_run_times = 0,
+    -- total_run_times is deprecated in Conky 1.10+; Conky runs indefinitely by default
     own_window = true,
     own_window_transparent = true,
     own_window_argb_visual = true,
@@ -22,7 +22,7 @@ conky.config = {
  
     -- placement
     alignment = 'top_left',
-    gap_x = 3485,
+    gap_x = 3485, -- adjust per monitor setup
     gap_y = 5,
  
     -- default drawing
@@ -71,7 +71,7 @@ ${template1 Top}                ${template2}${top_mem name 1}               ${te
 ${template0 Filesystem}
 ${template1 /}                  ${template2}${fs_free /} free               ${template3}${fs_used /} / ${fs_size /}
 ${template1 IO\ Read}           ${template2}${diskio_read}                  ${template3}${diskiograph_read}
-${template1 IO\ Write}          ${template2}$diskio_write                   ${template3}$diskiograph_write
+${template1 IO\ Write}          ${template2}${diskio_write}                  ${template3}${diskiograph_write}
 ${template1 Top}                ${template2}${top_io name 1}                ${template3}${top_io io_perc 1}%
 ${template0 Networking}
 ${if_existing /proc/net/route wlan0}\
@@ -80,11 +80,11 @@ ${template1 AP}                                                             ${te
 ${template1 Signal}             ${template2}${wireless_link_qual_perc wlan0} ${template3}${wireless_link_bar wlan0}
 ${template1 Download}           ${template2}${downspeed wlan0}              ${template3}${downspeedgraph wlan0}
 ${template1 Upload}             ${template2}${upspeed wlan0}                ${template3}${upspeedgraph wlan0}
-${template1 Total Down/Up}                                                  ${template3}${totaldown wlan0}↓ / {totalup wlan0}↑
+${template1 Total Down/Up}                                                  ${template3}${totaldown wlan0}↓ / ${totalup wlan0}↑
 ${else}${if_existing /proc/net/route enp0s31f6}\
 ${template1 Ip}                                                             ${template3}${addr enp0s31f6}
-${template1 Download}           ${template2}${downspeed eth0}               ${template3}${downspeedgraph enp0s31f6}
-${template1 Upload}             ${template2}${upspeed eth0}                 ${template3}${upspeedgraph enp0s31f6}
+${template1 Download}           ${template2}${downspeed enp0s31f6}           ${template3}${downspeedgraph enp0s31f6}
+${template1 Upload}             ${template2}${upspeed enp0s31f6}             ${template3}${upspeedgraph enp0s31f6}
 ${template1 Total Down/Up}                                                  ${template3}${totaldown enp0s31f6}↓ / ${totalup enp0s31f6}${endif}${endif}
 ${template0 Bash\ Shortcuts}\
 ${template1}
@@ -104,6 +104,7 @@ Ctrl-U - Cut part of the line before cursor
 Ctrl-Y - Paste clipboard contents
 ${template0 Listening\ Ports}\
 ${template1}
-${exec sudo netstat -lupnt | grep LISTEN | grep tcp | grep -v tcp6 | grep -v "127.0.0.1\|::1" | awk '{split($4,a,":"); split($7,b,"/"); print b[2]":"a[2]" - PID:"b[1]}'}
+${exec sudo ss -plnt | grep LISTEN | grep -v "127.0.0.1\|::1\|\[::" | awk '{split($4,a,":"); print $4" "$6}' | sed 's/users:(("//' | sed 's/".*//'}
+
 
 ]];
