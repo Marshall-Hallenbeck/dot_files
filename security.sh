@@ -74,7 +74,7 @@ pipx install git+https://github.com/fortra/impacket.git
 
 ### TOOLS
 echo "Installing cidrize"
-pip install cidrize
+pipx install cidrize
 
 echo "Installing NetExec via GitHub"
 pipx install git+https://github.com/Pennyw0rth/NetExec
@@ -92,22 +92,14 @@ chmod +x burp_suite_pro.sh
 ./burp_suite_pro.sh
 
 echo "Installing Project Discovery tools"
-go get github.com/projectdiscovery/pdtm/cmd/pdtm@latest
+go install github.com/projectdiscovery/pdtm/cmd/pdtm@latest
 pdtm -install-all
 
 echo "Installing ffuf"
-go get github.com/ffuf/ffuf/v2@latest
+go install github.com/ffuf/ffuf/v2@latest
 
-# echo "Installing ScareCrow"
-echo "First installing dependencies"
-go get github.com/fatih/color
-go get github.com/yeka/zip
-go get github.com/josephspurrier/goversioninfo
-go get github.com/Binject/debug/pe
-go get github.com/awgh/rawreader
-
+echo "Installing ScareCrow"
 git clone https://github.com/optiv/ScareCrow.git ~/pentest/tools/av_edr/ScareCrow/
-cd ~/pentest/tools/av_edr/ScareCrow/ || exit
-go build ScareCrow.go
+(cd ~/pentest/tools/av_edr/ScareCrow/ && go build ScareCrow.go)
 echo "Installing ScareCrow to /usr/local/bin/"
-sudo cp ScareCrow /usr/local/bin/
+sudo cp ~/pentest/tools/av_edr/ScareCrow/ScareCrow /usr/local/bin/

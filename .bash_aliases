@@ -21,10 +21,12 @@ alias cls='printf "\033c"'
 
 # fix my ssh_agent cause tmux messes it up I think
 # manually add/fix the default ssh keys I use, this depends on the box I'm on
-alias start_ssh_agent='ssh-agent zsh
-eval $(ssh-agent)
-ssh-add ~/.ssh/id_rsa
-ssh-add ~/.ssh/main'
+function start_ssh_agent()
+{
+    eval "$(ssh-agent)"
+    ssh-add ~/.ssh/id_rsa
+    ssh-add ~/.ssh/main
+}
 
 # xclip for copying from terminal
 alias xclip='xclip -selection c'
@@ -32,14 +34,14 @@ alias xclipx='tr -d "\n" | xclip -selection c'
 
 alias curlv='curl -v'
 alias exploitdb='cd /usr/share/exploitdb/'
-alias listening_ports='sudo netstat -plnt'
+alias listening_ports='sudo ss -plnt'
 # function because awk
 function myip()
 {
     hostname --all-ip-addresses | awk '{ print $1 }'
 }
 alias ncv='nc -v'
-alias start_bundle='bundle exec rails s' # fuck ruby
+alias start_bundle='bundle exec rails s'
 alias msfconsole='msfconsole -y /usr/share/metasploit-framework/config/database.yml'
 alias fix_encoding='export LC_ALL=en_US.UTF-8; export LANG=en_US.UTF-8' # useful for Ruby BS
 # instead of aliasing just getent ahostsv4 I gotta clean up the results
@@ -49,4 +51,4 @@ function realping()
 }
 alias rp='realping'
 alias get_displays='(cd /tmp/.X11-unix && for x in X*; do echo ":${x#X}"; done)'
-alias clean_docker_images='for line in $(sudo docker images -aq); do sudo docker rmi -f $line; done'
+alias clean_docker_images='docker image prune -af'
