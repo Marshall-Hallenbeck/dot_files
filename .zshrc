@@ -80,7 +80,7 @@ source $ZSH/oh-my-zsh.sh
 # [09/14/20 2:11:01 EDT] (marshall@host):~
 # -➤
 # With the terminal entry after the arrow
-PROMPT='(%{$fg[green]%}%n@%M%{$fg[white]%})%{$fg[yellow]%}:%~ %{$fg[red]%}$(git_prompt_info)%{$reset_color%}
+PROMPT='%{$fg[yellow]%}[%D{%m/%f/%y} %D{%L:%M:%S} %D{%Z}] (%{$fg[green]%}%n@%M%{$fg[white]%})%{$fg[yellow]%}:%~ %{$fg[red]%}$(git_prompt_info)%{$reset_color%}
 $(virtualenv_prompt_info)-➤ '
 #-➤ '
 PROMPT='%{$fg[yellow]%}[%D{%m/%f/%y} %D{%L:%M:%S} %D{%Z}] '$PROMPT
