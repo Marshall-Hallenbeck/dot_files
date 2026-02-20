@@ -1,0 +1,19 @@
+{
+  "$schema": "https://claude.ai/schemas/hooks.json",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "command": "new_content=$(echo \"$CLAUDE_TOOL_INPUT\" | jq -r '(.new_string // .content // empty)'); prompt=\"$CLAUDE_USER_PROMPT\"; if [ -z \"$new_content\" ]; then exit 0; fi; if echo \"$new_content\" | grep -Eiq '\\bfallback\\b|graceful[[:space:]]+degrad|degraded[[:space:]]+path|retryWithoutAuth|defaulting[[:space:]]+to|\\?\\?[[:space:]]*\\[\\]|\\|\\|[[:space:]]*\\[\\]|\\?\\?[[:space:]]*\\{\\}|\\|\\|[[:space:]]*\\{\\}'; then if ! echo \"$prompt\" | grep -Eiq '\\bfallback\\b|defensive[[:space:]]+guard|graceful[[:space:]]+degrad|fail[[:space:]]*closed|resilien'; then echo 'BLOCKED: Fallback/defensive guard patterns require explicit user request.'; exit 2; fi; fi",
+        "description": "Block fallback/defensive guards unless user explicitly asks"
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "command": "file_path=$(echo \"$CLAUDE_TOOL_INPUT\" | jq -r '.file_path // empty'); if [ -z \"$file_path\" ]; then exit 0; fi; case \"$file_path\" in *.ts|*.tsx) ;; *) exit 0;; esac; if [ ! -f \"$(dirname \"$file_path\")/tsconfig.json\" ] && [ ! -f \"$(git -C \"$(dirname \"$file_path\")\" rev-parse --show-toplevel 2>/dev/null)/tsconfig.json\" ]; then exit 0; fi; cd \"$(git -C \"$(dirname \"$file_path\")\" rev-parse --show-toplevel 2>/dev/null)\" && npx tsc --noEmit --pretty 2>&1 | head -20",
+        "description": "Type-check after TypeScript file edits"
+      }
+    ]
+  }
+}

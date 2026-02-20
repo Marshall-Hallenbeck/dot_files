@@ -1,47 +1,46 @@
 {
   "permissions": {
     "allow": [
-      "mcp__puppeteer__*",
-      "mcp__playwright__*",
-      "mcp__mcp-server-docker__*",
-      "mcp__context7__*",
-      "mcp__git__*",
-      "mcp__postgres-mcp__*",
-      "mcp__ide__*",
-      "Bash(gh repo view:*)",
+      "Bash(find:*)",
       "Bash(gh issue list:*)",
       "Bash(gh issue view:*)",
+      "Bash(gh repo view:*)",
+      "Bash(git log:*)",
       "Bash(grep:*)",
-      "Bash(find:*)",
+      "Bash(npm view:*)",
       "Bash(tail:*)",
       "Bash(tee:*)",
-      "mcp__plugin_playwright_playwright__browser_navigate",
-      "mcp__plugin_playwright_playwright__browser_click",
-      "mcp__plugin_playwright_playwright__browser_take_screenshot",
-      "mcp__plugin_playwright_playwright__browser_press_key",
-      "mcp__plugin_playwright_playwright__browser_evaluate",
-      "mcp__plugin_playwright_playwright__browser_wait_for",
       "Bash(wc:*)",
-      "mcp__plugin_serena_serena__read_file",
-      "mcp__plugin_serena_serena__find_file",
-      "mcp__plugin_serena_serena__activate_project",
-      "mcp__plugin_serena_serena__search_for_pattern",
-      "Bash(npm view:*)",
-      "mcp__plugin_serena_serena__list_dir",
-      "mcp__plugin_context7_context7__resolve-library-id",
+      "mcp__context7__*",
+      "mcp__git__*",
+      "mcp__ide__*",
+      "mcp__mcp-server-docker__*",
+      "mcp__memory__*",
+      "mcp__playwright__*",
       "mcp__plugin_context7_context7__query-docs",
-      "mcp__plugin_serena_serena__think_about_collected_information",
-      "Bash(git log:*)",
+      "mcp__plugin_context7_context7__resolve-library-id",
+      "mcp__plugin_playwright_playwright__browser_click",
       "mcp__plugin_playwright_playwright__browser_close",
+      "mcp__plugin_playwright_playwright__browser_evaluate",
+      "mcp__plugin_playwright_playwright__browser_navigate",
+      "mcp__plugin_playwright_playwright__browser_press_key",
+      "mcp__plugin_playwright_playwright__browser_take_screenshot",
+      "mcp__plugin_playwright_playwright__browser_wait_for",
+      "mcp__plugin_serena_serena__activate_project",
       "mcp__plugin_serena_serena__check_onboarding_performed",
+      "mcp__plugin_serena_serena__find_file",
+      "mcp__plugin_serena_serena__get_symbols_overview",
+      "mcp__plugin_serena_serena__list_dir",
       "mcp__plugin_serena_serena__list_memories",
-      "mcp__plugin_serena_serena__get_symbols_overview"
+      "mcp__plugin_serena_serena__read_file",
+      "mcp__plugin_serena_serena__search_for_pattern",
+      "mcp__plugin_serena_serena__think_about_collected_information",
+      "mcp__puppeteer__*"
     ]
   },
-  "model": "Opus",
   "statusLine": {
     "type": "command",
-    "command": "input=$(cat); cwd=$(echo \"$input\" | jq -r '.workspace.current_dir'); git_branch=$(cd \"$cwd\" 2>/dev/null && git -c core.useBuiltinFSMonitor=false branch --show-current 2>/dev/null); venv=\"\"; [ -n \"$VIRTUAL_ENV\" ] && venv=\"($(basename \"$VIRTUAL_ENV\")) \"; printf '\\033[32m(%s@%s)\\033[33m:%s' \"$(whoami)\" \"$(hostname -s)\" \"${cwd/#$HOME/~}\"; [ -n \"$git_branch\" ] && printf ' \\033[31m(%s)' \"$git_branch\"; printf '\\033[0m %s' \"$venv\""
+    "command": "~/.claude/statusline.sh"
   },
   "enabledPlugins": {
     "security-guidance@claude-plugins-official": true,
@@ -58,5 +57,12 @@
     "hookify@claude-plugins-official": true,
     "superpowers@claude-plugins-official": true,
     "system-utils@local": true
+  },
+  "env": {
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
+  },
+  "attribution": {
+      "commit": "",
+      "pr": ""
   }
 }

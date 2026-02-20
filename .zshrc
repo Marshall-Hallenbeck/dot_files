@@ -1,26 +1,18 @@
+#zmodload zsh/zprof # uncomment this and the last line (zprof) for profiling
+alias q='exit'
+export ZSH=$HOME/.oh-my-zsh/
 # If you come from bash you might have to change your $PATH.
 # fix PATH for the box I'm on, I'm just leaving these defaults since I normally try to keep the same folder structure
-export PATH=$HOME/bin:/usr/local/bin:$PATH:$HOME/.local/bin
+# Node 22 via nvm (fast - no nvm loading overhead)
+export PATH=$HOME/.nvm/versions/node/v22.16.0/bin:$HOME/node/bin/:$HOME/bin:/usr/local/bin:$PATH:$HOME/.local/bin:$HOME/.dotnet/
 
 # Path to your oh-my-zsh installation.
 # Path depends on my username on the box. I can probably make this dynamic but whatever
-export ZSH="$HOME/.oh-my-zsh"
+#export ZSH="$HOME/.oh-my-zsh"
 
 export HISTTIMEFORMAT="%m/%d/%y %T "
 
 TIMEFMT=$'\n================\nCPU\t%P\nuser\t%*U\nsystem\t%*S\ntotal\t%*E'
-
-# Set name of the theme to load --- if set to "random", it will
-# load a random theme each time oh-my-zsh is loaded, in which case,
-# to know which specific one was loaded, run: echo $RANDOM_THEME
-# See https://github.com/robbyrussell/oh-my-zsh/wiki/Themes
-ZSH_THEME="agnoster"
-
-# Set list of themes to pick from when loading at random
-# Setting this variable when ZSH_THEME=random will cause zsh to load
-# a theme from this variable instead of looking in ~/.oh-my-zsh/themes/
-# If set to an empty array, this variable will have no effect.
-# ZSH_THEME_RANDOM_CANDIDATES=( "robbyrussell" "agnoster" )
 
 # Uncomment the following line to use case-sensitive completion.
 # CASE_SENSITIVE="true"
@@ -30,7 +22,7 @@ ZSH_THEME="agnoster"
 # HYPHEN_INSENSITIVE="true"
 
 # Uncomment the following line to disable bi-weekly auto-update checks.
-# DISABLE_AUTO_UPDATE="true"
+DISABLE_AUTO_UPDATE="true"
 
 # Uncomment the following line to change how often to auto-update (in days).
 # export UPDATE_ZSH_DAYS=13
@@ -43,8 +35,6 @@ ZSH_THEME="agnoster"
 
 # Uncomment the following line to enable command auto-correction.
 ENABLE_CORRECTION="true"
-# only autocorrect commands, not arguments
-setopt nocorrectall; setopt correct
 
 # Uncomment the following line to display red dots whilst waiting for completion.
 COMPLETION_WAITING_DOTS="true"
@@ -72,7 +62,10 @@ COMPLETION_WAITING_DOTS="true"
 # Add wisely, as too many plugins slow down shell startup.
 plugins=(colored-man-pages colorize cp dircycle encode64 extract history sublime tmux vundle git pip python pyenv virtualenv virtualenvwrapper debian)
 
-source $ZSH/oh-my-zsh.sh
+if [[ ! -n $CURSOR_TRACE_ID ]]; then
+    source $ZSH/oh-my-zsh.sh
+fi
+#source $ZSH/oh-my-zsh.sh
 
 # User configuration
 # The prompt is really the only thing I care about other than plugins
@@ -80,11 +73,11 @@ source $ZSH/oh-my-zsh.sh
 # [09/14/20 2:11:01 EDT] (marshall@host):~
 # -➤
 # With the terminal entry after the arrow
-PROMPT='%{$fg[yellow]%}[%D{%m/%f/%y} %D{%L:%M:%S} %D{%Z}] (%{$fg[green]%}%n@%M%{$fg[white]%})%{$fg[yellow]%}:%~ %{$fg[red]%}$(git_prompt_info)%{$reset_color%}
+
+PROMPT='(%{$fg[green]%}%n@%M%{$fg[white]%})%{$fg[yellow]%}:%~ %{$fg[red]%}$(git_prompt_info)%{$reset_color%}
 $(virtualenv_prompt_info)-➤ '
 #-➤ '
-PROMPT='%{$fg[yellow]%}[%D{%m/%f/%y} %D{%L:%M:%S} %D{%Z}] '$PROMPT
-#- '
+#PROMPT='%{$fg[yellow]%}[%D{%m/%f/%y} %D{%L:%M:%S} %D{%Z}] '$PROMPT
 
 # export MANPATH="/usr/local/man:$MANPATH"
 
@@ -114,3 +107,39 @@ PROMPT='%{$fg[yellow]%}[%D{%m/%f/%y} %D{%L:%M:%S} %D{%Z}] '$PROMPT
 # alias ohmyzsh="mate ~/.oh-my-zsh"
 # I use .bash_aliases in case zsh isn't installed on the host; naming doesn't really matter
 . "$HOME/.bash_aliases"
+
+# nvm takes forever to load and slows down shells
+#export NVM_DIR="$HOME/.nvm"
+#[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
+#[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
+
+# fnm - this also slows down each load... (from 0.5 to 0.9)
+#FNM_PATH="/home/marshall/.local/share/fnm"
+#if [ -d "$FNM_PATH" ]; then
+#  export PATH="/home/marshall/.local/share/fnm:$PATH"
+#  eval "`fnm env`"
+#fi
+
+# Add RVM to PATH for scripting. Make sure this is the last PATH variable change.
+export PATH="$PATH:$HOME/.rvm/bin"
+
+zstyle ':completion:*:*:-command-:*:*' ignored-patterns 'strapi' 'npm'
+
+autoload -Uz compinit
+zstyle ':completion:*' menu select
+fpath+=~/.zfunc
+
+# only autocorrect commands, not arguments; this must be below any zstyle completion lines
+setopt nocorrectall; setopt correct;
+
+if [ -f "$HOME/.atuin/bin/env" ]; then
+    . "$HOME/.atuin/bin/env"
+    eval "$(atuin init zsh)"
+fi
+
+#zprof # uncomment this and the first line for profiling
+
+export CLAUDE_CODE_DISABLE_AUTO_MEMORY=0  # Force on as of 2026/2/9
+
+# for Tabby directory reporting https://github.com/Eugeny/tabby/wiki/Shell-working-directory-reporting
+precmd () { echo -n "\x1b]1337;CurrentDir=$(pwd)\x07" }

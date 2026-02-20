@@ -80,6 +80,18 @@ Never "handle gracefully" what should be "fixed immediately" (400s and 500s are 
 - Create regression tests for bug fixes
 - Tests are proof that code works — not optional documentation
 
+## Debugging
+
+When investigating issues, verify the actual infrastructure routing (e.g., nginx, reverse proxies) BEFORE assuming the problem is in application code. Check how URLs are routed at the infrastructure level first.
+
+## Planning & Refactoring
+
+When creating plans or reviewing code, do NOT assume codebase state — always read the actual files to verify existing abstractions, function signatures, and current behavior before proposing changes. Never guess at what exists.
+
+## Simplicity
+
+Always prefer simple, minimal solutions first. Avoid over-engineering with unnecessary features like color output, complex abstractions, or multi-layered architectures unless explicitly requested. If you believe a more complex approach is genuinely needed, explain why BEFORE implementing it and let me decide.
+
 ## Git Conventions
 
 Follow Conventional Commits: `<type>(scope): description`
