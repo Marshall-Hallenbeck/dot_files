@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(/usr/bin/tmux show-options:*)",
+      "Bash(/usr/bin/tmux display-message:*)",
+      "Bash(jq:*)"
+    ]
+  }
+}
