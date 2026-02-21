@@ -3,8 +3,9 @@ alias q='exit'
 export ZSH=$HOME/.oh-my-zsh/
 # If you come from bash you might have to change your $PATH.
 # fix PATH for the box I'm on, I'm just leaving these defaults since I normally try to keep the same folder structure
-# Node 22 via nvm (fast - no nvm loading overhead)
-export PATH=$HOME/.nvm/versions/node/v22.16.0/bin:$HOME/node/bin/:$HOME/bin:/usr/local/bin:$PATH:$HOME/.local/bin:$HOME/.dotnet/
+# Node via nvm (hardcoded for speed - nvm.sh adds ~1.2s per shell open)
+# The install script patches this line with the actual installed version
+export PATH=$HOME/.nvm/versions/node/v24.0.0/bin:$HOME/node/bin/:$HOME/bin:/usr/local/bin:$PATH:$HOME/.local/bin:$HOME/.dotnet/
 
 # Path to your oh-my-zsh installation.
 # Path depends on my username on the box. I can probably make this dynamic but whatever
@@ -108,17 +109,10 @@ $(virtualenv_prompt_info)-➤ '
 # I use .bash_aliases in case zsh isn't installed on the host; naming doesn't really matter
 . "$HOME/.bash_aliases"
 
-# nvm takes forever to load and slows down shells
-#export NVM_DIR="$HOME/.nvm"
-#[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
-#[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
-
-# fnm - this also slows down each load... (from 0.5 to 0.9)
-#FNM_PATH="/home/marshall/.local/share/fnm"
-#if [ -d "$FNM_PATH" ]; then
-#  export PATH="/home/marshall/.local/share/fnm:$PATH"
-#  eval "`fnm env`"
-#fi
+# nvm - NOT loaded on shell start (adds ~1.2s). Use `nvm` manually when needed.
+export NVM_DIR="$HOME/.nvm"
+#[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+#[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
 
 # Add RVM to PATH for scripting. Make sure this is the last PATH variable change.
 export PATH="$PATH:$HOME/.rvm/bin"
