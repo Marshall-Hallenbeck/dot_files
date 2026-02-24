@@ -49,6 +49,7 @@ function realping()
 }
 alias rp='realping'
 alias get_displays='(cd /tmp/.X11-unix && for x in X*; do echo ":${x#X}"; done)'
+alias test_x11='~/projects/dot_files/test-x11-displays.sh'
 alias elevator='docker compose down -v && docker compose up'
 alias build-elevator='docker compose down -v && docker compose up --build'
 alias clean_docker_images='for line in $(sudo docker images -aq); do sudo docker rmi -f $line; done'
