@@ -109,10 +109,17 @@ $(virtualenv_prompt_info)-➤ '
 # I use .bash_aliases in case zsh isn't installed on the host; naming doesn't really matter
 . "$HOME/.bash_aliases"
 
-# nvm - NOT loaded on shell start (adds ~1.2s). Use `nvm` manually when needed.
+# nvm - lazy-loaded to avoid ~1.2s shell startup penalty
 export NVM_DIR="$HOME/.nvm"
-#[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-#[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
+nvm() {
+  unfunction nvm node npm npx
+  [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+  nvm "$@"
+}
+node() { nvm use default >/dev/null; unfunction node; node "$@"; }
+npm()  { nvm use default >/dev/null; unfunction npm;  npm "$@"; }
+npx()  { nvm use default >/dev/null; unfunction npx;  npx "$@"; }
+alias loadnvm='[ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"'
 
 # Add RVM to PATH for scripting. Make sure this is the last PATH variable change.
 export PATH="$PATH:$HOME/.rvm/bin"
