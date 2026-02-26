@@ -1,11 +1,11 @@
 ---
 name: pre-commit-validate
-description: "Pre-commit validation pipeline that auto-fixes issues. Run before committing to catch and fix type errors, formatting, test failures, skipped tests, and secrets."
+description: "Full pre-commit pipeline: review, fix tests, audit, then report. Composes /review and /fix-tests with formatting, secret scanning, and coverage checks."
 ---
 
 # Pre-Commit Validate
 
-Autonomous pre-commit validation pipeline with self-healing. Detects available tooling, runs checks, fixes what it can, and reports what needs human decision.
+Full-stack validation pipeline that composes other skills and runs audits. Use before committing to catch everything.
 
 ## Usage
 
@@ -13,164 +13,113 @@ Autonomous pre-commit validation pipeline with self-healing. Detects available t
 /pre-commit-validate
 ```
 
-## Behavior
+## Pipeline
 
-### 0. Detect Project Tooling
+### Phase 1: Code Review (iterative)
 
-Before running any checks, detect what's available in the current project. Only run checks for tools that exist. Do NOT install anything.
+Run `/review` on uncommitted changes. If it reports P0 or P1 findings:
+1. Fix each finding
+2. Run `/review` again on the updated diff
+3. Repeat until verdict is PASS or max 3 iterations
+
+If findings persist after 3 rounds, report them and continue to Phase 2.
+
+### Phase 2: Formatting
+
+Run the project's formatter on changed files only:
 
 ```bash
-git diff --cached --name-only   # staged files
-git diff --name-only            # unstaged changes
+# Detect changed files
+git diff --name-only HEAD
+
+# Run formatter (detect from project config)
+npx prettier --write <changed-files>
+# or: npx eslint --fix <changed-files>
 ```
 
-Categorize changed files:
-- **TypeScript**: `*.ts`, `*.tsx`
-- **Frontend**: `*.tsx`, `*.jsx`, `*.css`, `*.scss`
-- **Test files**: `*.test.*`, `*.spec.*`, `__tests__/*`
-- **Config/docs**: `*.md`, `*.json`, `*.yml`, `*.env*`
+Stage any formatting fixes automatically.
 
-### 1. TypeScript Compilation (if tsconfig.json exists)
+### Phase 3: Type Checking
 
-Run type checking:
+If `tsconfig.json` exists:
 
 ```bash
 npx tsc --noEmit --pretty 2>&1
 ```
 
-**If errors found in changed files:** Read the error, fix the source code, re-run `tsc`. Repeat until clean or you've made 3 attempts. If still failing after 3 attempts, report the remaining errors to the user.
+If type errors exist in changed files, fix them (max 3 attempts). Ignore errors in files you didn't change.
 
-**Ignore** type errors in files you did NOT change.
+### Phase 4: Tests
 
-### 2. Formatting (if prettier/eslint config exists)
+Run `/fix-tests` to execute the test suite and auto-fix any failures. This handles:
+- Running the full suite
+- Diagnosing each failure
+- Fixing source code (not test assertions)
+- Re-running until green or max iterations reached
 
-Check for a formatter and run it on changed files only:
+### Phase 5: Audits
 
-```bash
-# Detect formatter
-# prettier: .prettierrc, .prettierrc.*, prettier.config.*
-# eslint: .eslintrc.*, eslint.config.*
-# biome: biome.json
+Run these checks in sequence. These are read-only — flag issues but don't auto-fix.
 
-npx prettier --write <changed-files>
-# or
-npx eslint --fix <changed-files>
-```
+**Skipped test audit:**
+Search changed test files and related test files for skip patterns:
+- `.skip`, `.only`, `xit(`, `xdescribe(`, `xtest(`, `@skip`, `pending(`
 
-Stage any formatting fixes automatically.
+Flag any found with file paths and line numbers.
 
-### 3. Test Suite (if test runner detected)
-
-Scope tests to changed files. Detect the runner from `package.json` scripts or config files:
-
-```bash
-# Jest/Vitest: run tests related to changed files
-npx jest --findRelatedTests <changed-source-files> --passWithNoTests
-# or
-npx vitest run --reporter=verbose <changed-test-files>
-
-# Python: pytest for changed modules
-# Go: go test for changed packages
-```
-
-**If tests fail:**
-1. Read the failing test AND the source code it tests
-2. Determine if the failure is in the source code or the test
-3. Fix the source code (prefer fixing source over changing test assertions)
-4. Re-run the failing tests
-5. If still failing after 2 fix attempts, report to the user — do NOT keep guessing
-
-### 4. Skipped Test Audit
-
-Search for skipped tests in changed test files and test files related to changed source:
-
-```bash
-# Look for skip patterns in relevant test files
-grep -n "\.skip\|\.only\|xit(\|xdescribe(\|xtest(\|@skip\|@pytest.mark.skip\|pending(" <test-files>
-```
-
-**If skipped tests found related to changed functionality:**
-- Flag them to the user with file paths and line numbers
-- Ask whether they should be unskipped or if the skip is intentional
-
-### 5. Secrets & Sensitive Data Scan
-
-Check the staged diff for potential secrets:
-
-```bash
-git diff --cached -U0
-```
-
-Flag if any of these patterns appear in added lines:
-- API keys: `sk-`, `pk_`, `api_key`, `apikey`, `API_KEY`
-- Tokens: `token`, `secret`, `password`, `credential`
-- AWS: `AKIA`, `aws_secret`
-- URLs with credentials: `://.*:.*@`
+**Secret scan:**
+Check the diff for potential secrets in added lines:
+- API keys: `sk-`, `pk_`, `api_key`, `AKIA`, `aws_secret`
+- Credentials: `password`, `secret`, `token`, `credential`
+- URLs with embedded creds: `://.*:.*@`
 - `.env` file contents being committed
 
-**If secrets detected:** BLOCK and warn the user. Do NOT auto-fix — the user must decide.
+If secrets detected: **BLOCK.** Do not continue. Warn the user.
 
-### 6. Coverage Check (if coverage tool available)
-
-Only run if a coverage script exists in `package.json`:
-
+**Coverage check** (if coverage script exists in `package.json`):
 ```bash
-# Run coverage scoped to changed files
 npx jest --coverage --findRelatedTests <changed-files> --coverageReporters=text-summary
 ```
+Warn if coverage dropped on changed files. Do not block.
 
-**If coverage dropped** on changed files, warn the user but do NOT block.
+### Phase 6: Summarize Changes
 
-### 7. Frontend Visual Check (if Playwright available AND frontend files changed)
+Run `/summarize-changes` to categorize all uncommitted changes by type (feat, fix, refactor, test, docs, chore) and generate a structured summary. This gives the user a clear picture of what they're about to commit.
 
-Only if `playwright` is in dependencies AND `.tsx`/`.jsx`/`.css` files changed:
-
-- Take screenshots of pages likely affected by the changes
-- Save to `.validation/` directory for user review
-- Note: Do NOT run full E2E suite — just capture current state of affected pages
-
-## Output Format
-
-After all checks complete, present a summary:
+### Phase 7: Report
 
 ```markdown
-## Pre-Commit Validation Results
+## Pre-Commit Validation
+
+### Review
+- /review ran N iteration(s) — verdict: PASS/NEEDS FIXES
+- [List any remaining findings]
 
 ### Auto-Fixed
-- [x] Fixed 2 TypeScript errors in `src/components/Bracket.tsx`
-- [x] Formatted 3 files with Prettier
+- [x] Formatted N files
+- [x] Fixed N type errors
+- [x] Fixed N test failures
 
 ### Warnings
-- [ ] Coverage dropped 3% in `src/utils/scoring.ts` (92% → 89%)
-- [ ] 1 skipped test in `scoring.test.ts:45` — `.skip` on `calculates tiebreaker`
+- [ ] Coverage dropped N% in `file.ts`
+- [ ] Skipped test in `file.test.ts:45`
 
 ### Blocked
-- [ ] Possible API key in `src/config.ts:12` — verify before committing
+- [ ] Possible secret in `file.ts:12`
 
-### Clean
-- [x] No secrets in diff
-- [x] All related tests passing (14/14)
-- [x] TypeScript compilation clean
+### Changes Summary
+[Output from /summarize-changes — categorized list of what changed]
+
+### Status: READY / NOT READY
 ```
 
-### Decision Flow
+**READY** = no blockers, no P0/P1 findings remaining.
+**NOT READY** = has blockers or unresolved critical findings.
 
-```
-Run all checks → Auto-fix what's possible → Re-verify fixes
-                                                │
-                                    ┌───────────┴────────────┐
-                                    ▼                        ▼
-                              ALL CLEAN               ISSUES REMAIN
-                                    │                        │
-                                    ▼                        ▼
-                          "Ready to commit"        Present summary,
-                          Suggest /safe-commit     ask user to decide
-```
+## Rules
 
-### Important Rules
-
-- **Never skip a check silently.** If a tool isn't available, say so explicitly.
-- **Never modify test assertions** to make tests pass — fix the source code.
-- **Never commit if secrets are detected** — always block and ask.
-- **Stage auto-fix changes** so the user can review them in the diff.
-- **Respect the 3-attempt limit** on type errors and 2-attempt limit on test fixes — don't loop forever.
+- **Compose, don't duplicate.** Use `/review` for code review and `/fix-tests` for test fixing. Don't reimplement their logic.
+- **Never modify test assertions** to make tests pass.
+- **Never commit if secrets are detected.**
+- **Stage auto-fix changes** so the user sees them in the diff.
+- **Report everything.** Even if all checks pass, show the summary so the user knows what was validated.

@@ -61,5 +61,5 @@ git diff main...HEAD --stat
 ### 4. Commit Gating
 
 - Do **not** commit by default
-- If the user explicitly asks to "summarize and commit", proceed to `/safe-commit` after summarizing
+- If the user explicitly asks to commit, proceed to `/commit` after summarizing
 - If scope is ambiguous, ask for confirmation before staging
