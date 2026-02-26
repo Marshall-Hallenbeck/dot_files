@@ -34,12 +34,27 @@ git diff --name-only HEAD
 
 # Run formatter (detect from project config)
 npx prettier --write <changed-files>
-# or: npx eslint --fix <changed-files>
 ```
 
 Stage any formatting fixes automatically.
 
-### Phase 3: Type Checking
+### Phase 3: Linting
+
+Run ESLint on changed files in each workspace:
+
+```bash
+# Backend (run from backend/)
+npx eslint <changed-backend-files>
+
+# Frontend (run from frontend/)
+npx eslint <changed-frontend-files>
+```
+
+If lint errors exist in changed files, fix them (max 3 attempts). Auto-fixable errors can use `npx eslint --fix`. Ignore errors in files you didn't change — only lint files in the diff.
+
+Stage any lint fixes automatically.
+
+### Phase 4: Type Checking
 
 If `tsconfig.json` exists:
 
@@ -49,7 +64,7 @@ npx tsc --noEmit --pretty 2>&1
 
 If type errors exist in changed files, fix them (max 3 attempts). Ignore errors in files you didn't change.
 
-### Phase 4: Tests
+### Phase 5: Tests
 
 Run `/fix-tests` to execute the test suite and auto-fix any failures. This handles:
 - Running the full suite
@@ -57,7 +72,7 @@ Run `/fix-tests` to execute the test suite and auto-fix any failures. This handl
 - Fixing source code (not test assertions)
 - Re-running until green or max iterations reached
 
-### Phase 5: Audits
+### Phase 6: Audits
 
 Run these checks in sequence. These are read-only — flag issues but don't auto-fix.
 
@@ -82,11 +97,11 @@ npx jest --coverage --findRelatedTests <changed-files> --coverageReporters=text-
 ```
 Warn if coverage dropped on changed files. Do not block.
 
-### Phase 6: Summarize Changes
+### Phase 7: Summarize Changes
 
 Run `/summarize-changes` to categorize all uncommitted changes by type (feat, fix, refactor, test, docs, chore) and generate a structured summary. This gives the user a clear picture of what they're about to commit.
 
-### Phase 7: Report
+### Phase 8: Report
 
 ```markdown
 ## Pre-Commit Validation
@@ -97,6 +112,7 @@ Run `/summarize-changes` to categorize all uncommitted changes by type (feat, fi
 
 ### Auto-Fixed
 - [x] Formatted N files
+- [x] Fixed N lint errors
 - [x] Fixed N type errors
 - [x] Fixed N test failures
 

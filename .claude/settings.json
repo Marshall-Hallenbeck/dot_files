@@ -1,4 +1,11 @@
 {
+  "env": {
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
+  },
+  "attribution": {
+    "commit": "",
+    "pr": ""
+  },
   "permissions": {
     "allow": [
       "Bash(find:*)",
@@ -56,11 +63,5 @@
     "superpowers@claude-plugins-official": true,
     "system-utils@local": true
   },
-  "env": {
-    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
-  },
-  "attribution": {
-      "commit": "",
-      "pr": ""
-  }
+  "syntaxHighlightingDisabled": false
 }
