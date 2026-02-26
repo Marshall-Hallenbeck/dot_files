@@ -8,9 +8,7 @@ echo "Creating folder structure"
 mkdir -p ~/pentest/{reviews,projects,lists/{user_pass,users,passwords},tools/{ad_and_windows/{coercion,av_edr},c2,cloud,cred_dumping,exploits/cves,forensics,fuzzing,privesc/{windows,linux},recon/{osint,scanning},reporting,reversing/{windows,linux,multi},win_binaries/{custom,3rd_party},web/burp}}
 
 ### DEVELOPMENT
-echo "Downloading and installing dev stuff"
 echo "Installing necessary dependencies"
-
 
 PACKAGES=(libssl-dev libffi-dev build-essential python3 python3-venv htop pipx git libpcap-dev nmap socat netcat-traditional odat krb5-user cidrgrep)
 AVAILABLE_PACKAGES=()
@@ -83,11 +81,14 @@ register-python-argcomplete nxc >> ~/.zshrc
 echo "Installing smbclientng"
 pipx install smbclientng
 
+echo "Installing full smbcrawler"
+pipx install 'smbcrawler[binary-conversion]'
+
 echo "Installing Sliver via install script"
 curl https://sliver.sh/install|sudo bash
 
 echo "Installing BurpSuitePro"
-wget "https://portswigger.net/burp/releases/download?product=pro&version=2025.6.3&type=Linux" -O burp_suite_pro.sh
+wget "https://portswigger.net/burp/releases/download?product=pro&type=Linux" -O burp_suite_pro.sh # if you dont include version parameter it downloads the newest release
 chmod +x burp_suite_pro.sh
 ./burp_suite_pro.sh
 
@@ -95,19 +96,18 @@ echo "Installing Project Discovery tools"
 go get github.com/projectdiscovery/pdtm/cmd/pdtm@latest
 pdtm -install-all
 
-echo "Installing ffuf"
-go get github.com/ffuf/ffuf/v2@latest
+#echo "Installing ffuf"
+#go get github.com/ffuf/ffuf/v2@latest
 
-# echo "Installing ScareCrow"
-echo "First installing dependencies"
-go get github.com/fatih/color
-go get github.com/yeka/zip
-go get github.com/josephspurrier/goversioninfo
-go get github.com/Binject/debug/pe
-go get github.com/awgh/rawreader
+#echo "First installing dependencies"
+#go get github.com/fatih/color
+#go get github.com/yeka/zip
+#go get github.com/josephspurrier/goversioninfo
+#go get github.com/Binject/debug/pe
+#go get github.com/awgh/rawreader
 
-git clone https://github.com/optiv/ScareCrow.git ~/pentest/tools/av_edr/ScareCrow/
-cd ~/pentest/tools/av_edr/ScareCrow/ || exit
-go build ScareCrow.go
-echo "Installing ScareCrow to /usr/local/bin/"
-sudo cp ScareCrow /usr/local/bin/
+#git clone https://github.com/optiv/ScareCrow.git ~/pentest/tools/av_edr/ScareCrow/
+#cd ~/pentest/tools/av_edr/ScareCrow/ || exit
+#go build ScareCrow.go
+#echo "Installing ScareCrow to /usr/local/bin/"
+#sudo cp ScareCrow /usr/local/bin/
