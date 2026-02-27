@@ -5,7 +5,9 @@
       "Bash(/usr/bin/tmux display-message:*)",
       "Bash(jq:*)",
       "Bash(ls:*)",
-      "Bash(nvm install:*)"
+      "Bash(nvm install:*)",
+      "Bash(docker exec:*)",
+      "Bash(docker:*)"
     ]
   }
 }

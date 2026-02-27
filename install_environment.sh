@@ -79,7 +79,7 @@ install_if_missing "$REPO_BASE/.gitconfig" ~/.gitconfig ".gitconfig"
 # ── Set zsh as default shell ─────────────────────────────────────
 if [ "$(basename "$SHELL")" != "zsh" ]; then
     echo "Setting zsh as default shell..."
-    chsh -s "$(which zsh)"
+    sudo chsh -s "$(which zsh)" "$(whoami)"
 fi
 
 # ── tmux ─────────────────────────────────────────────────────────
