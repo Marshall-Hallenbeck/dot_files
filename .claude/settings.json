@@ -19,7 +19,6 @@
       "Bash(tee:*)",
       "Bash(wc:*)",
       "mcp__context7__*",
-      "mcp__git__*",
       "mcp__ide__*",
       "mcp__mcp-server-docker__*",
       "mcp__memory__*",
