@@ -38,6 +38,11 @@ check_file ".zshrc" ~/.zshrc
 check_file ".gitconfig" ~/.gitconfig
 check_file ".tmux.conf" ~/.tmux.conf
 
+echo "── Dotfile content (not clobbered by tool installers) ──"
+check ".zshrc has our custom prompt" grep -q 'git_prompt_info' ~/.zshrc
+check ".zshrc has our plugins" grep -q 'colored-man-pages' ~/.zshrc
+check ".zshrc NOT oh-my-zsh template" bash -c '! grep -q "ZSH_THEME=\"robbyrussell\"" ~/.zshrc'
+
 echo "── tmux ──"
 check_dir "tpm installed" ~/.tmux/plugins/tpm
 check_file "copy-to-clipboard.sh" ~/.tmux/copy-to-clipboard.sh

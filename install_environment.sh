@@ -67,33 +67,21 @@ for pkg in zsh tmux vim python3-pip git virtualenvwrapper curl wget jq bc xclip 
     dpkg -s "$pkg" &>/dev/null || sudo apt install -y "$pkg"
 done
 
-# ── Shell dotfiles (overwrite with backup) ───────────────────────
-echo "Installing shell dotfiles..."
-install_file "$REPO_BASE/.bash_aliases" ~/.bash_aliases
-install_file "$REPO_BASE/.vimrc" ~/.vimrc
-install_file "$REPO_BASE/.zshrc" ~/.zshrc
-
-# .gitconfig: preserve host-specific user/email
-install_if_missing "$REPO_BASE/.gitconfig" ~/.gitconfig ".gitconfig"
-
 # ── Set zsh as default shell ─────────────────────────────────────
 if [ "$(basename "$SHELL")" != "zsh" ]; then
     echo "Setting zsh as default shell..."
     sudo chsh -s "$(which zsh)" "$(whoami)"
 fi
 
-# ── tmux ─────────────────────────────────────────────────────────
-echo "Installing tmux configuration..."
-install_file "$REPO_BASE/.tmux.conf" ~/.tmux.conf
-mkdir -p ~/.tmux
-install_file "$REPO_BASE/.tmux/copy-to-clipboard.sh" ~/.tmux/copy-to-clipboard.sh
-chmod +x ~/.tmux/copy-to-clipboard.sh
+# ── Tool installers (run BEFORE dotfiles — these modify .zshrc) ──
+# oh-my-zsh replaces .zshrc with its template, nvm and atuin append
+# to it. We install tools first, then overwrite with our dotfiles.
 
-if [ ! -d ~/.tmux/plugins/tpm ]; then
-    git clone https://github.com/tmux-plugins/tpm ~/.tmux/plugins/tpm
+if [ ! -d ~/.oh-my-zsh ]; then
+    echo "Installing oh-my-zsh..."
+    sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
 fi
 
-# ── nvm + Node.js ────────────────────────────────────────────────
 export NVM_DIR="$HOME/.nvm"
 if [ ! -d "$NVM_DIR" ]; then
     echo "Installing nvm..."
@@ -108,20 +96,34 @@ if ! nvm ls "$NODE_VERSION" &>/dev/null; then
 fi
 nvm alias default "$NODE_VERSION"
 
+if [ ! -f "$HOME/.atuin/bin/env" ]; then
+    echo "Installing atuin..."
+    curl --proto '=https' --tlsv1.2 -LsSf https://setup.atuin.sh | sh
+fi
+
+# ── Shell dotfiles (overwrite with backup) ───────────────────────
+# Installed AFTER tools so our versions are the final word.
+echo "Installing shell dotfiles..."
+install_file "$REPO_BASE/.bash_aliases" ~/.bash_aliases
+install_file "$REPO_BASE/.vimrc" ~/.vimrc
+install_file "$REPO_BASE/.zshrc" ~/.zshrc
+
 # Patch .zshrc with the actual installed node version (avoids loading nvm on every shell)
 NODE_FULL_VERSION=$(nvm version "$NODE_VERSION")
 sed -i "s|/node/v[0-9.]*/bin|/node/${NODE_FULL_VERSION}/bin|" ~/.zshrc
 
-# ── oh-my-zsh ────────────────────────────────────────────────────
-if [ ! -d ~/.oh-my-zsh ]; then
-    echo "Installing oh-my-zsh..."
-    sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
-fi
+# .gitconfig: preserve host-specific user/email
+install_if_missing "$REPO_BASE/.gitconfig" ~/.gitconfig ".gitconfig"
 
-# ── atuin ────────────────────────────────────────────────────────
-if [ ! -f "$HOME/.atuin/bin/env" ]; then
-    echo "Installing atuin..."
-    curl --proto '=https' --tlsv1.2 -LsSf https://setup.atuin.sh | sh
+# ── tmux ─────────────────────────────────────────────────────────
+echo "Installing tmux configuration..."
+install_file "$REPO_BASE/.tmux.conf" ~/.tmux.conf
+mkdir -p ~/.tmux
+install_file "$REPO_BASE/.tmux/copy-to-clipboard.sh" ~/.tmux/copy-to-clipboard.sh
+chmod +x ~/.tmux/copy-to-clipboard.sh
+
+if [ ! -d ~/.tmux/plugins/tpm ]; then
+    git clone https://github.com/tmux-plugins/tpm ~/.tmux/plugins/tpm
 fi
 
 # ── Claude Code global configuration ─────────────────────────────
