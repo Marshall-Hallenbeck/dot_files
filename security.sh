@@ -58,10 +58,6 @@ pipx ensurepath
 echo "Installing uv"
 pipx install uv
 
-echo "Sourcing .zshrc to apply Go paths for this session"
-# shellcheck disable=SC1090
-source ~/.zshrc
-
 echo "Installing Poetry"
 curl -sSL https://install.python-poetry.org | python -
 
@@ -72,7 +68,7 @@ pipx install git+https://github.com/fortra/impacket.git
 
 ### TOOLS
 echo "Installing cidrize"
-pip install cidrize
+pipx install cidrize
 
 echo "Installing NetExec via GitHub"
 pipx install git+https://github.com/Pennyw0rth/NetExec
