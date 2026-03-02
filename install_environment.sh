@@ -101,12 +101,6 @@ if [ ! -f "$HOME/.atuin/bin/env" ]; then
     curl --proto '=https' --tlsv1.2 -LsSf https://setup.atuin.sh | sh
 fi
 
-# ── pyenv ────────────────────────────────────────────────────────
-if [ ! -d "$HOME/.pyenv" ]; then
-    echo "Installing pyenv..."
-    curl https://pyenv.run | bash
-fi
-
 # ── Claude Code ──────────────────────────────────────────────────
 if ! command -v claude &>/dev/null; then
     echo "Installing Claude Code..."
