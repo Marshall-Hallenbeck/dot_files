@@ -34,32 +34,6 @@ install_file() {
     mv "$tmp" "$dest"
 }
 
-# Install a file only if it doesn't exist yet.
-# If it exists but differs from the repo version, show the diff.
-install_if_missing() {
-    local url="$1" dest="$2" label="$3"
-    if [ -f "$dest" ]; then
-        local tmp
-        tmp=$(mktemp)
-        if ! wget -q "$url" -O "$tmp" || [ ! -s "$tmp" ]; then
-            echo "  WARNING: failed to download $url for diff comparison" >&2
-            rm -f "$tmp"
-            return 0
-        fi
-        if ! diff -q "$tmp" "$dest" &>/dev/null; then
-            echo "  $label exists and differs from repo:"
-            local diff_output
-            diff_output=$(diff --color=auto -u "$dest" "$tmp") && :
-            echo "$diff_output" | head -30
-            echo "  (skipping overwrite — review diff above and update manually if needed)"
-        fi
-        rm "$tmp"
-    else
-        wget -q "$url" -O "$dest"
-        echo "  installed: $dest"
-    fi
-}
-
 # ── System packages ──────────────────────────────────────────────
 echo "Installing system packages..."
 sudo apt update
@@ -113,13 +87,11 @@ echo "Installing shell dotfiles..."
 install_file "$REPO_BASE/.bash_aliases" ~/.bash_aliases
 install_file "$REPO_BASE/.vimrc" ~/.vimrc
 install_file "$REPO_BASE/.zshrc" ~/.zshrc
+install_file "$REPO_BASE/.gitconfig" ~/.gitconfig
 
 # Patch .zshrc with the actual installed node version (avoids loading nvm on every shell)
 NODE_FULL_VERSION=$(nvm version "$NODE_VERSION")
 sed -i "s|/node/v[0-9.]*/bin|/node/${NODE_FULL_VERSION}/bin|" ~/.zshrc
-
-# .gitconfig: preserve host-specific user/email
-install_if_missing "$REPO_BASE/.gitconfig" ~/.gitconfig ".gitconfig"
 
 # ── tmux ─────────────────────────────────────────────────────────
 echo "Installing tmux configuration..."
@@ -174,9 +146,9 @@ done
 install_file "$CLAUDE_BASE/statusline.sh" ~/.claude/statusline.sh
 chmod +x ~/.claude/statusline.sh
 
-# Settings files: preserve host-specific accumulated permissions
-install_if_missing "$CLAUDE_BASE/settings.json" ~/.claude/settings.json "settings.json"
-install_if_missing "$CLAUDE_BASE/settings.local.json" ~/.claude/settings.local.json "settings.local.json"
+# Settings files (overwrite with backup)
+install_file "$CLAUDE_BASE/settings.json" ~/.claude/settings.json
+install_file "$CLAUDE_BASE/settings.local.json" ~/.claude/settings.local.json
 
 # ── Community skills (installed via npx, not vendored) ───────────
 echo "Installing community skills..."
