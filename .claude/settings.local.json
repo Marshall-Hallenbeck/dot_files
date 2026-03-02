@@ -10,6 +10,13 @@
       "Bash(docker:*)",
       "Bash(make test-ubuntu:*)",
       "Bash(shellcheck:*)",
+      "Bash(grep:*)",
+      "Bash(curl:*)",
+      "Bash(dpkg:*)",
+      "Bash(apt-cache show:*)",
+      "Bash(apt list:*)",
+      "Bash(pipx install:*)",
+      "Bash(echo EXIT CODE: $?:*)",
       "mcp__sequential-thinking__sequentialthinking"
     ]
   }
