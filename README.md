@@ -1,7 +1,7 @@
 # Install Environment
 
-`curl https://raw.githubusercontent.com/Marshall-Hallenbeck/dot_files/main/install_environment.sh | sh`
+`curl https://raw.githubusercontent.com/Marshall-Hallenbeck/dot_files/main/install_environment.sh | bash`
 
 # Install Security Testing Tools, etc
 
-`curl https://raw.githubusercontent.com/Marshall-Hallenbeck/dot_files/main/security.sh | sh`
+`curl https://raw.githubusercontent.com/Marshall-Hallenbeck/dot_files/main/security.sh | bash`
