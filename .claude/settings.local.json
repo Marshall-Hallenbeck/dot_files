@@ -7,7 +7,9 @@
       "Bash(ls:*)",
       "Bash(nvm install:*)",
       "Bash(docker exec:*)",
-      "Bash(docker:*)"
+      "Bash(docker:*)",
+      "Bash(make test-ubuntu:*)",
+      "Bash(shellcheck:*)"
     ]
   }
 }
