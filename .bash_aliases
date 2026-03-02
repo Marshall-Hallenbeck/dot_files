@@ -53,7 +53,7 @@ alias test_x11='~/projects/dot_files/test-x11-displays.sh'
 alias elevator='docker compose down -v && docker compose up'
 alias build-elevator='docker compose down -v && docker compose up --build'
 alias clean_docker_images='for line in $(sudo docker images -aq); do sudo docker rmi -f $line; done'
-alias get_displays='xauth list 2>/dev/null | awk '{print $1}' | grep -oE ':[0-9]+' | sort -u'
+alias get_displays="xauth list 2>/dev/null | awk '{print $1}' | grep -oE ':[0-9]+' | sort -u"
 alias set_display_10='export DISPLAY=localhost:10'
 alias set_display_11='export DISPLAY=localhost:11'
 
