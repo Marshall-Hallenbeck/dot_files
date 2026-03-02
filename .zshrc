@@ -5,7 +5,8 @@ export ZSH=$HOME/.oh-my-zsh/
 # fix PATH for the box I'm on, I'm just leaving these defaults since I normally try to keep the same folder structure
 # Node via nvm (hardcoded for speed - nvm.sh adds ~1.2s per shell open)
 # The install script patches this line with the actual installed version
-export PATH=$HOME/.nvm/versions/node/v24.0.0/bin:$HOME/node/bin/:$HOME/bin:/usr/local/bin:$PATH:$HOME/.local/bin:$HOME/.dotnet/
+export PYENV_ROOT="$HOME/.pyenv"
+export PATH=$HOME/.pyenv/bin:$HOME/.nvm/versions/node/v24.0.0/bin:$HOME/node/bin/:$HOME/bin:/usr/local/bin:$PATH:$HOME/.local/bin:$HOME/.dotnet/
 
 # Path to your oh-my-zsh installation.
 # Path depends on my username on the box. I can probably make this dynamic but whatever
