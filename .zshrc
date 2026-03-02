@@ -34,7 +34,7 @@ source $ZSH/oh-my-zsh.sh
 # With the terminal entry after the arrow
 
 PROMPT='(%{$fg[green]%}%n@%M%{$fg[white]%})%{$fg[yellow]%}:%~ %{$fg[red]%}$(git_prompt_info)%{$reset_color%}
-$(virtualenv_prompt_info)➜ '
+$(virtualenv_prompt_info)➜  '
 
 #$(virtualenv_prompt_info)-➤ '
 
