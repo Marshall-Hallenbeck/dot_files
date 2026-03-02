@@ -101,6 +101,12 @@ if [ ! -f "$HOME/.atuin/bin/env" ]; then
     curl --proto '=https' --tlsv1.2 -LsSf https://setup.atuin.sh | sh
 fi
 
+# ── Claude Code ──────────────────────────────────────────────────
+if ! command -v claude &>/dev/null; then
+    echo "Installing Claude Code..."
+    npm install -g @anthropic-ai/claude-code
+fi
+
 # ── Shell dotfiles (overwrite with backup) ───────────────────────
 # Installed AFTER tools so our versions are the final word.
 echo "Installing shell dotfiles..."
