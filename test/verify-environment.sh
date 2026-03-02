@@ -58,6 +58,9 @@ check_dir "oh-my-zsh installed" ~/.oh-my-zsh
 echo "── atuin ──"
 check_file "atuin installed" ~/.atuin/bin/env
 
+echo "── pyenv ──"
+check_dir "pyenv installed" ~/.pyenv
+
 echo "── Claude Code ──"
 check "claude CLI installed" bash -c 'export NVM_DIR="$HOME/.nvm" && [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh" && command -v claude'
 
