@@ -23,14 +23,10 @@ for pkg in "${PACKAGES[@]}"; do
     fi
 done
 
-# Install available packages
-if [ ${#AVAILABLE_PACKAGES[@]} -gt 0 ]; then
-    echo "Installing available packages..."
-    if ! sudo apt install -y "${AVAILABLE_PACKAGES[@]}"; then
-        echo "Failed to install dependencies, exiting." >&2
-        exit 1
-    fi
-fi
+# Install available packages (skip already-installed)
+for pkg in "${AVAILABLE_PACKAGES[@]}"; do
+    dpkg -s "$pkg" &> /dev/null || sudo apt install -y "$pkg"
+done
 
 # Report unavailable packages
 if [ ${#UNAVAILABLE_PACKAGES[@]} -gt 0 ]; then
@@ -39,17 +35,19 @@ if [ ${#UNAVAILABLE_PACKAGES[@]} -gt 0 ]; then
 fi
 
 # Conditionally install Go based on the OS version
-echo "Installing Go..."
-if lsb_release -d 2>/dev/null | grep -q "Ubuntu 20.04"; then
-    echo "Detected Ubuntu 20.04. Installing Go via Snap..."
-    if ! sudo snap install go --classic; then
-        echo "Failed to install Go via Snap. Exiting." >&2
-        exit 1
-    fi
-else
-    echo "Installing Go via apt..."
-    if ! sudo apt install -y golang; then
-        echo "Failed to install Go via apt. Please check if 'golang' is available in your repositories."
+if ! command -v go &>/dev/null; then
+    echo "Installing Go..."
+    if lsb_release -d 2>/dev/null | grep -q "Ubuntu 20.04"; then
+        echo "Detected Ubuntu 20.04. Installing Go via Snap..."
+        if ! sudo snap install go --classic; then
+            echo "Failed to install Go via Snap. Exiting." >&2
+            exit 1
+        fi
+    else
+        echo "Installing Go via apt..."
+        if ! sudo apt install -y golang; then
+            echo "Failed to install Go via apt. Please check if 'golang' is available in your repositories."
+        fi
     fi
 fi
 
@@ -58,8 +56,10 @@ pipx ensurepath
 echo "Installing uv"
 pipx install uv
 
-echo "Installing Poetry"
-curl -sSL https://install.python-poetry.org | python -
+if ! command -v poetry &> /dev/null; then
+    echo "Installing Poetry"
+    curl -sSL https://install.python-poetry.org | python3 -
+fi
 
 echo "Installing Impacket from Git"
 pipx install git+https://github.com/fortra/impacket.git
@@ -72,7 +72,6 @@ pipx install cidrize
 
 echo "Installing NetExec via GitHub"
 pipx install git+https://github.com/Pennyw0rth/NetExec
-register-python-argcomplete nxc >> ~/.zshrc
 
 echo "Installing smbclientng"
 pipx install smbclientng
@@ -80,16 +79,23 @@ pipx install smbclientng
 echo "Installing full smbcrawler"
 pipx install 'smbcrawler[binary-conversion]'
 
-echo "Installing Sliver via install script"
-curl https://sliver.sh/install|sudo bash
+if ! command -v sliver &> /dev/null; then
+    echo "Installing Sliver via install script"
+    curl https://sliver.sh/install | sudo bash
+fi
 
-echo "Installing BurpSuitePro"
-wget "https://portswigger.net/burp/releases/download?product=pro&type=Linux" -O burp_suite_pro.sh # if you dont include version parameter it downloads the newest release
-chmod +x burp_suite_pro.sh
-./burp_suite_pro.sh
+if [ ! -d "$HOME/BurpSuitePro" ]; then
+    echo "Installing BurpSuitePro"
+    wget "https://portswigger.net/burp/releases/download?product=pro&type=Linux" -O burp_suite_pro.sh
+    chmod +x burp_suite_pro.sh
+    ./burp_suite_pro.sh
+    rm -f burp_suite_pro.sh
+fi
 
-echo "Installing Project Discovery tools"
-go get github.com/projectdiscovery/pdtm/cmd/pdtm@latest
+if ! command -v pdtm &> /dev/null; then
+    echo "Installing Project Discovery tools"
+    go install github.com/projectdiscovery/pdtm/cmd/pdtm@latest
+fi
 pdtm -install-all
 
 #echo "Installing ffuf"
