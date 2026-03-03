@@ -1,7 +1,9 @@
 #!/bin/bash
-# Only copy to system clipboard if selection is more than 1 character.
-# Prevents accidental clipboard overwrites from single clicks on panes.
+
 content=$(cat)
-if [ ${#content} -gt 1 ]; then
-    printf '%s' "$content" | xclip -in -selection clipboard
+# skip if under 2 chars or if its only whitespace
+if [ ${#content} -gt 2 ] && [[ "$content" =~ [^[:space:]] ]]; then
+    encoded=$(printf '%s' "$content" | base64 | tr -d '\n')
+    tty=$(tmux display-message -p '#{client_tty}')
+    printf '\033]52;c;%s\a' "$encoded" > "$tty"
 fi
