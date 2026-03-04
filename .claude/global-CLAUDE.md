@@ -19,7 +19,13 @@ When investigating issues, verify the actual infrastructure routing (e.g., nginx
 
 ## Planning & Approach
 
-Before executing a plan, verify every assumption against the actual code. For each step: 1) Read the relevant files, 2) Confirm the current state matches what the plan assumes, 3) Flag any discrepancies. Do NOT proceed until the user approves the verified plan.
+Before creating any plan, complete a codebase grounding phase. Do not skip this.
+
+1. **Discovery** — Use Grep and Glob to find all files relevant to the area. List every file found.
+2. **Fact extraction** — For each relevant file, read it and extract: exported functions/types with exact signatures, key business logic (status transitions, validation rules, enum values), existing abstractions and helpers, and current test coverage.
+3. **Fact document** — Create a structured summary with sections: Existing Types & Interfaces, Current Behavior (with `file:line` citations), Existing Abstractions Available for Reuse, Current Test Coverage & Gaps. Present this to the user first.
+4. **Plan with citations** — After user confirms the fact document, create the implementation plan. Every assertion must include a `[file:line]` citation. Flag any assumption that cannot be verified with `UNVERIFIED`.
+5. **Diff preview** — For each planned change, show the specific before/after for affected lines so the user can validate behavioral correctness.
 
 Stay focused on the stated goal. If you think work should extend beyond the original request, or if the goal is ambiguous, ask before acting — do not pursue tangential fixes, refactors, or improvements unprompted.
 
