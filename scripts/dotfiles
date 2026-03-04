@@ -1,0 +1,111 @@
+#!/bin/bash
+set -euo pipefail
+
+DOTFILES_DIR="$HOME/.dot_files"
+
+usage() {
+    echo "Usage: dotfiles <command>"
+    echo ""
+    echo "Commands:"
+    echo "  promote <path>  Move a local file into the repo and symlink it back"
+    echo "  status          Show symlink status of managed files"
+    echo "  pull            Pull latest changes from remote"
+    echo ""
+    echo "Examples:"
+    echo "  dotfiles promote ~/.claude/rules/my-rule.md"
+    echo "  dotfiles status"
+    echo "  dotfiles pull"
+}
+
+cmd_promote() {
+    local src="$1"
+
+    if [ ! -f "$src" ]; then
+        echo "ERROR: $src does not exist or is not a file" >&2
+        exit 1
+    fi
+
+    if [ -L "$src" ]; then
+        echo "ERROR: $src is already a symlink" >&2
+        exit 1
+    fi
+
+    # Determine the relative path from $HOME
+    local rel_path="${src#$HOME/}"
+    if [ "$rel_path" = "$src" ]; then
+        echo "ERROR: $src is not under \$HOME" >&2
+        exit 1
+    fi
+
+    local dest="$DOTFILES_DIR/$rel_path"
+    local dest_dir
+    dest_dir=$(dirname "$dest")
+
+    mkdir -p "$dest_dir"
+    mv "$src" "$dest"
+    ln -s "$dest" "$src"
+
+    echo "Promoted: $src -> $dest (symlinked back)"
+    echo ""
+    echo "To commit:"
+    echo "  cd $DOTFILES_DIR && git add '$rel_path' && git commit -m 'feat: add $rel_path'"
+}
+
+cmd_status() {
+    local ok=0 broken=0 missing=0
+
+    # Read managed file list from the repo
+    while IFS= read -r rel_path; do
+        local target="$HOME/$rel_path"
+        if [ -L "$target" ]; then
+            local link_dest
+            link_dest=$(readlink -f "$target")
+            local expected="$DOTFILES_DIR/$rel_path"
+            if [ "$link_dest" = "$(readlink -f "$expected")" ]; then
+                ok=$((ok + 1))
+            else
+                echo "  WRONG:   $target -> $link_dest (expected $expected)"
+                broken=$((broken + 1))
+            fi
+        elif [ -f "$target" ]; then
+            echo "  NOT LINK: $target (regular file, not symlinked)"
+            broken=$((broken + 1))
+        else
+            echo "  MISSING:  $target"
+            missing=$((missing + 1))
+        fi
+    done < <(cd "$DOTFILES_DIR" && git ls-files | grep -E '^\.' | grep -v '^\.(git|claude/(skills|plugins|memory|projects|worktrees))')
+
+    echo ""
+    echo "Status: $ok linked, $broken issues, $missing missing"
+}
+
+cmd_pull() {
+    git -C "$DOTFILES_DIR" pull
+}
+
+if [ $# -lt 1 ]; then
+    usage
+    exit 1
+fi
+
+case "$1" in
+    promote)
+        if [ $# -lt 2 ]; then
+            echo "ERROR: promote requires a file path" >&2
+            exit 1
+        fi
+        cmd_promote "$2"
+        ;;
+    status)
+        cmd_status
+        ;;
+    pull)
+        cmd_pull
+        ;;
+    *)
+        echo "ERROR: Unknown command '$1'" >&2
+        usage
+        exit 1
+        ;;
+esac
