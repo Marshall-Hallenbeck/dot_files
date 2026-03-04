@@ -21,6 +21,8 @@ When investigating issues, verify the actual infrastructure routing (e.g., nginx
 
 Before executing a plan, verify every assumption against the actual code. For each step: 1) Read the relevant files, 2) Confirm the current state matches what the plan assumes, 3) Flag any discrepancies. Do NOT proceed until the user approves the verified plan.
 
+Stay focused on the stated goal. If you think work should extend beyond the original request, or if the goal is ambiguous, ask before acting — do not pursue tangential fixes, refactors, or improvements unprompted.
+
 ## Error Handling
 
 Hard-fail error handling only. No silent fallbacks, no swallowed errors, no try/catch that returns default values. Errors must propagate or be explicitly logged and re-thrown.
