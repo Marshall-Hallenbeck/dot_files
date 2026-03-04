@@ -15,7 +15,7 @@ You MUST:
 
 You MUST NOT:
 - Blame "backend load", "server capacity", or "infrastructure flakiness" — local environments handle thousands of requests per second
-- Claim failures are "pre-existing" — always assume any test failure was caused by your changes and needs to be fixed
+- Dismiss failures as someone else's problem — always assume any test failure was caused by your changes and needs to be fixed
 - Add retries as a band-aid instead of fixing the root cause
 - Use `test.skip()` to hide failures
 - Claim a test is "flaky" without investigating WHY it fails under concurrent execution

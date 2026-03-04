@@ -82,7 +82,7 @@ For each changed file, read the FULL file (not just diff hunks) and flag any of 
 
 For each pattern found, determine:
 
-1. **Is it in changed code?** Only flag patterns in or directly adjacent to changed lines. Pre-existing patterns in untouched code are out of scope (use `/review` for full-file audits).
+1. **Is it in changed code?** Only flag patterns in or directly adjacent to changed lines. Patterns in untouched code are out of scope (use `/review` for full-file audits).
 
 2. **Is it authorized?** Check for comments like `// User requested fallback`, or if the pattern is at a system boundary (user input validation, external API response handling) where graceful handling IS appropriate.
 

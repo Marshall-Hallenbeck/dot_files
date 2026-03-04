@@ -39,7 +39,7 @@ Runs the full verification pipeline for high-confidence changes.
 ## Enforcement
 
 - Any failing stage means overall failure.
-- Do not label failures as "pre-existing" without explicit before/after evidence.
+- Do not dismiss failures — if a test fails, fix it regardless of when it was introduced.
 - Do not skip failing suites to force a pass.
 
 ## Output Format

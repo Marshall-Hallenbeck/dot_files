@@ -41,6 +41,7 @@ shellcheck install_environment.sh security.sh
 
 ## Gotchas
 
+- Docker tests need `.dockerignore` (excludes `.git`) and `COPY --chown=testuser:testuser` in the Dockerfile — `git init` inside the container fails without correct ownership.
 - Plugins are declared in `settings.json` (`enabledPlugins`) but NOT yet installed by the script — `claude plugin install` commands are still needed.
 - `settings.local.json` contains machine-specific permissions — don't put global settings there.
 - Shell scripts use `set -euo pipefail` — any unhandled error exits immediately.

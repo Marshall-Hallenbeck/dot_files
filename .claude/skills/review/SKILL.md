@@ -41,7 +41,7 @@ For each changed file, read the full file for context (not just the diff hunks).
 1. It meaningfully impacts accuracy, performance, security, or maintainability
 2. It is discrete and actionable (not a general codebase complaint)
 3. Fixing it doesn't demand rigor absent from the rest of the codebase
-4. It is visible in the changed files (whether newly introduced or pre-existing — if you see it, own it)
+4. It is visible in the changed files (if you see it, own it — regardless of when it was introduced)
 5. The author would likely fix it if aware
 6. It doesn't rely on unstated assumptions about the codebase or intent
 7. If claiming it disrupts other code, you must identify the affected code specifically

@@ -149,7 +149,7 @@ If any tests remain failing, do NOT commit. Present the report and let the user 
 
 - **Do NOT ask questions.** Make reasonable decisions and document your reasoning.
 - **Fix source code by default**, not test assertions. Only change tests with explicit justification.
-- **Never blame failures as "pre-existing"** — assume your changes (or the current code state) caused it.
+- **Never dismiss failures** — assume your changes (or the current code state) caused it. Fix every failure you see.
 - **Never call a test "flaky"** without investigating the root cause.
 - **Revert and retry** if a fix causes regressions — don't pile fixes on top of broken fixes.
 - **Max 2 full iterations** of the suite to prevent infinite loops.

@@ -17,6 +17,8 @@ When resolving merge conflicts, ALWAYS preserve upstream/remote changes unless e
 
 When investigating issues, verify the actual infrastructure routing (e.g., nginx, reverse proxies) BEFORE assuming the problem is in application code. Check how URLs are routed at the infrastructure level first.
 
+When testing or debugging, focus on the actual reported symptom. Do not try random exploratory fixes — diagnose the root cause first, then apply a single targeted fix.
+
 ## Planning & Approach
 
 Before creating any plan, complete a codebase grounding phase. Do not skip this.
@@ -28,6 +30,10 @@ Before creating any plan, complete a codebase grounding phase. Do not skip this.
 5. **Diff preview** — For each planned change, show the specific before/after for affected lines so the user can validate behavioral correctness.
 
 Stay focused on the stated goal. If you think work should extend beyond the original request, or if the goal is ambiguous, ask before acting — do not pursue tangential fixes, refactors, or improvements unprompted.
+
+## Code Style
+
+- Use `.yml` extension (not `.yaml`) for YAML files unless the project already uses `.yaml`.
 
 ## Error Handling
 
@@ -44,6 +50,14 @@ When creating skills or plugins, check whether the context is global (`~/.claude
 ## Simplicity
 
 Always prefer simple, minimal solutions first. Avoid over-engineering with unnecessary features like color output, complex abstractions, or multi-layered architectures unless explicitly requested. If you believe a more complex approach is genuinely needed, explain why BEFORE implementing it and let me decide.
+
+## Safety / Dangerous Operations
+
+Never modify shell config files (`.zshrc`, `.bashrc`, `.zshenv`) with `sed`. Use targeted `echo`/append or manual instructions instead. Always back up before any changes.
+
+## Docker / Deployment
+
+After modifying any code in Docker-deployed services, consider if a rebuild or restart is needed before testing. Check if the code is mounted in the container, if hot-reload is enabled, or if the change is system/Docker configuration requiring a rebuild. Don't rebuild out of caution or habit — ensure a rebuild is necessary.
 
 ## Dotfiles Management
 

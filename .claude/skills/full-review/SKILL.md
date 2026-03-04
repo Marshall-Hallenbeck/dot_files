@@ -35,10 +35,7 @@ Use before merge/PR when you want one workflow that checks code quality, securit
 ## Enforcement
 
 - Any stage failure = overall failure.
-- No "pre-existing issue" deferral without explicit evidence:
-  1. reproduced before this change,
-  2. unchanged after this change,
-  3. user explicitly approved deferral.
+- No deferring issues found in the diff. If you see it, you own it — fix it now.
 - No silent fallback masking, fail-open auth behavior, or skipped tests.
 
 ## Output Requirements
