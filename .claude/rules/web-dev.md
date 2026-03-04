@@ -59,3 +59,13 @@ const searchParams = await props.searchParams;
 - Prefer CSS Modules (`.module.css`) for component-scoped styles
 - Use CSS custom properties (variables) for theming
 - Avoid inline styles except for truly dynamic values
+
+## API Error Handling Classification
+
+- **400 (ValidationError)** = Frontend bug → Fix the request/schema mismatch
+- **404 (Not Found)** = Expected scenario → Show user-friendly message
+- **403 (Forbidden)** = Expected → Show "no permission" message
+- **401 (Unauthorized)** = Expected → Redirect to login
+- **500 (Internal Error)** = Backend bug → Fix the server code
+
+Never "handle gracefully" what should be "fixed immediately" (400s and 500s are bugs).

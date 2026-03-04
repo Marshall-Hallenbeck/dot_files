@@ -1,100 +1,44 @@
-# Global Claude Code Instructions
+# dot_files — Development Environment Bootstrap
 
-These principles apply to ALL projects. Project-specific CLAUDE.md files override or extend these.
+Personal dotfiles and Claude Code config repo. Bootstraps a complete dev environment on any Debian-based system.
 
-## Verification Policy (Anti-Sycophancy)
+## Commands
 
-**CRITICAL: All code changes MUST be verified before claiming completion.**
+```bash
+# Run tests (requires Docker)
+make test-ubuntu          # Test on Ubuntu 24.04
+make test-debian          # Test on Debian Bookworm
+make test-kali            # Test on Kali Linux
+make test-all             # All three distros
+make test-security-kali   # Security tools on Kali
+make test-clean           # Remove test images
 
-Never claim success without objective proof. If you can't prove it works, you haven't finished.
+# Lint shell scripts
+shellcheck install_environment.sh security.sh
+```
 
-### Verification Hierarchy (Use in Order)
+## Architecture
 
-1. **Automated Tests (ALWAYS FIRST)** — If code was changed, tests MUST be run. Show output with pass/fail counts.
-   - `"Tests passed: 47/47 (100%)"` — Good
-   - `"Tests should pass"` — INCOMPLETE. Run them.
-2. **Visual Verification (UI Changes)** — Use Playwright or screenshots. Describe what you observe vs. what was requested.
-3. **Manual Verification (Complex Changes)** — Provide concrete "Run X, expect Y" instructions.
-4. **One-Off Commands (Quick Checks)** — curl, grep, etc.
+- `install_environment.sh` — Main bootstrap: packages, shell, nvm, Claude Code, dotfiles, skills/rules/plugins
+- `security.sh` — Security/pentest tool installer (Impacket, NetExec, Sliver, Burp, etc.)
+- `.claude/` — Claude Code global config (deployed to `~/.claude/` by install script)
+  - `global-CLAUDE.md` — Source for `~/.claude/CLAUDE.md` (global instructions for all projects)
+  - `skills/` — 13 custom slash commands (/commit, /review, /fix-tests, etc.)
+  - `rules/` — 6 rule files (verification, coding, git, error-handling, docker, web-dev)
+  - `agents/` — Custom agents (unit-test-writer)
+  - `hookify.*.local.md` — 6 hookify enforcement rules
+- `test/` — Docker-based verification (Dockerfile + verify scripts)
 
-### Fix Verification
+## Key Patterns
 
-Before claiming anything is "fixed", provide:
-- **User requested:** [what was asked]
-- **Evidence shows:** [what you observe, specifically]
-- **Verdict:** FIXED / NOT FIXED / PARTIALLY FIXED
+- `install_file()` downloads from GitHub raw URL, backs up existing files that differ, then overwrites. Safe to re-run.
+- Community skills are installed via `npx skills add` (not vendored).
+- Tests use a parameterized Dockerfile with `BASE_IMAGE` build arg for multi-distro support.
+- The install script MUST be idempotent — every block should check before acting.
 
-### Prohibited Without Proof
+## Gotchas
 
-- "I've updated X" → Show test output
-- "Tests should pass" → Run them and show output
-- "Feature implemented" → Demonstrate with tests/screenshots
-- "Fixed" / "All set" / "Done" → Prove it
-
-**Verification Failure = Task Incomplete. No Exceptions.**
-
-## Coding Practices
-
-### Prefer Editing Existing Files
-
-Do not create files unless absolutely necessary. Prefer editing an existing file to creating a new one. Before creating a new file:
-- Is there an existing file that could be updated instead?
-- Could this code be added to an existing module?
-- Is this truly new functionality that warrants a new file?
-
-### Read Before Modifying
-
-Before modifying files, read similar files to understand existing patterns. Consistent code prevents style inconsistencies, architectural mismatches, and duplicate implementations.
-
-### Avoid Over-Engineering
-
-Only make changes that are directly requested or clearly necessary. Keep solutions simple and focused.
-- Don't add features, refactor code, or make "improvements" beyond what was asked
-- Don't add error handling for scenarios that can't happen
-- Don't create helpers or abstractions for one-time operations
-- Don't design for hypothetical future requirements
-- Three similar lines of code is better than a premature abstraction
-- Don't add docstrings, comments, or type annotations to code you didn't change
-
-### Security
-
-- Never commit credentials (.env, API keys, tokens, passwords)
-- Be aware of OWASP top 10 vulnerabilities (XSS, SQL injection, command injection)
-- Validate at system boundaries (user input, external APIs)
-- If you notice insecure code, fix it immediately
-
-## API Error Handling Classification
-
-- **400 (ValidationError)** = Frontend bug → Fix the request/schema mismatch
-- **404 (Not Found)** = Expected scenario → Show user-friendly message
-- **403 (Forbidden)** = Expected → Show "no permission" message
-- **401 (Unauthorized)** = Expected → Redirect to login
-- **500 (Internal Error)** = Backend bug → Fix the server code
-
-Never "handle gracefully" what should be "fixed immediately" (400s and 500s are bugs).
-
-## Testing Philosophy
-
-- Prefer TDD (Red-Green-Refactor) when practical
-- Write tests for new functionality. Run them. Show output.
-- Create regression tests for bug fixes
-- Tests are proof that code works — not optional documentation
-
-## Debugging
-
-When investigating issues, verify the actual infrastructure routing (e.g., nginx, reverse proxies) BEFORE assuming the problem is in application code. Check how URLs are routed at the infrastructure level first.
-
-## Planning & Refactoring
-
-When creating plans or reviewing code, do NOT assume codebase state — always read the actual files to verify existing abstractions, function signatures, and current behavior before proposing changes. Never guess at what exists.
-
-## Simplicity
-
-Always prefer simple, minimal solutions first. Avoid over-engineering with unnecessary features like color output, complex abstractions, or multi-layered architectures unless explicitly requested. If you believe a more complex approach is genuinely needed, explain why BEFORE implementing it and let me decide.
-
-## Git Conventions
-
-Follow Conventional Commits: `<type>(scope): description`
-- Types: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `chore`, `ci`
-- Branch naming: `<type>/<description>` or `<type>/<ticket>-<description>`
-- Commit messages should explain "why", not "what"
+- Plugins are declared in `settings.json` (`enabledPlugins`) but NOT yet installed by the script — `claude plugin install` commands are still needed.
+- `settings.local.json` contains machine-specific permissions — don't put global settings there.
+- Shell scripts use `set -euo pipefail` — any unhandled error exits immediately.
+- The `global-CLAUDE.md` file is deployed as `~/.claude/CLAUDE.md` — this file (`CLAUDE.md`) is project-specific only.

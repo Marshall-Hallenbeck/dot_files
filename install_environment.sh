@@ -127,7 +127,7 @@ done
 mkdir -p ~/.claude/rules ~/.claude/agents
 
 # Global instructions (always overwrite with backup)
-install_file "$CLAUDE_BASE/CLAUDE.md" ~/.claude/CLAUDE.md
+install_file "$CLAUDE_BASE/global-CLAUDE.md" ~/.claude/CLAUDE.md
 
 # Rules (always overwrite with backup)
 for rule in verification coding-practices git-conventions web-dev error-handling docker; do

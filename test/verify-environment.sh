@@ -66,6 +66,7 @@ check "zsh is default shell" grep -q "testuser.*/zsh" /etc/passwd
 
 echo "── Claude Code config ──"
 check_file "CLAUDE.md" ~/.claude/CLAUDE.md
+check "CLAUDE.md is global version (not project copy)" grep -q 'Environment & Preferences' ~/.claude/CLAUDE.md
 check_file "hooks.json" ~/.claude/hooks.json
 check_file "statusline.sh" ~/.claude/statusline.sh
 check "statusline.sh executable" test -x ~/.claude/statusline.sh
@@ -73,7 +74,7 @@ check_file "settings.json" ~/.claude/settings.json
 check_file "settings.local.json" ~/.claude/settings.local.json
 
 echo "── Claude Code rules ──"
-for rule in verification coding-practices git-conventions web-dev error-handling; do
+for rule in verification coding-practices git-conventions web-dev error-handling docker; do
     check_file "rule: $rule" ~/.claude/rules/$rule.md
 done
 
