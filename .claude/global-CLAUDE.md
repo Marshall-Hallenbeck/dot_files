@@ -9,13 +9,29 @@ These principles apply to ALL projects. Project-specific CLAUDE.md files overrid
 - Primary use cases: security tooling, full-stack web development, infrastructure automation
 - Shell scripts: bash (`#!/bin/bash` with `set -euo pipefail`)
 
+## Git Operations
+
+When resolving merge conflicts, ALWAYS preserve upstream/remote changes unless explicitly told otherwise. Never silently drop incoming changes.
+
 ## Debugging
 
 When investigating issues, verify the actual infrastructure routing (e.g., nginx, reverse proxies) BEFORE assuming the problem is in application code. Check how URLs are routed at the infrastructure level first.
 
-## Planning & Refactoring
+## Planning & Approach
 
-When creating plans or reviewing code, do NOT assume codebase state — always read the actual files to verify existing abstractions, function signatures, and current behavior before proposing changes. Never guess at what exists.
+Before executing a plan, verify assumptions about the current codebase state — check existing abstractions, function signatures, and actual behavior before proposing changes. Do not assume code structure from memory.
+
+## Error Handling
+
+Hard-fail error handling only. No silent fallbacks, no swallowed errors, no try/catch that returns default values. Errors must propagate or be explicitly logged and re-thrown.
+
+## Testing
+
+Always run the full test suite after multi-file changes and before committing. Verify 0 failures. If tests fail, fix them before proceeding — do not commit with known failures.
+
+## Claude Code Configuration
+
+When creating skills or plugins, check whether the context is global (`~/.claude/`) vs project-level (`.claude/`) and place files accordingly. Ask if unsure.
 
 ## Simplicity
 
