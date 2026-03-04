@@ -70,8 +70,10 @@ pipx install git+https://github.com/fortra/impacket.git
 echo "Installing cidrize"
 pipx install cidrize
 
-echo "Installing NetExec via GitHub"
-pipx install git+https://github.com/Pennyw0rth/NetExec
+echo "Installing NetExec via GitHub, uv (editable)"
+git clone git+https://github.com/Pennyw0rth/NetExec ~/pentest/tools/ad_and_windows/NetExec
+uv tool install ~/pentest/tools/ad_and_windows/NetExec -e --force
+# pipx install git+https://github.com/Pennyw0rth/NetExec
 
 echo "Installing smbclientng"
 pipx install smbclientng
@@ -86,10 +88,10 @@ fi
 
 if [ ! -d "$HOME/BurpSuitePro" ]; then
     echo "Installing BurpSuitePro"
-    wget "https://portswigger.net/burp/releases/download?product=pro&type=Linux" -O burp_suite_pro.sh
-    chmod +x burp_suite_pro.sh
-    ./burp_suite_pro.sh
-    rm -f burp_suite_pro.sh
+    wget "https://portswigger.net/burp/releases/download?product=pro&type=Linux" -O ~/burp_suite_pro.sh
+    chmod +x ~/burp_suite_pro.sh
+    . ~/burp_suite_pro.sh
+    rm -f ~/burp_suite_pro.sh
 fi
 
 if ! command -v pdtm &> /dev/null; then
