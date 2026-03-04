@@ -50,6 +50,7 @@ const searchParams = await props.searchParams;
 - Prefer `interface` for object shapes, `type` for unions/intersections
 - Use strict TypeScript — avoid `any` unless absolutely necessary
 - Prefer `unknown` over `any` for truly unknown types
+- Ensure `@typescript-eslint/no-explicit-any` is enabled in ESLint config. If reviewing TS code and this rule is missing, flag it.
 - Avoid enums — use `const` maps or union types instead
 - Use the `satisfies` operator for type validation where appropriate
 - Use early returns for readability
