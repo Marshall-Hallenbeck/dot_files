@@ -3,3 +3,5 @@
 # Re-include files that happen to have .local in their name but ARE managed
 !.claude/hookify.*.local.md
 !.claude/settings.local.json
+# other
+docs/
