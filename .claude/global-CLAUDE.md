@@ -19,7 +19,7 @@ When investigating issues, verify the actual infrastructure routing (e.g., nginx
 
 ## Planning & Approach
 
-Before executing a plan, verify assumptions about the current codebase state — check existing abstractions, function signatures, and actual behavior before proposing changes. Do not assume code structure from memory.
+Before executing a plan, verify every assumption against the actual code. For each step: 1) Read the relevant files, 2) Confirm the current state matches what the plan assumes, 3) Flag any discrepancies. Do NOT proceed until the user approves the verified plan.
 
 ## Error Handling
 
