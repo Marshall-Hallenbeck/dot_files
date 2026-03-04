@@ -3,3 +3,5 @@
 	name = Marshall Hallenbeck
 [init]
 	defaultBranch = main
+[include]
+	path = ~/.gitconfig.local

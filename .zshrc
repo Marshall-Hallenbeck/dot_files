@@ -77,4 +77,7 @@ export CLAUDE_CODE_DISABLE_AUTO_MEMORY=0  # Force on as of 2026/2/9
 # for Tabby directory reporting https://github.com/Eugeny/tabby/wiki/Shell-working-directory-reporting
 precmd () { echo -n "\x1b]1337;CurrentDir=$(pwd)\x07" }
 
+# Per-host overrides (not in repo, not symlinked)
+[ -f "$HOME/.zshrc.local" ] && source "$HOME/.zshrc.local"
+
 #zprof # uncomment this and the first line for profiling

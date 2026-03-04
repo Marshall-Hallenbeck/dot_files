@@ -59,3 +59,6 @@ alias set_display_11='export DISPLAY=localhost:11'
 alias reload_tmux='tmux source-file ~/.tmux.conf'
 
 #alias q='exit'
+
+# Per-host overrides (not in repo, not symlinked)
+[ -f "$HOME/.bash_aliases.local" ] && source "$HOME/.bash_aliases.local"
