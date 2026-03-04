@@ -47,6 +47,10 @@ For each changed file, read the full file for context (not just the diff hunks).
 7. If claiming it disrupts other code, you must identify the affected code specifically
 8. It is clearly not just an intentional change
 
+**Also check for:**
+- Leftover `console.log`/`console.debug`/`console.warn` statements in production code (not in test files or intentional logging utilities)
+- Dead exports — functions/types exported but not imported anywhere in the codebase
+
 **Explicitly ignore:**
 - Style/formatting (prettier and linters handle this)
 - Missing tests (unless the CLAUDE.md requires them)
