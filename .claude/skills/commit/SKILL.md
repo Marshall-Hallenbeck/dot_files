@@ -1,20 +1,46 @@
 ---
 name: commit
-description: Create a git commit
-allowed-tools: Bash(git add:*), Bash(git status:*), Bash(git diff:*), Bash(git log:*)
+description: "Create a scoped git commit (same behavior as /safe-commit)."
+allowed-tools: Bash(git add:*), Bash(git restore:*), Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(git commit:*)
 ---
 
-## Context
+# Commit (Scoped)
 
-- Current git status: !`git status`
-- Current git diff (staged and unstaged changes): !`git diff HEAD`
-- Current branch: !`git branch --show-current`
-- Recent commits: !`git log --oneline -10`
+Creates a commit from only task-related files. This is the global alias for `/safe-commit`.
 
-## Your task
+## Usage
 
-Based on the above changes, create a single git commit.
+```text
+/commit "<message>" [file1 file2 ...]
+/safe-commit "<message>" [file1 file2 ...]
+```
 
-**CRITICAL: Only stage files that you modified during this conversation.** Do NOT stage unrelated changes that happen to be in the working tree. Review the diff carefully and only `git add` files that are relevant to the work you performed in the current session.
+## Examples
 
-You have the capability to call multiple tools in a single response. Stage and create the commit using a single message. Do not use any other tools or do anything else. Do not send any other text or messages besides these tool calls.
+```text
+/commit "fix(auth): tighten role checks" backend/src/api/auth.ts backend/tests/integration/auth.test.ts
+/safe-commit "chore(ai): update skill routing docs" .claude/CLAUDE.md .claude/skills/run-tests/SKILL.md
+```
+
+## Required Behavior
+
+1. Scope commit to task files only:
+   - If file args are provided, use only those files.
+   - If no file args are provided, derive scope from this conversation's work and exclude unrelated diffs.
+2. Stage only scoped files:
+   ```bash
+   git add <scoped-files...>
+   git diff --cached --name-only
+   ```
+3. Run `/run-quality-gate` before final commit.
+4. Commit with the provided message:
+   ```bash
+   git commit -m "<message>"
+   ```
+
+## Hard Rules
+
+- Never use `git add -A` or `git add .` in this skill.
+- If no scoped changes are staged, abort (no empty commit here).
+- If validation fails, abort and report exact failures.
+- For full-worktree commits or checkpoint commits, use `/safe-commit-all`.
