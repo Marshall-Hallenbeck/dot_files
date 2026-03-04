@@ -22,7 +22,7 @@ RUN printf 'auth sufficient pam_rootok.so\nauth sufficient pam_permit.so\n' > /e
 RUN useradd -m -s /bin/bash testuser \
     && echo 'testuser ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 
-COPY . /repo
+COPY --chown=testuser:testuser . /repo
 COPY test/run-test.sh /usr/local/bin/run-test.sh
 RUN chmod +x /usr/local/bin/run-test.sh
 
