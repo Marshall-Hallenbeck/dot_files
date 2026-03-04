@@ -50,7 +50,9 @@ check_link ".bash_aliases" ~/.bash_aliases
 check_link ".vimrc" ~/.vimrc
 check_link ".zshrc" ~/.zshrc
 check_link ".gitconfig" ~/.gitconfig
+check_link ".conkyrc" ~/.conkyrc
 check_link ".tmux.conf" ~/.tmux.conf
+check_link ".msf4/config" ~/.msf4/config
 
 echo "── Dotfile content (not clobbered by tool installers) ──"
 check ".zshrc has our custom prompt" grep -q 'git_prompt_info' ~/.zshrc
@@ -67,6 +69,7 @@ check "copy-to-clipboard.sh executable" test -x ~/.tmux/copy-to-clipboard.sh
 
 echo "── nvm + Node.js ──"
 check_dir "nvm installed" ~/.nvm
+# shellcheck disable=SC2016
 check "node available" bash -c 'export NVM_DIR="$HOME/.nvm" && [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh" && node --version'
 
 echo "── oh-my-zsh ──"
@@ -76,6 +79,7 @@ echo "── atuin ──"
 check_file "atuin installed" ~/.atuin/bin/env
 
 echo "── Claude Code ──"
+# shellcheck disable=SC2016
 check "claude CLI installed" bash -c 'export NVM_DIR="$HOME/.nvm" && [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh" && command -v claude'
 
 echo "── Default shell ──"
@@ -99,15 +103,14 @@ echo "── Claude Code skills ──"
 for skill_dir in /repo/.claude/skills/*/; do
     skill=$(basename "$skill_dir")
     if [ -f "$skill_dir/SKILL.md" ]; then
-        check_link "skill: $skill" ~/.claude/skills/$skill/SKILL.md
+        check_link "skill: $skill" ~/.claude/skills/"$skill"/SKILL.md
     fi
 done
 
 echo "── Claude Code hookify rules ──"
-for hookify in \
-    hookify.require-flakiness-investigation.local.md \
-    hookify.warn-duplicate-docs.local.md; do
-    check_link "hookify: $hookify" ~/.claude/$hookify
+for hookify_file in /repo/.claude/hookify.*.local.md; do
+    hookify=$(basename "$hookify_file")
+    check_link "hookify: $hookify" ~/.claude/"$hookify"
 done
 
 echo "── Claude Code agents ──"

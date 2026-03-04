@@ -116,6 +116,9 @@ link_file "$DOTFILES_DIR/.bash_aliases" ~/.bash_aliases
 link_file "$DOTFILES_DIR/.vimrc" ~/.vimrc
 link_file "$DOTFILES_DIR/.zshrc" ~/.zshrc
 link_file "$DOTFILES_DIR/.gitconfig" ~/.gitconfig
+link_file "$DOTFILES_DIR/.conkyrc" ~/.conkyrc
+mkdir -p ~/.msf4
+link_file "$DOTFILES_DIR/.msf4/config" ~/.msf4/config
 
 # ── tmux ─────────────────────────────────────────────────────────
 echo "Symlinking tmux configuration..."

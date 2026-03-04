@@ -31,7 +31,7 @@ cmd_promote() {
     fi
 
     # Determine the relative path from $HOME
-    local rel_path="${src#$HOME/}"
+    local rel_path="${src#"$HOME"/}"
     if [ "$rel_path" = "$src" ]; then
         echo "ERROR: $src is not under \$HOME" >&2
         exit 1
@@ -54,9 +54,32 @@ cmd_promote() {
 cmd_status() {
     local ok=0 broken=0 missing=0
 
+    # Files that live in the repo only and are NOT deployed to ~/
+    local -a repo_only=(.gitignore .dockerignore .claude/CLAUDE.md)
+
+    # Files deployed to a different name: repo_path -> home_path
+    # global-CLAUDE.md is deployed as ~/.claude/CLAUDE.md
+    local -A renames=([.claude/global-CLAUDE.md]=.claude/CLAUDE.md)
+
     # Read managed file list from the repo
     while IFS= read -r rel_path; do
-        local target="$HOME/$rel_path"
+        # Skip repo-only files
+        local skip=false
+        for excluded in "${repo_only[@]}"; do
+            if [ "$rel_path" = "$excluded" ]; then
+                skip=true
+                break
+            fi
+        done
+        $skip && continue
+
+        # Handle renamed deployments
+        local deploy_path="$rel_path"
+        if [[ -v "renames[$rel_path]" ]]; then
+            deploy_path="${renames[$rel_path]}"
+        fi
+
+        local target="$HOME/$deploy_path"
         if [ -L "$target" ]; then
             local link_dest
             link_dest=$(readlink -f "$target")
