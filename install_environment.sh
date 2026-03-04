@@ -2,37 +2,48 @@
 set -euo pipefail
 
 NODE_VERSION=24
-REPO_BASE="https://raw.githubusercontent.com/Marshall-Hallenbeck/dot_files/main"
-CLAUDE_BASE="$REPO_BASE/.claude"
+DOTFILES_DIR="$HOME/.dot_files"
+DOTFILES_REPO="https://github.com/Marshall-Hallenbeck/dot_files.git"
 BACKUP_DIR="$HOME/.dotfiles-backup/$(date +%Y%m%d-%H%M%S)"
 
 # ── Helper functions ─────────────────────────────────────────────
 
-# Install a file, backing up the existing one if it differs.
-# Always installs the repo version. If the host file differs, backs it up first.
-install_file() {
-    local url="$1" dest="$2"
-    local tmp
-    tmp=$(mktemp)
-    wget -q "$url" -O "$tmp"
-    if [ ! -s "$tmp" ]; then
-        echo "  ERROR: failed to download $url" >&2
-        rm "$tmp"
+# Create a symlink from repo file to destination, backing up existing non-link files.
+link_file() {
+    local src="$1" dest="$2"
+
+    if [ ! -f "$src" ]; then
+        echo "  WARNING: source not found: $src" >&2
         return 1
     fi
 
-    if [ -f "$dest" ]; then
-        if diff -q "$tmp" "$dest" &>/dev/null; then
-            rm "$tmp"
-            return 0
-        fi
+    # Already correctly symlinked
+    if [ -L "$dest" ] && [ "$(readlink -f "$dest")" = "$(readlink -f "$src")" ]; then
+        return 0
+    fi
+
+    # Back up existing file (but not if it's a symlink to somewhere else)
+    if [ -f "$dest" ] && [ ! -L "$dest" ]; then
         mkdir -p "$BACKUP_DIR"
         local backup_path="$BACKUP_DIR/$(echo "$dest" | sed "s|$HOME/||; s|/|__|g")"
         cp "$dest" "$backup_path"
         echo "  backed up: $dest -> $backup_path"
     fi
-    mv "$tmp" "$dest"
+
+    # Remove existing file/symlink and create new symlink
+    rm -f "$dest"
+    mkdir -p "$(dirname "$dest")"
+    ln -s "$src" "$dest"
 }
+
+# ── Clone or update repo ─────────────────────────────────────────
+if [ -d "$DOTFILES_DIR/.git" ]; then
+    echo "Updating dotfiles repo..."
+    git -C "$DOTFILES_DIR" pull
+else
+    echo "Cloning dotfiles repo..."
+    git clone "$DOTFILES_REPO" "$DOTFILES_DIR"
+fi
 
 # ── System packages ──────────────────────────────────────────────
 echo "Installing system packages..."
@@ -61,7 +72,7 @@ fi
 
 # ── Tool installers (run BEFORE dotfiles — these modify .zshrc) ──
 # oh-my-zsh replaces .zshrc with its template, nvm and atuin append
-# to it. We install tools first, then overwrite with our dotfiles.
+# to it. We install tools first, then overwrite with our symlinks.
 
 if [ ! -d ~/.oh-my-zsh ]; then
     echo "Installing oh-my-zsh..."
@@ -93,23 +104,19 @@ if ! command -v claude &>/dev/null; then
     npm install -g @anthropic-ai/claude-code
 fi
 
-# ── Shell dotfiles (overwrite with backup) ───────────────────────
+# ── Shell dotfiles (symlink with backup) ─────────────────────────
 # Installed AFTER tools so our versions are the final word.
-echo "Installing shell dotfiles..."
-install_file "$REPO_BASE/.bash_aliases" ~/.bash_aliases
-install_file "$REPO_BASE/.vimrc" ~/.vimrc
-install_file "$REPO_BASE/.zshrc" ~/.zshrc
-install_file "$REPO_BASE/.gitconfig" ~/.gitconfig
-
-# Patch .zshrc with the actual installed node version (avoids loading nvm on every shell)
-NODE_FULL_VERSION=$(nvm version "$NODE_VERSION")
-sed -i "s|/node/v[0-9.]*/bin|/node/${NODE_FULL_VERSION}/bin|" ~/.zshrc
+echo "Symlinking shell dotfiles..."
+link_file "$DOTFILES_DIR/.bash_aliases" ~/.bash_aliases
+link_file "$DOTFILES_DIR/.vimrc" ~/.vimrc
+link_file "$DOTFILES_DIR/.zshrc" ~/.zshrc
+link_file "$DOTFILES_DIR/.gitconfig" ~/.gitconfig
 
 # ── tmux ─────────────────────────────────────────────────────────
-echo "Installing tmux configuration..."
-install_file "$REPO_BASE/.tmux.conf" ~/.tmux.conf
+echo "Symlinking tmux configuration..."
+link_file "$DOTFILES_DIR/.tmux.conf" ~/.tmux.conf
 mkdir -p ~/.tmux
-install_file "$REPO_BASE/.tmux/copy-to-clipboard.sh" ~/.tmux/copy-to-clipboard.sh
+link_file "$DOTFILES_DIR/.tmux/copy-to-clipboard.sh" ~/.tmux/copy-to-clipboard.sh
 chmod +x ~/.tmux/copy-to-clipboard.sh
 
 if [ ! -d ~/.tmux/plugins/tpm ]; then
@@ -117,69 +124,66 @@ if [ ! -d ~/.tmux/plugins/tpm ]; then
 fi
 
 # ── Claude Code global configuration ─────────────────────────────
-echo "Setting up Claude Code configuration..."
+echo "Symlinking Claude Code configuration..."
 
-# Create all required directories
-SKILL_DIRS="review summarize-changes lookup-docs create-pr commit codex-review fix-tests orchestrate-plan pre-commit-validate complete-github-issue multi-model-review opencode-review overcautious-check"
-for skill in $SKILL_DIRS; do
-    mkdir -p ~/.claude/skills/$skill
-done
+# Create directories that aren't in the repo (local-only)
 mkdir -p ~/.claude/rules ~/.claude/agents
 
-# Global instructions (always overwrite with backup)
-install_file "$CLAUDE_BASE/global-CLAUDE.md" ~/.claude/CLAUDE.md
-
-# Rules (always overwrite with backup)
-for rule in verification coding-practices git-conventions web-dev error-handling docker; do
-    install_file "$CLAUDE_BASE/rules/$rule.md" ~/.claude/rules/$rule.md
-done
-
-# Skills (always overwrite with backup)
-for skill in $SKILL_DIRS; do
-    install_file "$CLAUDE_BASE/skills/$skill/SKILL.md" ~/.claude/skills/$skill/SKILL.md
-done
-
-# Agents (always overwrite with backup)
-install_file "$CLAUDE_BASE/agents/unit-test-writer.md" ~/.claude/agents/unit-test-writer.md
-
-# Hooks and hookify rules (always overwrite with backup)
-install_file "$CLAUDE_BASE/hooks.json" ~/.claude/hooks.json
-for hookify_file in \
-    hookify.block-backwards-compat.local.md \
-    hookify.block-error-swallowing.local.md \
-    hookify.block-graceful-degradation.local.md \
-    hookify.completion-check.local.md \
-    hookify.require-flakiness-investigation.local.md \
-    hookify.warn-duplicate-docs.local.md; do
-    install_file "$CLAUDE_BASE/$hookify_file" ~/.claude/$hookify_file
-done
-
-# Statusline script (always overwrite with backup)
-install_file "$CLAUDE_BASE/statusline.sh" ~/.claude/statusline.sh
+# Top-level config files
+link_file "$DOTFILES_DIR/.claude/global-CLAUDE.md" ~/.claude/CLAUDE.md
+link_file "$DOTFILES_DIR/.claude/hooks.json" ~/.claude/hooks.json
+link_file "$DOTFILES_DIR/.claude/settings.json" ~/.claude/settings.json
+link_file "$DOTFILES_DIR/.claude/settings.local.json" ~/.claude/settings.local.json
+link_file "$DOTFILES_DIR/.claude/statusline.sh" ~/.claude/statusline.sh
 chmod +x ~/.claude/statusline.sh
 
-# Settings files (overwrite with backup)
-install_file "$CLAUDE_BASE/settings.json" ~/.claude/settings.json
-install_file "$CLAUDE_BASE/settings.local.json" ~/.claude/settings.local.json
+# Rules
+for rule_file in "$DOTFILES_DIR"/.claude/rules/*.md; do
+    [ -f "$rule_file" ] || continue
+    link_file "$rule_file" ~/.claude/rules/"$(basename "$rule_file")"
+done
 
-# ── Community skills (installed via npx, not vendored) ───────────
+# Skills (only managed skills that have SKILL.md)
+for skill_dir in "$DOTFILES_DIR"/.claude/skills/*/; do
+    [ -d "$skill_dir" ] || continue
+    local_skill=$(basename "$skill_dir")
+    if [ -f "$skill_dir/SKILL.md" ]; then
+        mkdir -p ~/.claude/skills/"$local_skill"
+        link_file "$skill_dir/SKILL.md" ~/.claude/skills/"$local_skill"/SKILL.md
+    fi
+done
+
+# Agents
+for agent_file in "$DOTFILES_DIR"/.claude/agents/*.md; do
+    [ -f "$agent_file" ] || continue
+    link_file "$agent_file" ~/.claude/agents/"$(basename "$agent_file")"
+done
+
+# Hookify rules
+for hookify_file in "$DOTFILES_DIR"/.claude/hookify.*.local.md; do
+    [ -f "$hookify_file" ] || continue
+    link_file "$hookify_file" ~/.claude/"$(basename "$hookify_file")"
+done
+
+# ── dotfiles helper on PATH ──────────────────────────────────────
+mkdir -p "$HOME/.local/bin"
+link_file "$DOTFILES_DIR/scripts/dotfiles" "$HOME/.local/bin/dotfiles"
+
+# ── Community skills (installed via npx, not symlinked) ───────────
 echo "Installing community skills..."
 
-# next-best-practices: Next.js 15+ conventions from Vercel
 if [ ! -d ~/.claude/skills/next-best-practices ]; then
     npx skills add https://github.com/vercel-labs/next-skills --skill next-best-practices -y -g
 else
     echo "  next-best-practices already installed"
 fi
 
-# supabase-postgres-best-practices: Postgres optimization guide from Supabase
 if [ ! -d ~/.claude/skills/supabase-postgres-best-practices ]; then
     npx skills add https://github.com/supabase/agent-skills --skill supabase-postgres-best-practices -y -g
 else
     echo "  supabase-postgres-best-practices already installed"
 fi
 
-# windows-protocols: Microsoft Open Specifications corpus (217MB)
 if [ ! -d ~/.claude/skills/windows-protocols ]; then
     npx skills add awakecoding/openspecs --skill windows-protocols -y -g
 else
@@ -194,3 +198,4 @@ if [ -d "$BACKUP_DIR" ]; then
 fi
 
 echo "Environment setup complete!"
+echo "Run 'dotfiles status' to verify symlinks."
