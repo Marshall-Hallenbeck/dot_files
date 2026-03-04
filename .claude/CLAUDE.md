@@ -19,19 +19,22 @@ shellcheck install_environment.sh security.sh
 
 ## Architecture
 
-- `install_environment.sh` — Main bootstrap: packages, shell, nvm, Claude Code, dotfiles, skills/rules/plugins
+- `install_environment.sh` — Main bootstrap: clones repo to `~/.dot_files`, installs packages/tools, symlinks config files
 - `security.sh` — Security/pentest tool installer (Impacket, NetExec, Sliver, Burp, etc.)
-- `.claude/` — Claude Code global config (deployed to `~/.claude/` by install script)
+- `scripts/dotfiles` — Helper CLI for promote/status/pull operations
+- `.claude/` — Claude Code global config (symlinked to `~/.claude/` by install script)
   - `global-CLAUDE.md` — Source for `~/.claude/CLAUDE.md` (global instructions for all projects)
-  - `skills/` — 13 custom slash commands (/commit, /review, /fix-tests, etc.)
-  - `rules/` — 6 rule files (verification, coding, git, error-handling, docker, web-dev)
+  - `skills/` — Custom slash commands (/commit, /review, /fix-tests, etc.)
+  - `rules/` — Rule files (verification, coding, git, error-handling, docker, web-dev)
   - `agents/` — Custom agents (unit-test-writer)
-  - `hookify.*.local.md` — 6 hookify enforcement rules
+  - `hookify.*.local.md` — Hookify enforcement rules
 - `test/` — Docker-based verification (Dockerfile + verify scripts)
 
 ## Key Patterns
 
-- `install_file()` downloads from GitHub raw URL, backs up existing files that differ, then overwrites. Safe to re-run.
+- `link_file()` creates symlinks from `~/.dot_files/` to destinations, backing up existing non-symlink files. Safe to re-run.
+- Per-host overrides via `.local` files (`.zshrc.local`, `.bash_aliases.local`, etc.) — gitignored, never symlinked.
+- `dotfiles promote <path>` moves a local file into the repo and symlinks it back.
 - Community skills are installed via `npx skills add` (not vendored).
 - Tests use a parameterized Dockerfile with `BASE_IMAGE` build arg for multi-distro support.
 - The install script MUST be idempotent — every block should check before acting.
