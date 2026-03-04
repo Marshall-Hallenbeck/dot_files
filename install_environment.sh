@@ -25,9 +25,14 @@ link_file() {
     # Back up existing file (but not if it's a symlink to somewhere else)
     if [ -f "$dest" ] && [ ! -L "$dest" ]; then
         mkdir -p "$BACKUP_DIR"
-        local backup_path="$BACKUP_DIR/$(echo "$dest" | sed "s|$HOME/||; s|/|__|g")"
-        cp "$dest" "$backup_path"
-        echo "  backed up: $dest -> $backup_path"
+        local backup_path
+        backup_path="$BACKUP_DIR/$(echo "$dest" | sed "s|$HOME/||; s|/|__|g")"
+        if [ -r "$dest" ]; then
+            cp "$dest" "$backup_path"
+            echo "  backed up: $dest -> $backup_path"
+        else
+            echo "  WARNING: $dest is not readable, cannot back up (check file ownership/permissions)" >&2
+        fi
     fi
 
     # Remove existing file/symlink and create new symlink
@@ -57,7 +62,7 @@ if ! command -v gh &>/dev/null; then
     echo "Installing GitHub CLI..."
     sudo mkdir -p -m 755 /etc/apt/keyrings
     out=$(mktemp) && wget -nv -O"$out" https://cli.github.com/packages/githubcli-archive-keyring.gpg
-    cat "$out" | sudo tee /etc/apt/keyrings/githubcli-archive-keyring.gpg > /dev/null && rm "$out"
+    sudo tee /etc/apt/keyrings/githubcli-archive-keyring.gpg < "$out" > /dev/null && rm "$out"
     sudo chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg
     echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
     sudo apt update
