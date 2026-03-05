@@ -62,5 +62,8 @@
     "superpowers@claude-plugins-official": true,
     "system-utils@local": true
   },
-  "syntaxHighlightingDisabled": false
+  "syntaxHighlightingDisabled": false,
+  "skipDangerousModePermissionPrompt": true,
+  "effortLevel": "high",
+  "model": "opus"
 }

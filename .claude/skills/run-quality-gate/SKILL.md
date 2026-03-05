@@ -5,7 +5,7 @@ description: "Run full quality gate: linting, type checks, unit tests, and integ
 
 # Run Quality Gate
 
-Runs the full verification pipeline for high-confidence changes.
+Runs the full verification pipeline for high-confidence changes. Composes `/lint`, `/run-unit-tests`, and `/run-integration-tests`.
 
 ## Usage
 
@@ -13,27 +13,13 @@ Runs the full verification pipeline for high-confidence changes.
 /run-quality-gate
 ```
 
-## Examples
-
-```text
-/run-quality-gate
-```
-
 ## Pipeline
 
-1. **Lint/format checks** (if scripts exist):
-   ```bash
-   npm run prettier:check --if-present
-   npm run lint --if-present
-   ```
-2. **Type checks** (if script exists):
-   ```bash
-   npm run typecheck --if-present
-   npx tsc --noEmit --pretty 2>&1
-   ```
-3. **Unit tests**:
+1. **Lint/format/typecheck**:
+   - Run `/lint`
+2. **Unit tests**:
    - Run `/run-unit-tests all`
-4. **Integration tests**:
+3. **Integration tests**:
    - Run `/run-integration-tests all`
 
 ## Enforcement
@@ -47,9 +33,8 @@ Runs the full verification pipeline for high-confidence changes.
 ```markdown
 ## Quality Gate Results
 
-- Lint/format: ✅/❌
-- Typecheck: ✅/❌
-- Unit tests: ✅/❌
-- Integration tests: ✅/❌
+- Lint/format/typecheck: PASS/FAIL
+- Unit tests: PASS/FAIL
+- Integration tests: PASS/FAIL
 - Final verdict: PASS/FAIL
 ```
