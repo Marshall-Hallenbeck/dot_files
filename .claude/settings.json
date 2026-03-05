@@ -44,6 +44,7 @@
       "mcp__puppeteer__*"
     ]
   },
+  "model": "opus",
   "statusLine": {
     "type": "command",
     "command": "~/.claude/statusline.sh"
@@ -63,7 +64,7 @@
     "system-utils@local": true
   },
   "syntaxHighlightingDisabled": false,
+  "voiceEnabled": false,
   "skipDangerousModePermissionPrompt": true,
-  "effortLevel": "high",
-  "model": "opus"
+  "effortLevel": "high"
 }
