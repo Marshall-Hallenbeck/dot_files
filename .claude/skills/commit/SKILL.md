@@ -33,7 +33,11 @@ Creates a commit from only task-related files. This is the global alias for `/sa
    git diff --cached --name-only
    ```
 3. Run `/run-quality-gate` before final commit.
-4. Commit with the provided message:
+4. **Add GitHub issue references** if the work relates to an issue:
+   - Include `(#<number>)` at the end of the commit subject line.
+   - If the commit fully resolves the issue, add a closing keyword in the commit body on its own line: `Closes #<number>`, `Fixes #<number>`, or `Resolves #<number>`.
+   - For partial progress, use `Part of #<number>` in the body or just `(#<number>)` in the subject.
+5. Commit with the provided message:
    ```bash
    git commit -m "<message>"
    ```

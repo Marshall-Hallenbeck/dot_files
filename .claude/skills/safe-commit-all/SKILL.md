@@ -25,12 +25,16 @@ Commits the full working tree. Supports empty checkpoint commits when explicitly
 
 1. Confirm explicit user request to commit all changes.
 2. Run `/run-quality-gate`.
-3. Stage all changes:
+3. **Add GitHub issue references** if the work relates to an issue:
+   - Include `(#<number>)` at the end of the commit subject line.
+   - If the commit fully resolves the issue, add a closing keyword in the commit body on its own line: `Closes #<number>`, `Fixes #<number>`, or `Resolves #<number>`.
+   - For partial progress, use `Part of #<number>` in the body or just `(#<number>)` in the subject.
+4. Stage all changes:
    ```bash
    git add --all
    git diff --cached --name-only
    ```
-4. Commit:
+5. Commit:
    - If staged changes exist:
      ```bash
      git commit -m "<message>"

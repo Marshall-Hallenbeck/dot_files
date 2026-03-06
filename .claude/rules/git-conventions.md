@@ -21,6 +21,19 @@ Follow Conventional Commits: `<type>(scope): description`
 - Use imperative mood ("add feature" not "added feature")
 - `add` means wholly new functionality, `update` means enhancement to existing
 
+**GitHub Issue References:**
+- If the work relates to a GitHub issue, include `(#<number>)` at the end of the commit subject line
+- If the commit fully resolves an issue, use a closing keyword in the commit body: `Closes #<number>`, `Fixes #<number>`, or `Resolves #<number>` — GitHub auto-closes the issue when merged to the default branch
+- For partial progress toward an issue, reference without a closing keyword: `Part of #<number>` or just `(#<number>)` in the subject
+- Examples:
+  - `fix(backend): close permission gaps (#45)` — references issue
+  - Full body with closing keyword:
+    ```
+    feat(frontend): add tournament filters (#45)
+
+    Closes #45
+    ```
+
 ## Branch Naming
 
 Format: `<type>/<description>` or `<type>/<ticket>-<description>`
