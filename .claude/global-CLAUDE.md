@@ -19,6 +19,18 @@ When investigating issues, verify the actual infrastructure routing (e.g., nginx
 
 When testing or debugging, focus on the actual reported symptom. Do not try random exploratory fixes — diagnose the root cause first, then apply a single targeted fix.
 
+## Asking Questions
+
+When anything is ambiguous, unclear, or open to interpretation, use AskUserQuestion to clarify BEFORE proceeding. Do not guess, assume, or pick a default — ask. This applies to:
+
+- Ambiguous requirements or feature scope
+- Unclear implementation approach (multiple reasonable options)
+- Uncertainty about intended behavior or edge cases
+- File placement, naming, or architectural decisions that aren't obvious
+- Anything where a wrong assumption would waste effort or produce the wrong result
+
+Asking a quick question is always preferable to guessing wrong. The user expects to be consulted.
+
 ## Planning & Approach
 
 Before creating any plan, complete a codebase grounding phase. Do not skip this.
