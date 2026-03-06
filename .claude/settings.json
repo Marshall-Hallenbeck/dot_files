@@ -61,7 +61,6 @@
     "typescript-lsp@claude-plugins-official": true,
     "hookify@claude-plugins-official": true,
     "superpowers@claude-plugins-official": true,
-    "system-utils@local": true
   },
   "syntaxHighlightingDisabled": false,
   "voiceEnabled": false,
