@@ -73,7 +73,7 @@
   "hooks": {
     "PostToolUse": [
       {
-        "matcher": {},
+        "matcher": "*",
         "hooks": [
           {
             "type": "prompt",
