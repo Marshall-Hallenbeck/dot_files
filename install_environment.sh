@@ -144,37 +144,42 @@ if [ ! -f "$HOME/.atuin/bin/env" ]; then
     curl --proto '=https' --tlsv1.2 -LsSf https://setup.atuin.sh | sh
 fi
 
-# ── Claude Code ──────────────────────────────────────────────────
+# ── Claude Code (native installer, auto-updates) ────────────────
 if ! command -v claude &>/dev/null; then
     echo "Installing Claude Code..."
-    npm install -g @anthropic-ai/claude-code
+    curl -fsSL https://claude.ai/install.sh | bash
 fi
 
 # ── OpenAI Codex ─────────────────────────────────────────────────
 if ! command -v codex &>/dev/null; then
     echo "Installing OpenAI Codex..."
     npm install -g @openai/codex
+    sudo ln -sf "$(npm prefix -g)/bin/codex" /usr/local/bin/codex
 fi
 
 # ── GitHub Copilot ───────────────────────────────────────────────
 if ! command -v copilot &>/dev/null; then
     echo "Installing GitHub Copilot..."
     npm install -g @github/copilot
+    sudo ln -sf "$(npm prefix -g)/bin/copilot" /usr/local/bin/copilot
 fi
 
 # ── Google Gemini CLI ────────────────────────────────────────────
 if ! command -v gemini &>/dev/null; then
     echo "Installing Gemini CLI..."
     npm install -g @google/gemini-cli
+    sudo ln -sf "$(npm prefix -g)/bin/gemini" /usr/local/bin/gemini
 fi
 
 # ── Claude Code LSP servers ─────────────────────────────────────
 echo "Installing Claude Code LSP servers..."
 if ! command -v typescript-language-server &>/dev/null; then
     npm install -g typescript-language-server typescript
+    sudo ln -sf "$(npm prefix -g)/bin/typescript-language-server" /usr/local/bin/typescript-language-server
 fi
-if ! command -v pyright &>/dev/null; then
+if ! command -v pyright-langserver &>/dev/null; then
     npm install -g pyright
+    sudo ln -sf "$(npm prefix -g)/bin/pyright-langserver" /usr/local/bin/pyright-langserver
 fi
 
 # ── Shell dotfiles (symlink with backup) ─────────────────────────
