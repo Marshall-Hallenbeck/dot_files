@@ -81,10 +81,19 @@ cmd_status() {
 
         local target="$HOME/$deploy_path"
         if [ -L "$target" ]; then
-            local link_dest
-            link_dest=$(readlink -f "$target")
+            local link_dest expected_resolved
+            if ! link_dest=$(readlink -f "$target") || [ ! -e "$link_dest" ]; then
+                echo "  BROKEN:  $target (symlink target does not exist)"
+                broken=$((broken + 1))
+                continue
+            fi
             local expected="$DOTFILES_DIR/$rel_path"
-            if [ "$link_dest" = "$(readlink -f "$expected")" ]; then
+            if ! expected_resolved=$(readlink -f "$expected") || [ ! -e "$expected_resolved" ]; then
+                echo "  BROKEN:  $expected (repo file does not exist)"
+                broken=$((broken + 1))
+                continue
+            fi
+            if [ "$link_dest" = "$expected_resolved" ]; then
                 ok=$((ok + 1))
             else
                 echo "  WRONG:   $target -> $link_dest (expected $expected)"

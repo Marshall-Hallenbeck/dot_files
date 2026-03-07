@@ -218,7 +218,10 @@ link_file "$DOTFILES_DIR/.claude/settings.local.json" ~/.claude/settings.local.j
 link_file "$DOTFILES_DIR/.claude/statusline.sh" ~/.claude/statusline.sh
 chmod +x ~/.claude/statusline.sh
 
-# Hooks
+# Hooks — remove stale directory symlink from older installs
+if [ -L ~/.claude/hooks ]; then
+    rm ~/.claude/hooks
+fi
 mkdir -p ~/.claude/hooks
 for hook_file in "$DOTFILES_DIR"/.claude/hooks/*; do
     [ -f "$hook_file" ] || continue
