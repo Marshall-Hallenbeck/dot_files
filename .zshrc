@@ -21,8 +21,10 @@ COMPLETION_WAITING_DOTS="true"
 # much, much faster.
 # DISABLE_UNTRACKED_FILES_DIRTY="true"
 
-plugins=(colored-man-pages colorize cp dircycle encode64 extract history sublime tmux vundle git pip python virtualenv virtualenvwrapper debian)
+plugins=(virtualenv)
 
+# Skip compaudit insecure-directory check — single-user system
+ZSH_DISABLE_COMPFIX=true
 source $ZSH/oh-my-zsh.sh
 
 # User configuration
@@ -53,12 +55,8 @@ npm()  { nvm use default >/dev/null; command npm "$@"; }
 npx()  { nvm use default >/dev/null; command npx "$@"; }
 alias loadnvm='[ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"'
 
-# Add RVM to PATH for scripting. Make sure this is the last PATH variable change.
-export PATH="$PATH:$HOME/.rvm/bin"
-
 zstyle ':completion:*:*:-command-:*:*' ignored-patterns 'strapi' 'npm'
 
-autoload -Uz compinit
 zstyle ':completion:*' menu select
 fpath+=~/.zfunc
 
