@@ -1,6 +1,7 @@
 ---
 name: run-quality-gate
 description: "Run full quality gate: linting, type checks, unit tests, and integration tests."
+disable-model-invocation: true
 ---
 
 # Run Quality Gate

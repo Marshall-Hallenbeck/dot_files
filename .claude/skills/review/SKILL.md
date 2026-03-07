@@ -1,6 +1,8 @@
 ---
 name: review
 description: "Review uncommitted code changes for bugs, security issues, and correctness. Like Codex's review but runs locally."
+argument-hint: "[path]"
+context: fork
 ---
 
 # Code Review (Uncommitted Changes)

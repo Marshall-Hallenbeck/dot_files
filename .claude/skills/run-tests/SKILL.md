@@ -1,6 +1,8 @@
 ---
 name: run-tests
 description: "Dispatcher skill for unit, integration, or full quality-gate workflows."
+argument-hint: "[scope]"
+disable-model-invocation: true
 ---
 
 # Run Tests

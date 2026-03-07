@@ -1,6 +1,7 @@
 ---
-name: overcautious_check
+name: overcautious-check
 description: "Use when reviewing changes before commit to catch patterns that silence failures, fail open, add unauthorized fallbacks, or hide errors behind graceful degradation."
+context: fork
 ---
 
 # Overcautious Check

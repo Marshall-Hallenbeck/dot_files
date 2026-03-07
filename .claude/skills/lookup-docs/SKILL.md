@@ -1,6 +1,7 @@
 ---
 name: lookup-docs
 description: "Look up documentation for any library using Context7. Resolves library IDs and queries versioned docs."
+argument-hint: "[library] [query]"
 ---
 
 # Lookup Documentation

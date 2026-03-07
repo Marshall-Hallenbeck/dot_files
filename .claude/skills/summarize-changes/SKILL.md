@@ -1,6 +1,7 @@
 ---
 name: summarize-changes
 description: "Summarize git changes for PRs or commits. Does not commit unless explicitly asked."
+argument-hint: "[branch|commits|range]"
 ---
 
 # Summarize Changes

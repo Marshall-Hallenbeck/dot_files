@@ -1,6 +1,8 @@
 ---
 name: safe-commit
 description: "Scoped commit: commit only task-related changes after validation passes."
+argument-hint: "[message] [files...]"
+disable-model-invocation: true
 allowed-tools: Bash(git add:*), Bash(git restore:*), Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(git commit:*)
 ---
 

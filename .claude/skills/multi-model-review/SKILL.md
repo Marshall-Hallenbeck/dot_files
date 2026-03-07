@@ -1,6 +1,8 @@
 ---
 name: multi-model-review
 description: "Run code review with 4 free OpenCode models in parallel, then have them peer-review each other to reach consensus findings."
+argument-hint: "[path]"
+disable-model-invocation: true
 ---
 
 # Multi-Model Code Review

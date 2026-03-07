@@ -1,6 +1,7 @@
 ---
 name: complete-github-issue
 description: Use when asked to work on, implement, or complete a GitHub issue — before writing any code, checks issue state, existing PRs, git history, and codebase to determine what work remains or if the issue is already resolved
+argument-hint: "[issue-number]"
 ---
 
 # Complete GitHub Issue

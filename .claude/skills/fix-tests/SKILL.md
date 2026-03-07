@@ -1,6 +1,8 @@
 ---
 name: fix-tests
 description: "Autonomous test-fix pipeline. Runs full suite, diagnoses each failure, fixes source code, and iterates until all tests pass. Asks the user when uncertain about intended behavior."
+argument-hint: "[test-file-or-pattern]"
+disable-model-invocation: true
 ---
 
 # Fix Tests

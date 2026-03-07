@@ -1,6 +1,8 @@
 ---
 name: commit
 description: "Create a scoped git commit (same behavior as /safe-commit)."
+argument-hint: "[message] [files...]"
+disable-model-invocation: true
 allowed-tools: Bash(git add:*), Bash(git restore:*), Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(git commit:*)
 ---
 

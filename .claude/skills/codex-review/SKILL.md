@@ -1,6 +1,7 @@
 ---
-name: codex_review
+name: codex-review
 description: "Run Codex and Claude code reviews iteratively until both find no issues. Use after making changes and before committing."
+disable-model-invocation: true
 ---
 
 # Codex Review

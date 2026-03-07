@@ -1,6 +1,8 @@
 ---
 name: run-integration-tests
 description: "Run integration-level suites (backend integration and/or E2E, depending on scope)."
+argument-hint: "[scope]"
+disable-model-invocation: true
 ---
 
 # Run Integration Tests

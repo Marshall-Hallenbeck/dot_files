@@ -1,6 +1,8 @@
 ---
 name: lint
 description: "Run formatting, linting, and type checking. Fixes auto-fixable issues and stages changes."
+argument-hint: "[scope]"
+disable-model-invocation: true
 ---
 
 # Lint

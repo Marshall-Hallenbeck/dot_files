@@ -1,6 +1,8 @@
 ---
 name: create-pr
 description: "Creates a pull request with proper formatting, running tests first and including a structured description."
+argument-hint: "[title]"
+disable-model-invocation: true
 ---
 
 # Create Pull Request

@@ -1,6 +1,8 @@
 ---
 name: orchestrate-plan
 description: "Decompose a plan into parallel work tracks and execute with subagents. Reads PLAN.md, splits into non-overlapping tracks, spawns agents, and runs integration tests."
+argument-hint: "[path-to-plan]"
+disable-model-invocation: true
 ---
 
 # Orchestrate Plan

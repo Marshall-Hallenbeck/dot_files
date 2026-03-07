@@ -1,6 +1,7 @@
 ---
 name: normalize-ai-config
 description: "Normalize agents/skills/hooks so responsibilities are separated and workflows are coherent."
+disable-model-invocation: true
 ---
 
 # Normalize AI Config

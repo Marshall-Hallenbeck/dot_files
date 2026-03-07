@@ -1,6 +1,7 @@
 ---
 name: full-review
 description: "Holistic review pipeline: correctness, security, overcautious check, lint/fix, all tests, fix failures, audits, and final review. The one command that checks everything."
+disable-model-invocation: true
 ---
 
 # Full Review

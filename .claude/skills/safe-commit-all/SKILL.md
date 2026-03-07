@@ -1,6 +1,8 @@
 ---
 name: safe-commit-all
 description: "Commit all working-tree changes (or an empty checkpoint commit) after validation."
+argument-hint: "[message]"
+disable-model-invocation: true
 allowed-tools: Bash(git add:*), Bash(git status:*), Bash(git diff:*), Bash(git commit:*)
 ---
 

@@ -1,6 +1,8 @@
 ---
 name: run-unit-tests
 description: "Run unit-test suites only (backend/frontend/root depending on scope)."
+argument-hint: "[scope]"
+disable-model-invocation: true
 ---
 
 # Run Unit Tests

@@ -1,6 +1,7 @@
 ---
 name: full-review-ultra
 description: "Full review pipeline plus code simplification. Runs /simplify first, then the complete /full-review pipeline."
+disable-model-invocation: true
 ---
 
 # Full Review Ultra

@@ -1,6 +1,8 @@
 ---
 name: security-review
 description: "Security audit of uncommitted changes. Scans for OWASP top 10, injection, exposed secrets, auth bypasses, and unsafe patterns."
+argument-hint: "[path]"
+context: fork
 ---
 
 # Security Review

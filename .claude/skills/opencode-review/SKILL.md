@@ -1,6 +1,7 @@
 ---
-name: opencode_review
+name: opencode-review
 description: "Run OpenCode (MiniMax) and Claude code reviews iteratively until both find no issues. Use after making changes and before committing."
+disable-model-invocation: true
 ---
 
 # OpenCode Review
