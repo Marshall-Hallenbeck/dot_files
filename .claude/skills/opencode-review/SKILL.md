@@ -75,8 +75,8 @@ And repeat your own Claude review of the current diff.
 
 If new issues are found:
 - Fix them and re-run (back to step 5)
-- **Max 3 iterations total** to prevent infinite loops
-- If issues persist after 3 rounds, report remaining issues to the user
+- Keep iterating until both reviewers are clean
+- If you're unsure how to fix an issue or uncertain about the intended behavior, ask the user before guessing
 
 If both reviews come back clean: proceed to summary.
 
@@ -111,7 +111,7 @@ Ready to commit.
 
 ## Important Rules
 
-- **Max 3 iterations.** If still finding issues after 3 rounds, stop and report.
+- **Keep iterating** until both reviewers are clean. If stuck on an issue, ask the user.
 - **Fix source code, not symptoms.** If OpenCode flags a symptom, trace to the root cause.
 - **Don't fix nits in a loop.** Informational items are reported but not acted on — they don't trigger another iteration.
 - **Both reviewers must be clean** to declare success. One clean + one with issues = keep iterating.

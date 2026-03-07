@@ -15,8 +15,8 @@ Runs the full verification pipeline for high-confidence changes. Composes `/lint
 
 ## Pipeline
 
-1. **Lint/format/typecheck**:
-   - Run `/lint`
+1. **Lint/format/typecheck (auto-fix)**:
+   - Run `/lint --fix` — auto-fixes formatting and lint errors, stages fixed files
 2. **Unit tests**:
    - Run `/run-unit-tests all`
 3. **Integration tests**:

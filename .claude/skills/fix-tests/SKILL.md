@@ -1,17 +1,19 @@
 ---
 name: fix-tests
-description: "Autonomous test-fix pipeline. Runs full suite, diagnoses each failure, fixes source code, and iterates until all tests pass. Operates without asking questions."
+description: "Autonomous test-fix pipeline. Runs full suite, diagnoses each failure, fixes source code, and iterates until all tests pass. Asks the user when uncertain about intended behavior."
 ---
 
 # Fix Tests
 
-Autonomous test-driven debugging pipeline. Runs the full test suite, diagnoses every failure, fixes source code, and iterates until green. Does NOT ask questions — makes reasonable decisions and documents reasoning.
+Autonomous test-driven debugging pipeline. Runs the full test suite, diagnoses every failure, fixes source code, and iterates until green. If uncertain about intended behavior or what a correct fix looks like, asks the user before guessing.
 
 ## Usage
 
 ```
 /fix-tests [optional: specific test file or pattern]
 ```
+
+If called from a composite skill (e.g., `/full-review`) that already has test failure output, accept that output and skip Step 1 — go directly to Step 2 (Parse Failures).
 
 ## Behavior
 
@@ -62,7 +64,7 @@ Compare expected vs actual behavior. Determine whether:
 - The **test assertion** is genuinely wrong (e.g., testing removed behavior, wrong expected value from a spec change) → fix the test
 - A **dependency or mock** is stale → update it
 
-**Default assumption:** The source code is wrong, not the test. Only change test assertions when you can clearly justify why the test's expectation is incorrect.
+When uncertain whether a test assertion or the source code is wrong, ask the user before proceeding. If you can clearly justify that the test expectation is incorrect (e.g., outdated spec, explicitly removed feature), change the test with justification. Otherwise, fix the source code.
 
 #### d) Apply the fix
 Edit the source code (or test, with justification). Keep the fix minimal — don't refactor surrounding code.
@@ -76,7 +78,7 @@ npx jest --testPathPattern="<test-file>" --testNamePattern="<test-name>" 2>&1
 
 **If it passes:** Record the fix and move to the next failure.
 
-**If it still fails:** Try one more approach. If still failing after 2 attempts on the same test, record it as unresolved and move on.
+**If it still fails:** Try a different approach. Keep iterating until the test passes. If you're unsure about the intended behavior or what a correct fix looks like, ask the user with AskUserQuestion before guessing.
 
 ### 4. Run Full Suite Again
 
@@ -98,7 +100,7 @@ npx jest --verbose --no-coverage 2>&1
 
 #### If still some failures remain:
 
-Repeat from Step 2 for remaining failures, but only for **1 more full iteration** to avoid infinite loops.
+Repeat from Step 2 for remaining failures. Keep iterating until all tests pass. If stuck on a failure and unsure about the intended behavior, ask the user.
 
 ### 5. Final Report
 
@@ -122,9 +124,6 @@ After the suite is green (or max iterations reached), present:
 1. **`api.test.ts:56`** — Updated expected status from 200 to 201
    - Justification: POST endpoint was changed to return 201 on creation (correct REST semantics)
 
-### Unresolved (requires human decision)
-- `e2e/admin.test.ts:89` — Depends on external service mock not available in test env
-
 ### Regressions Caught & Reverted
 - Reverted change to `scoring.ts:30` — fixed tiebreaker but broke ranking sort. Applied alternative fix at line 52.
 ```
@@ -147,11 +146,10 @@ If any tests remain failing, do NOT commit. Present the report and let the user 
 
 ## Important Rules
 
-- **Do NOT ask questions.** Make reasonable decisions and document your reasoning.
+- **Ask when uncertain.** If unsure about intended behavior, what a test is meant to verify, or what a correct fix looks like, ask the user.
 - **Fix source code by default**, not test assertions. Only change tests with explicit justification.
 - **Never dismiss failures** — assume your changes (or the current code state) caused it. Fix every failure you see.
 - **Never call a test "flaky"** without investigating the root cause.
 - **Revert and retry** if a fix causes regressions — don't pile fixes on top of broken fixes.
-- **Max 2 full iterations** of the suite to prevent infinite loops.
-- **Max 2 fix attempts per individual test** before marking as unresolved.
+- **Keep iterating** until all tests pass. No arbitrary attempt limits.
 - **Keep fixes minimal** — don't refactor or "improve" surrounding code.

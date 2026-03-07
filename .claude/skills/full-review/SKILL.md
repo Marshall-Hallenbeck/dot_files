@@ -20,9 +20,8 @@ The holistic review pipeline. Runs every review, every check, every test, fixes 
 Run `/review` on uncommitted changes. If it reports P0 or P1 findings:
 1. Fix each finding
 2. Run `/review` again on the updated diff
-3. Repeat until verdict is PASS or max 3 iterations
-
-If findings persist after 3 rounds, record them and continue.
+3. Repeat until verdict is PASS
+4. If unsure how to fix a finding, ask the user before guessing
 
 ### Phase 2: Security Review
 
@@ -36,35 +35,26 @@ Run `/overcautious-check` on uncommitted changes. Record verdict (CLEAN / BLOCKE
 
 If BLOCK-level findings, fix them before continuing.
 
-### Phase 4: Lint & Formatting (auto-fix)
-
-Run `/lint --fix` on changed files. This:
-- Runs prettier and auto-fixes formatting
-- Runs ESLint and auto-fixes lint errors
-- Runs TypeScript type checking
-- Stages any auto-fixed files
-
-Record: files fixed, remaining errors.
-
-### Phase 5: Quality Gate (all tests)
+### Phase 4: Quality Gate (lint + tests)
 
 Run `/run-quality-gate`. This runs:
-- `/lint` (already done in Phase 4, but validates clean state)
+- `/lint --fix` (auto-fixes formatting and lint errors, stages fixed files)
 - `/run-unit-tests all`
 - `/run-integration-tests all`
 
-If all pass, continue.
+If all pass, continue. If tests fail, pass the failure output to Phase 5.
 
-### Phase 6: Fix Test Failures (if any)
+### Phase 5: Fix Test Failures (if any)
 
-If Phase 5 had test failures, run `/fix-tests` to:
+If Phase 4 had test failures, run `/fix-tests` with the failure output from Phase 4 (skip re-running the suite):
 - Diagnose each failure
 - Fix source code (not test assertions)
-- Iterate until green or max attempts
+- Iterate until all tests pass
+- If uncertain about intended behavior or what a correct fix looks like, ask the user before guessing
 
-Record: fixes applied, unresolved failures.
+Record: fixes applied.
 
-### Phase 7: Audits (read-only)
+### Phase 6: Audits (read-only)
 
 Run these checks in sequence. Flag issues but don't auto-fix.
 
@@ -89,15 +79,15 @@ npx jest --coverage --findRelatedTests <changed-files> --coverageReporters=text-
 ```
 Warn if coverage dropped on changed files. Do not block.
 
-### Phase 8: Final Review (conditional)
+### Phase 7: Final Review (conditional)
 
-**Only if changes were made in Phases 1-6** (fixes applied by review, lint, or fix-tests):
+**Only if changes were made in Phases 1-5** (fixes applied by review, lint, or fix-tests):
 
 Run `/review` one final time on the updated diff to verify fixes didn't introduce new issues.
 
 If no changes were made (everything passed clean on first try), skip this phase.
 
-### Phase 9: Summarize Changes
+### Phase 8: Summarize Changes
 
 Run `/summarize-changes` to categorize all uncommitted changes and give the user a clear picture of what they're about to commit.
 
@@ -117,9 +107,8 @@ Run `/summarize-changes` to categorize all uncommitted changes and give the user
 - Code review: PASS / NEEDS FIXES (N iterations)
 - Security review: SECURE / NEEDS FIXES
 - Overcautious check: CLEAN / BLOCKED
-- Lint & formatting: PASS / FIXED N files / FAIL
-- Quality gate: PASS / FAIL
-- Test fixes: N/A / FIXED N failures / N UNRESOLVED
+- Quality gate: PASS / FAIL (includes lint --fix + all tests)
+- Test fixes: N/A / FIXED N failures
 - Audits: CLEAN / WARNINGS / BLOCKED
 
 ### Auto-Fixed
@@ -147,7 +136,7 @@ Run `/summarize-changes` to categorize all uncommitted changes and give the user
 
 ## Rules
 
-- **Compose, don't duplicate.** Delegate to `/review`, `/security-review`, `/overcautious-check`, `/lint`, `/run-quality-gate`, `/fix-tests`, and `/summarize-changes`. Don't reimplement their logic.
+- **Compose, don't duplicate.** Delegate to `/review`, `/security-review`, `/overcautious-check`, `/run-quality-gate`, `/fix-tests`, and `/summarize-changes`. Don't reimplement their logic.
 - **Never modify test assertions** to make tests pass.
 - **Never commit if secrets are detected.**
 - **Stage auto-fix changes** so the user sees them in the diff.
