@@ -7,10 +7,10 @@ set -euo pipefail
 INPUT=$(cat)
 COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
 
-# git commit or git push
-if echo "$COMMAND" | grep -qP '(^|\s|;|&&|\|\|)git\s+(commit|push)\b'; then
+# git add, commit, or push
+if echo "$COMMAND" | grep -qP '(^|\s|;|&&|\|\|)git\s+(add|commit|push)\b'; then
   cat <<'HOOK'
-{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"git commit/push requires explicit user approval."}}
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"git add/commit/push requires explicit user approval."}}
 HOOK
   exit 0
 fi
