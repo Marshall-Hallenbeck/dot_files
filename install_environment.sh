@@ -12,7 +12,7 @@ BACKUP_DIR="$HOME/.dotfiles-backup/$(date +%Y%m%d-%H%M%S)"
 link_file() {
     local src="$1" dest="$2"
 
-    if [ ! -f "$src" ]; then
+    if [ ! -e "$src" ]; then
         echo "  WARNING: source not found: $src" >&2
         return 1
     fi
@@ -53,7 +53,7 @@ fi
 # ── System packages ──────────────────────────────────────────────
 echo "Installing system packages..."
 sudo apt update
-for pkg in zsh tmux vim python3-pip git virtualenvwrapper curl wget jq bc xclip net-tools; do
+for pkg in zsh tmux vim python3-pip python3-venv git virtualenvwrapper curl wget jq bc xclip net-tools shellcheck ripgrep build-essential unzip ca-certificates; do
     dpkg -s "$pkg" &>/dev/null || sudo apt install -y "$pkg"
 done
 
@@ -67,6 +67,47 @@ if ! command -v gh &>/dev/null; then
     echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
     sudo apt update
     sudo apt install -y gh
+fi
+
+# ── Docker ───────────────────────────────────────────────────────
+if ! command -v docker &>/dev/null; then
+    echo "Installing Docker..."
+    sudo install -m 0755 -d /etc/apt/keyrings
+
+    # Detect distro and set Docker repo URL + codename
+    # shellcheck disable=SC1091
+    . /etc/os-release
+    DOCKER_URL=""
+    DOCKER_CODENAME=""
+    case "$ID" in
+        ubuntu)
+            DOCKER_URL="https://download.docker.com/linux/ubuntu"
+            DOCKER_CODENAME="${UBUNTU_CODENAME:-$VERSION_CODENAME}"
+            ;;
+        debian)
+            DOCKER_URL="https://download.docker.com/linux/debian"
+            DOCKER_CODENAME="$VERSION_CODENAME"
+            ;;
+        kali)
+            DOCKER_URL="https://download.docker.com/linux/debian"
+            # Kali doesn't have its own Docker repo; use the underlying Debian codename
+            DOCKER_CODENAME=$(cut -d/ -f1 < /etc/debian_version)
+            ;;
+        *)
+            echo "  WARNING: unsupported distro '$ID' for Docker, skipping" >&2
+            ;;
+    esac
+
+    if [ -n "$DOCKER_URL" ]; then
+        sudo curl -fsSL "$DOCKER_URL/gpg" -o /etc/apt/keyrings/docker.asc
+        sudo chmod a+r /etc/apt/keyrings/docker.asc
+        echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] $DOCKER_URL $DOCKER_CODENAME stable" | \
+            sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+        sudo apt update
+        sudo apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+        sudo systemctl enable docker --now
+        sudo usermod -aG docker "$(whoami)"
+    fi
 fi
 
 # ── Set zsh as default shell ─────────────────────────────────────
@@ -107,6 +148,24 @@ fi
 if ! command -v claude &>/dev/null; then
     echo "Installing Claude Code..."
     npm install -g @anthropic-ai/claude-code
+fi
+
+# ── OpenAI Codex ─────────────────────────────────────────────────
+if ! command -v codex &>/dev/null; then
+    echo "Installing OpenAI Codex..."
+    npm install -g @openai/codex
+fi
+
+# ── GitHub Copilot ───────────────────────────────────────────────
+if ! command -v copilot &>/dev/null; then
+    echo "Installing GitHub Copilot..."
+    npm install -g @github/copilot
+fi
+
+# ── Google Gemini CLI ────────────────────────────────────────────
+if ! command -v gemini &>/dev/null; then
+    echo "Installing Gemini CLI..."
+    npm install -g @google/gemini-cli
 fi
 
 # ── Claude Code LSP servers ─────────────────────────────────────
@@ -155,7 +214,11 @@ link_file "$DOTFILES_DIR/.claude/statusline.sh" ~/.claude/statusline.sh
 chmod +x ~/.claude/statusline.sh
 
 # Hooks
-link_file "$DOTFILES_DIR/.claude/hooks" ~/.claude/hooks
+mkdir -p ~/.claude/hooks
+for hook_file in "$DOTFILES_DIR"/.claude/hooks/*; do
+    [ -f "$hook_file" ] || continue
+    link_file "$hook_file" ~/.claude/hooks/"$(basename "$hook_file")"
+done
 
 # Rules
 for rule_file in "$DOTFILES_DIR"/.claude/rules/*.md; do
@@ -163,14 +226,16 @@ for rule_file in "$DOTFILES_DIR"/.claude/rules/*.md; do
     link_file "$rule_file" ~/.claude/rules/"$(basename "$rule_file")"
 done
 
-# Skills (only managed skills that have SKILL.md)
+# Skills (all files in managed skill directories)
 for skill_dir in "$DOTFILES_DIR"/.claude/skills/*/; do
     [ -d "$skill_dir" ] || continue
     local_skill=$(basename "$skill_dir")
-    if [ -f "$skill_dir/SKILL.md" ]; then
-        mkdir -p ~/.claude/skills/"$local_skill"
-        link_file "$skill_dir/SKILL.md" ~/.claude/skills/"$local_skill"/SKILL.md
-    fi
+    [ -f "$skill_dir/SKILL.md" ] || continue
+    mkdir -p ~/.claude/skills/"$local_skill"
+    for skill_file in "$skill_dir"*; do
+        [ -f "$skill_file" ] || continue
+        link_file "$skill_file" ~/.claude/skills/"$local_skill"/"$(basename "$skill_file")"
+    done
 done
 
 # Agents
