@@ -82,12 +82,13 @@
         ]
       }
     ],
-    "Stop": [
+    "PreToolUse": [
       {
+        "matcher": "Bash",
         "hooks": [
           {
-            "type": "prompt",
-            "prompt": "You are a JSON-only evaluator. You MUST respond with a single JSON object and NOTHING else. No markdown, no code fences, no explanation, no preamble. Just the raw JSON object.\n\nReview the assistant's final response. Reject ONLY if the assistant is clearly rationalizing incomplete work: claiming issues are 'pre-existing' or 'out of scope', saying 'too many issues' to fix, deferring to unrequested 'follow-ups', listing problems without fixing them, or skipping test/lint failures with excuses.\n\nDo NOT reject if:\n- The assistant is asking the user a legitimate question (e.g., confirming before committing, clarifying ambiguous requirements, asking which approach to take)\n- The assistant just finished a diagnostic/investigation step and is about to act on findings\n- The assistant completed the requested work and is offering optional next steps\n- The stop_hook_active field is true (this means the hook already triggered once — allow stop to prevent loops)\n\nIf rationalizing, respond:\n{\"ok\": false, \"reason\": \"You are rationalizing incomplete work. [specific issue]. Go back and finish.\"}\n\nOtherwise respond:\n{\"ok\": true}"
+            "type": "command",
+            "command": "$HOME/.claude/hooks/guard-dangerous-commands.sh"
           }
         ]
       }
