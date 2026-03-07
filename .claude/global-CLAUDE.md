@@ -21,15 +21,28 @@ When testing or debugging, focus on the actual reported symptom. Do not try rand
 
 ## Asking Questions
 
-When anything is ambiguous, unclear, or open to interpretation, use AskUserQuestion to clarify BEFORE proceeding. Do not guess, assume, or pick a default — ask. This applies to:
+When anything is ambiguous, unclear, or open to interpretation, use AskUserQuestion to clarify BEFORE proceeding. Do not guess, assume, or pick a default — ask. This applies everywhere: code, architecture, agent configuration, skill design, and operational decisions. Specific examples:
 
 - Ambiguous requirements or feature scope
 - Unclear implementation approach (multiple reasonable options)
 - Uncertainty about intended behavior or edge cases
 - File placement, naming, or architectural decisions that aren't obvious
+- Whether to add defensive checks, guards, or safety measures
+- Whether to fix source code vs test assertions
 - Anything where a wrong assumption would waste effort or produce the wrong result
 
-Asking a quick question is always preferable to guessing wrong. The user expects to be consulted.
+Asking a quick question is always preferable to guessing wrong. The user expects to be consulted. Never silently give up, silently pick a default, or make "reasonable assumptions" — ask.
+
+## No Defensive Measures Unless Asked
+
+The hard-fail principle from `error-handling.md` extends beyond code to ALL decisions: architecture, agent configuration, skill design, and operational workflows.
+
+- No arbitrary iteration caps, retry limits, or "max attempts" that silently give up — keep going, and ask the user if stuck
+- No guard clauses or validation for scenarios that can't happen
+- No precautionary abstractions, "just in case" parameters, or feature flags
+- No backwards-compatibility shims when you can just change the code
+
+If you think a defensive measure is genuinely needed, ask the user first with AskUserQuestion. The user would rather have a loud failure they can diagnose than a silent "safe" behavior that hides the real problem.
 
 ## Planning & Approach
 
