@@ -62,6 +62,7 @@ if ! command -v gh &>/dev/null; then
     echo "Installing GitHub CLI..."
     sudo mkdir -p -m 755 /etc/apt/keyrings
     out=$(mktemp) && wget -nv -O"$out" https://cli.github.com/packages/githubcli-archive-keyring.gpg
+    # shellcheck disable=SC2024
     sudo tee /etc/apt/keyrings/githubcli-archive-keyring.gpg < "$out" > /dev/null && rm "$out"
     sudo chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg
     echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
@@ -131,6 +132,7 @@ if [ ! -d "$NVM_DIR" ]; then
     curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
 fi
 # load nvm for the rest of this script
+# shellcheck disable=SC1091
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
 
 if ! nvm ls "$NODE_VERSION" &>/dev/null; then
