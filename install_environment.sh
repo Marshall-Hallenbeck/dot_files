@@ -109,6 +109,15 @@ if ! command -v claude &>/dev/null; then
     npm install -g @anthropic-ai/claude-code
 fi
 
+# ── Claude Code LSP servers ─────────────────────────────────────
+echo "Installing Claude Code LSP servers..."
+if ! command -v typescript-language-server &>/dev/null; then
+    npm install -g typescript-language-server typescript
+fi
+if ! command -v pyright &>/dev/null; then
+    npm install -g pyright
+fi
+
 # ── Shell dotfiles (symlink with backup) ─────────────────────────
 # Installed AFTER tools so our versions are the final word.
 echo "Symlinking shell dotfiles..."
