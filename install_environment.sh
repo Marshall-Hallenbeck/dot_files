@@ -145,6 +145,9 @@ link_file "$DOTFILES_DIR/.claude/settings.local.json" ~/.claude/settings.local.j
 link_file "$DOTFILES_DIR/.claude/statusline.sh" ~/.claude/statusline.sh
 chmod +x ~/.claude/statusline.sh
 
+# Hooks
+link_file "$DOTFILES_DIR/.claude/hooks" ~/.claude/hooks
+
 # Rules
 for rule_file in "$DOTFILES_DIR"/.claude/rules/*.md; do
     [ -f "$rule_file" ] || continue
