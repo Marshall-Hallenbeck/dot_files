@@ -46,6 +46,8 @@ If you think a defensive measure is genuinely needed, ask the user first with As
 
 ## Planning & Approach
 
+For any task involving more than 2 file changes: outline your approach in numbered steps first. Wait for user approval before executing. If unsure between approaches, list the options with tradeoffs.
+
 Before creating any plan, complete a codebase grounding phase. Do not skip this.
 
 1. **Discovery** — Use Grep and Glob to find all files relevant to the area. List every file found.
