@@ -19,6 +19,10 @@ When investigating issues, verify the actual infrastructure routing (e.g., nginx
 
 When testing or debugging, focus on the actual reported symptom. Do not try random exploratory fixes — diagnose the root cause first, then apply a single targeted fix.
 
+## Execution Style
+
+Always execute commands directly. Never provide manual steps for the user to run unless the command is destructive, requires credentials you don't have, or affects systems outside the current machine. Do the work — don't describe the work.
+
 ## Asking Questions
 
 When anything is ambiguous, unclear, or open to interpretation, use AskUserQuestion to clarify BEFORE proceeding. Do not guess, assume, or pick a default — ask. This applies everywhere: code, architecture, agent configuration, skill design, and operational decisions. Specific examples:

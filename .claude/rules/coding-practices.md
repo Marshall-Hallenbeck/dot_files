@@ -19,6 +19,10 @@ Before creating a new file, verify:
 - Small tweaks or additions → Update the existing file
 - Fixing bugs → Modify the existing code
 
+## Verify Schemas Before Writing Code
+
+Before editing code that references database columns, API fields, or type properties, read the actual schema or type definitions first. Do not assume field names — verify them. This applies to ORM models, API response shapes, GraphQL schemas, and any typed interface.
+
 ## Read Before Modifying
 
 Before modifying files, read similar files to understand existing patterns. This prevents:

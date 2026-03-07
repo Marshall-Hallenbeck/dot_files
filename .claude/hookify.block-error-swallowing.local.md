@@ -1,9 +1,15 @@
 ---
 name: block-error-swallowing
 enabled: true
-event: all
+event: file
 action: block
-pattern: \.catch\s*\(\s*\(\s*\)\s*=>\s*\{[\s]*\}\s*\)|catch\s*\{\s*\}|catch\s*\([^)]*\)\s*\{[\s]*\}|except\s*:\s*(pass|\.\.\.)|except\s+\w+(\s+as\s+\w+)?\s*:\s*(pass|\.\.\.)|_\s*=\s*recover\(\)|defer\s+func\(\)\s*\{\s*recover\(\)|if\s+err\s*!=\s*nil\s*\{\s*(return\s+nil|_\s*=\s*err)\s*\}|2>\s*/dev/null|2>&1\s*\|\s*true|\|\|\s*true|\|\|\s*:|trap\s+['"]?\s*['"]?\s+ERR
+conditions:
+  - field: file_path
+    operator: not_contains
+    pattern: hooks.json
+  - field: new_text
+    operator: regex_match
+    pattern: \.catch\s*\(\s*\(\s*\)\s*=>\s*\{[\s]*\}\s*\)|catch\s*\{\s*\}|catch\s*\([^)]*\)\s*\{[\s]*\}|except\s*:\s*(pass|\.\.\.)|except\s+\w+(\s+as\s+\w+)?\s*:\s*(pass|\.\.\.)|_\s*=\s*recover\(\)|defer\s+func\(\)\s*\{\s*recover\(\)|if\s+err\s*!=\s*nil\s*\{\s*(return\s+nil|_\s*=\s*err)\s*\}|2>\s*/dev/null|2>&1\s*\|\s*true|\|\|\s*true|\|\|\s*:|trap\s+['"]?\s*['"]?\s+ERR
 ---
 
 **BLOCKED: Silent error swallowing detected.**

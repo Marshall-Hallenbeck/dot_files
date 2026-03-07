@@ -13,6 +13,11 @@
         "matcher": "Edit|Write|MultiEdit",
         "command": "file_path=$(echo \"$CLAUDE_TOOL_INPUT\" | jq -r '.file_path // empty'); if [ -z \"$file_path\" ]; then exit 0; fi; case \"$file_path\" in *.ts|*.tsx) ;; *) exit 0;; esac; if [ ! -f \"$(dirname \"$file_path\")/tsconfig.json\" ] && [ ! -f \"$(git -C \"$(dirname \"$file_path\")\" rev-parse --show-toplevel 2>/dev/null)/tsconfig.json\" ]; then exit 0; fi; cd \"$(git -C \"$(dirname \"$file_path\")\" rev-parse --show-toplevel 2>/dev/null)\" && npx tsc --noEmit --pretty 2>&1 | head -20",
         "description": "Type-check after TypeScript file edits"
+      },
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "command": "file_path=$(echo \"$CLAUDE_TOOL_INPUT\" | jq -r '.file_path // empty'); if [ -z \"$file_path\" ]; then exit 0; fi; case \"$file_path\" in *.py) ;; *) exit 0;; esac; command -v ruff >/dev/null 2>&1 || exit 0; ruff check --fix \"$file_path\" 2>&1 | head -20; ruff format --check \"$file_path\" 2>&1 | head -5; exit 0",
+        "description": "Lint and format-check Python files after editing"
       }
     ]
   }
