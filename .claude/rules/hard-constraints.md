@@ -26,10 +26,14 @@ If a bug, test failure, or issue is visible in the current state of the code, fi
 - Say "this was already broken before my changes"
 - Say "this is a pre-existing issue"
 - Say "this is out of scope"
+- Say "this is too complex to fix right now"
+- Say "fixing this would require larger refactoring"
 - Classify visible problems as someone else's responsibility
 - List problems without fixing them
+- During code review, label findings as "pre-existing" to justify not fixing them
+- Skip any finding during review because it existed before the current changeset
 
-If you can see it, you own it. Fix it or ask the user if you're unsure how.
+If you can see it, you own it. Fix it or ask the user if you're unsure how. This applies equally during code review — every finding gets fixed regardless of when it was introduced. "Pre-existing" is not a valid classification for skipping work.
 
 ## No Over-Cautious Defensive Code
 
