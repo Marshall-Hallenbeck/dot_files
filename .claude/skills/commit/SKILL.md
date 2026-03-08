@@ -1,52 +1,72 @@
 ---
 name: commit
-description: "Create a scoped git commit (same behavior as /safe-commit)."
+description: "Group changes into logical commits. Alias for /safe-commit."
 argument-hint: "[message] [files...]"
 disable-model-invocation: true
 allowed-tools: Bash(git add:*), Bash(git restore:*), Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(git commit:*)
 ---
 
-# Commit (Scoped)
+# Commit
 
-Creates a commit from only task-related files. This is the global alias for `/safe-commit`.
+Groups working-tree changes into logical commits. Alias for `/safe-commit`.
 
 ## Usage
 
 ```text
-/commit "<message>" [file1 file2 ...]
-/safe-commit "<message>" [file1 file2 ...]
-```
-
-## Examples
-
-```text
-/commit "fix(auth): tighten role checks" backend/src/api/auth.ts backend/tests/integration/auth.test.ts
-/safe-commit "chore(ai): update skill routing docs" .claude/CLAUDE.md .claude/skills/run-tests/SKILL.md
+/commit                              # auto-group all changes
+/commit "<message>" [file1 file2 ...]  # commit specific files with message
 ```
 
 ## Required Behavior
 
-1. Scope commit to task files only:
-   - If file args are provided, use only those files.
-   - If no file args are provided, derive scope from this conversation's work and exclude unrelated diffs.
-2. Stage only scoped files:
+### 1. Assess Changes
+
+```bash
+git status --short
+git diff --stat
+git diff --cached --stat
+```
+
+### 2. Group Into Logical Commits
+
+Analyze all unstaged and staged changes and split them into logical groups. Each group should represent a single coherent change (one feature, one fix, one refactor, etc.).
+
+Grouping heuristics:
+- Files that serve the same purpose (e.g., a component + its test + its styles) belong together.
+- Config changes that are unrelated to code changes get their own commit.
+- Unrelated bug fixes get separate commits from feature work.
+- If ALL changes are genuinely related, a single commit is fine.
+
+### 3. Commit Each Group
+
+For each logical group:
+1. Stage only that group's files:
    ```bash
-   git add <scoped-files...>
-   git diff --cached --name-only
+   git add <files-in-group...>
    ```
-3. Run `/run-quality-gate` before final commit.
-4. **Add GitHub issue references** if the work relates to an issue:
+2. Generate a commit message following Conventional Commits (`<type>(scope): description`).
+   - If the user provided a message and there's only one group, use that message.
+   - If the user provided a message and there are multiple groups, use it for the most relevant group and generate messages for the others.
+3. **Add GitHub issue references** if the work relates to an issue:
    - Include `(#<number>)` at the end of the commit subject line.
-   - If the commit fully resolves the issue, add a closing keyword in the commit body on its own line: `Closes #<number>`, `Fixes #<number>`, or `Resolves #<number>`.
-   - For partial progress, use `Part of #<number>` in the body or just `(#<number>)` in the subject.
-5. Commit with the provided message:
+   - If the commit fully resolves the issue, add `Closes #<number>` in the body.
+4. Commit:
    ```bash
    git commit -m "<message>"
    ```
 
+### 4. Report Results
+
+After all commits, show a summary:
+```
+Committed:
+  abc1234 fix(auth): tighten role checks
+  def5678 chore(deps): bump eslint to v9
+```
+
 ## Hard Rules
 
-- Never use `git add -A` or `git add .` in this skill.
-- If no scoped changes are staged, abort (no empty commit here).
-- If validation fails, abort and report exact failures.
-- For full-worktree commits or checkpoint commits, use `/safe-commit-all`.
+- Never use `git add -A` or `git add .`.
+- Never run tests, linters, type checks, or quality gates.
+- If no changes exist, abort.
+- If file args are provided, commit exactly those files (skip grouping).

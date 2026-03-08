@@ -1,48 +1,73 @@
 ---
 name: safe-commit
-description: "Scoped commit: commit only task-related changes after validation passes."
+description: "Group changes into logical commits. Same as /commit."
 argument-hint: "[message] [files...]"
 disable-model-invocation: true
 allowed-tools: Bash(git add:*), Bash(git restore:*), Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(git commit:*)
 ---
 
-# Safe Commit (Scoped)
+# Safe Commit
 
-Creates a commit from only the intended task scope, never from the full worktree.
+Groups working-tree changes into logical commits. Same behavior as `/commit`.
 
 ## Usage
 
 ```text
-/safe-commit "<message>" [file1 file2 ...]
-```
-
-## Examples
-
-```text
-/safe-commit "fix(api): reject unauthorized role updates" backend/src/api/user.ts backend/tests/integration/user-role.test.ts
-/safe-commit "chore(ai): split test workflow skills" .claude/skills/run-tests/SKILL.md .claude/skills/run-quality-gate/SKILL.md
+/safe-commit                              # auto-group all changes
+/safe-commit "<message>" [file1 file2 ...]  # commit specific files with message
 ```
 
 ## Required Behavior
 
-1. Confirm the user explicitly requested a commit.
-2. Determine scope:
-   - If file args are provided, commit exactly those files.
-   - Otherwise derive the scope from task context and current diff.
-3. Stage only scoped files:
+### 1. Assess Changes
+
+```bash
+git status --short
+git diff --stat
+git diff --cached --stat
+```
+
+### 2. Group Into Logical Commits
+
+Analyze all unstaged and staged changes and split them into logical groups. Each group should represent a single coherent change (one feature, one fix, one refactor, etc.).
+
+Grouping heuristics:
+- Files that serve the same purpose (e.g., a component + its test + its styles) belong together.
+- Config changes that are unrelated to code changes get their own commit.
+- Unrelated bug fixes get separate commits from feature work.
+- If ALL changes are genuinely related, a single commit is fine.
+
+### 3. Commit Each Group
+
+For each logical group:
+1. Stage only that group's files:
    ```bash
-   git add <scoped-files...>
-   git diff --cached --name-only
+   git add <files-in-group...>
    ```
-4. Run `/run-quality-gate`.
-5. Commit:
+2. Generate a commit message following Conventional Commits (`<type>(scope): description`).
+   - If the user provided a message and there's only one group, use that message.
+   - If the user provided a message and there are multiple groups, use it for the most relevant group and generate messages for the others.
+3. **Add GitHub issue references** if the work relates to an issue:
+   - Include `(#<number>)` at the end of the commit subject line.
+   - If the commit fully resolves the issue, add `Closes #<number>` in the body.
+4. Commit:
    ```bash
    git commit -m "<message>"
    ```
 
-## Guardrails
+### 4. Report Results
 
-- Never use `git add -A` or `git add .` here.
-- Abort if staged diff is empty.
-- Abort on any failing quality gate step.
-- Use `/safe-commit-all` when the user explicitly wants a full-worktree commit.
+After all commits, show a summary:
+```
+Committed:
+  abc1234 fix(auth): tighten role checks
+  def5678 chore(deps): bump eslint to v9
+```
+
+## Hard Rules
+
+- Never use `git add -A` or `git add .`.
+- Never run tests, linters, type checks, or quality gates.
+- If no changes exist, abort.
+- If file args are provided, commit exactly those files (skip grouping).
+- For full-worktree commits, use `/safe-commit-all`.

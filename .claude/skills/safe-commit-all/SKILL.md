@@ -1,53 +1,76 @@
 ---
 name: safe-commit-all
-description: "Commit all working-tree changes (or an empty checkpoint commit) after validation."
+description: "Group ALL working-tree changes into logical commits."
 argument-hint: "[message]"
 disable-model-invocation: true
-allowed-tools: Bash(git add:*), Bash(git status:*), Bash(git diff:*), Bash(git commit:*)
+allowed-tools: Bash(git add:*), Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(git commit:*)
 ---
 
 # Safe Commit All
 
-Commits the full working tree. Supports empty checkpoint commits when explicitly requested.
+Groups all working-tree changes into logical commits.
 
 ## Usage
 
 ```text
-/safe-commit-all "<message>"
-```
-
-## Examples
-
-```text
-/safe-commit-all "chore: checkpoint before rebase"
-/safe-commit-all "chore: empty checkpoint after full validation"
+/safe-commit-all                # auto-group all changes
+/safe-commit-all "<message>"    # use message (single commit if all related)
 ```
 
 ## Required Behavior
 
-1. Confirm explicit user request to commit all changes.
-2. Run `/run-quality-gate`.
+### 1. Assess Changes
+
+```bash
+git status --short
+git diff --stat
+```
+
+### 2. Group Into Logical Commits
+
+Analyze all changes and split them into logical groups. Each group should represent a single coherent change (one feature, one fix, one refactor, etc.).
+
+Grouping heuristics:
+- Files that serve the same purpose (e.g., a component + its test + its styles) belong together.
+- Config changes that are unrelated to code changes get their own commit.
+- Unrelated bug fixes get separate commits from feature work.
+- If ALL changes are genuinely related, a single commit is fine.
+
+### 3. Commit Each Group
+
+For each logical group:
+1. Stage that group's files:
+   ```bash
+   git add <files-in-group...>
+   ```
+2. Generate a commit message following Conventional Commits (`<type>(scope): description`).
+   - If the user provided a message and there's only one group, use that message.
+   - If the user provided a message and there are multiple groups, use it for the most relevant group and generate messages for the others.
 3. **Add GitHub issue references** if the work relates to an issue:
    - Include `(#<number>)` at the end of the commit subject line.
-   - If the commit fully resolves the issue, add a closing keyword in the commit body on its own line: `Closes #<number>`, `Fixes #<number>`, or `Resolves #<number>`.
-   - For partial progress, use `Part of #<number>` in the body or just `(#<number>)` in the subject.
-4. Stage all changes:
+   - If the commit fully resolves the issue, add `Closes #<number>` in the body.
+4. Commit:
    ```bash
-   git add --all
-   git diff --cached --name-only
+   git commit -m "<message>"
    ```
-5. Commit:
-   - If staged changes exist:
-     ```bash
-     git commit -m "<message>"
-     ```
-   - If no staged changes exist:
-     ```bash
-     git commit --allow-empty -m "<message>"
-     ```
 
-## Guardrails
+### 4. Report Results
 
-- Never run automatically.
-- Do not use this for scoped feature commits; use `/safe-commit`.
-- If validation fails, abort and report failures.
+After all commits, show a summary:
+```
+Committed:
+  abc1234 fix(auth): tighten role checks
+  def5678 chore(deps): bump eslint to v9
+```
+
+### 5. Empty Commits
+
+If no changes exist and the user explicitly requested a checkpoint:
+```bash
+git commit --allow-empty -m "<message>"
+```
+
+## Hard Rules
+
+- Never run tests, linters, type checks, or quality gates.
+- If no changes exist and no checkpoint was requested, abort.
