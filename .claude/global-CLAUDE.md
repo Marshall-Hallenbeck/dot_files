@@ -90,6 +90,10 @@ Never modify shell config files (`.zshrc`, `.bashrc`, `.zshenv`) with `sed`. Use
 
 After modifying any code in Docker-deployed services, consider if a rebuild or restart is needed before testing. Check if the code is mounted in the container, if hot-reload is enabled, or if the change is system/Docker configuration requiring a rebuild. Don't rebuild out of caution or habit — ensure a rebuild is necessary.
 
+## Learned Insights
+
+Cross-project insights are accumulated in `~/.claude/global-learned-insights.md`. Read this file at the start of each session to benefit from prior observations. Per-project insights are stored in `<project-root>/.claude/project-learned-insights.md` when present.
+
 ## Dotfiles Management
 
 This host's config files are symlinked from `~/.dot_files` (a clone of the dot_files repo).

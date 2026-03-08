@@ -218,6 +218,7 @@ link_file "$DOTFILES_DIR/.claude/hooks.json" ~/.claude/hooks.json
 link_file "$DOTFILES_DIR/.claude/settings.json" ~/.claude/settings.json
 link_file "$DOTFILES_DIR/.claude/settings.local.json" ~/.claude/settings.local.json
 link_file "$DOTFILES_DIR/.claude/statusline.sh" ~/.claude/statusline.sh
+link_file "$DOTFILES_DIR/.claude/global-learned-insights.md" ~/.claude/global-learned-insights.md
 chmod +x ~/.claude/statusline.sh
 
 # Hooks — remove stale directory symlink from older installs
