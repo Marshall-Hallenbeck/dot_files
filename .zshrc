@@ -2,8 +2,8 @@
 alias q='exit'
 export ZSH=$HOME/.oh-my-zsh/
 # If you come from bash you might have to change your $PATH.
-# PATH setup — nvm lazy-load wrappers handle node/npm/npx (see below)
-export PATH=$HOME/bin:/usr/local/bin:$PATH:$HOME/.local/bin:$HOME/.dotnet/
+# PATH setup — include Go-installed security tools plus nvm lazy-load wrappers below
+export PATH=$HOME/bin:$HOME/go/bin:/usr/local/bin:$PATH:$HOME/.local/bin:$HOME/.dotnet/
 
 # Path to your oh-my-zsh installation.
 # Path depends on my username on the box. I can probably make this dynamic but whatever
