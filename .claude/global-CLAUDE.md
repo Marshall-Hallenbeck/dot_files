@@ -37,6 +37,12 @@ When anything is ambiguous, unclear, or open to interpretation, use AskUserQuest
 
 Asking a quick question is always preferable to guessing wrong. The user expects to be consulted. Never silently give up, silently pick a default, or make "reasonable assumptions" — ask.
 
+## Workflow Rules
+- Always ask clarifying questions before implementing. Never assume.
+- When there are multiple valid approaches, present them as numbered options with tradeoffs before proceeding.
+- Break work into small chunks and get approval after each chunk.
+- If a task is blocked by external limitations (third-party APIs, minified code, CAPTCHAs), stop after 2 failed attempts, explain why it's blocked, and propose alternative approaches.
+
 ## No Defensive Measures Unless Asked
 
 The hard-fail principle from `error-handling.md` extends beyond code to ALL decisions: architecture, agent configuration, skill design, and operational workflows.
@@ -65,6 +71,7 @@ Stay focused on the stated goal. If you think work should extend beyond the orig
 ## Code Style
 
 - Use `.yml` extension (not `.yaml`) for YAML files unless the project already uses `.yaml`.
+- Use dot notation for attribute access in Python. Do not use `getattr`/`setattr` patterns or `pyright: ignore`/`type: ignore` comments unless absolutely unavoidable for third-party library compatibility.
 
 ## Error Handling
 
@@ -73,6 +80,14 @@ Hard-fail error handling only. No silent fallbacks, no swallowed errors, no try/
 ## Testing
 
 Always run the full test suite after multi-file changes and before committing. Verify 0 failures. If tests fail, fix them before proceeding — do not commit with known failures.
+
+## Static Analysis
+
+Run both Ruff and Pyright as part of the quality gate. Both must pass clean before claiming completion:
+- `ruff check src/ tests/` — linting and style
+- `pyright` (or project-specific type checker) — type checking
+
+Fix issues from both tools, not just one. If a project's CLAUDE.md specifies different commands (e.g., `uv run ruff`, `uv run pyright`), use those.
 
 ## Claude Code Configuration
 

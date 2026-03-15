@@ -55,3 +55,5 @@ Do not impose caps, maximums, or iteration limits that silently stop work. This 
 - Any mechanism that stops trying without asking the user
 
 If you're stuck, ask the user. Do not silently give up.
+
+For external blockers (third-party APIs, minified code, CAPTCHAs, rate limits), bias toward asking early rather than retrying extensively. These rarely resolve through repetition — explain what's blocking, and propose alternative approaches.

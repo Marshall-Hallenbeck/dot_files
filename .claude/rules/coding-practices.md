@@ -52,6 +52,10 @@ Only make changes that are directly requested or clearly necessary.
 - Don't add docstrings, comments, or type annotations to code you didn't change
 - Only add comments where the logic isn't self-evident
 
+## Direct Attribute Access
+
+Use dot notation for attribute access in Python. Do not use `getattr(obj, "attr")` or `setattr(obj, "attr", val)` when the attribute name is a constant — use `obj.attr` and `obj.attr = val` directly. Similarly, do not add `# pyright: ignore` or `# type: ignore` comments unless absolutely unavoidable for third-party library compatibility.
+
 ## Clean Deletion
 
 Avoid backwards-compatibility hacks:
