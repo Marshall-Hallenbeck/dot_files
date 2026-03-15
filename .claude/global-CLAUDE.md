@@ -19,6 +19,10 @@ When investigating issues, verify the actual infrastructure routing (e.g., nginx
 
 When testing or debugging, focus on the actual reported symptom. Do not try random exploratory fixes — diagnose the root cause first, then apply a single targeted fix.
 
+## External Limitations
+
+If a task is blocked by external limitations (third-party APIs, minified code, CAPTCHAs), stop after 2 failed attempts, explain why it's blocked, and propose alternative approaches.
+
 ## Execution Style
 
 Always execute commands directly. Never provide manual steps for the user to run unless the command is destructive, requires credentials you don't have, or affects systems outside the current machine. Do the work — don't describe the work.
