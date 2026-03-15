@@ -8,6 +8,13 @@
         "description": "Block fallback/defensive guards unless user explicitly asks"
       }
     ],
+    "Stop": [
+      {
+        "matcher": "",
+        "command": "$HOME/.claude/hooks/save-insights-reminder.sh",
+        "description": "Remind to save ★ Insight blocks to insights files"
+      }
+    ],
     "PostToolUse": [
       {
         "matcher": "Edit|Write|MultiEdit",
