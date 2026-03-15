@@ -46,7 +46,7 @@
       "mcp__plugin_serena_serena__search_for_pattern",
       "mcp__plugin_serena_serena__think_about_collected_information",
       "mcp__puppeteer__*",
-      "Edit(path:*learned-insights.md)"
+      "Edit(**/*learned-insights.md)"
     ]
   },
   "model": "opus",
