@@ -13,7 +13,7 @@ fi
 DOMAIN="$1"
 EMAIL="${EMAIL:-admin@${DOMAIN}}"
 INSTALL_DIR="/opt/burp-collab"
-JAR_URL="https://portswigger.net/burp/releases/download?product=collaborator&version=2025.6.3&type=Jar"
+JAR_URL="https://portswigger.net/burp/releases/download?product=pro&type=jar"
 JAR_FILE="burp-collaborator.jar"
 SERVICE_NAME="burp-collab"
 
