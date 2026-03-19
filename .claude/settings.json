@@ -1,10 +1,7 @@
 {
   "cleanupPeriodDays": 365,
   "env": {
-    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
-    "DISABLE_TELEMETRY": "1",
-    "CLAUDE_CODE_DISABLE_FEEDBACK_SURVEY": "1",
-    "DISABLE_ERROR_REPORTING": "1"
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
   },
   "attribution": {
     "commit": "",
@@ -46,10 +43,11 @@
       "mcp__plugin_serena_serena__search_for_pattern",
       "mcp__plugin_serena_serena__think_about_collected_information",
       "mcp__puppeteer__*",
-      "Edit(**/*learned-insights.md)"
-    ]
+      "Edit(**/*learned-insights.md)",
+      "Bash(uv run:*)"
+    ],
+    "defaultMode": "default"
   },
-  "model": "opus",
   "hooks": {
     "SessionStart": [
       {
@@ -95,7 +93,7 @@
   },
   "syntaxHighlightingDisabled": false,
   "alwaysThinkingEnabled": true,
+  "effortLevel": "high",
   "voiceEnabled": false,
-  "skipDangerousModePermissionPrompt": true,
-  "effortLevel": "high"
+  "skipDangerousModePermissionPrompt": true
 }

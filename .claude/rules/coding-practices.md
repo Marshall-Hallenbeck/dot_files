@@ -56,6 +56,24 @@ Only make changes that are directly requested or clearly necessary.
 
 Use dot notation for attribute access in Python. Do not use `getattr(obj, "attr")` or `setattr(obj, "attr", val)` when the attribute name is a constant — use `obj.attr` and `obj.attr = val` directly. Similarly, do not add `# pyright: ignore` or `# type: ignore` comments unless absolutely unavoidable for third-party library compatibility.
 
+## No Underscore-Prefixed Names
+
+Never use leading underscores for "private" functions, methods, classes, or module-level constants. All names are public. Use plain, descriptive names.
+
+```python
+# Wrong
+def _parse_response(data): ...
+_MAX_RETRIES = 3
+class _InternalHelper: ...
+
+# Right
+def parse_response(data): ...
+MAX_RETRIES = 3
+class InternalHelper: ...
+```
+
+The only acceptable leading underscore is `_` as a throwaway variable in unpacking (e.g., `for _, value in items`).
+
 ## Clean Deletion
 
 Avoid backwards-compatibility hacks:
