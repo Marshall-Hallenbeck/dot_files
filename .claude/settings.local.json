@@ -18,7 +18,6 @@
       "Bash(pipx install:*)",
       "Bash(echo EXIT CODE: $?:*)",
       "mcp__sequential-thinking__sequentialthinking",
-      "Bash(/home/marshall/projects/dot_files/scripts/dotfiles:*)",
       "Bash(make test-debian:*)",
       "Bash(git check-ignore:*)"
     ]
