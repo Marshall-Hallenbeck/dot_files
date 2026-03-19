@@ -79,7 +79,7 @@ alias dex='docker exec -it'
 
 alias sai='sudo apt install'
 alias pr='poetry run'
-alias yolo='claude --dangerously-skip-permissions'
+alias yolo='claude --dangerously-skip-permissions --effort max'
 
 #alias q='exit'
 
