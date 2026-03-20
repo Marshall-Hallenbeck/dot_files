@@ -1,6 +1,6 @@
 ---
 name: run-tests
-description: "Dispatcher skill for unit, integration, or full quality-gate workflows."
+description: "Dispatcher skill for unit, integration, or full quality-gate workflows. Auto-detects language and scope."
 argument-hint: "[scope]"
 disable-model-invocation: true
 ---
@@ -38,7 +38,8 @@ Dispatcher skill that routes to the dedicated test workflows.
 
 Use `git diff --name-only HEAD`:
 
-- `backend/**` changed → include backend unit + backend integration
-- `frontend/**` changed → include frontend unit
-- `frontend/tests/**` or `playwright.config.*` changed → include e2e integration
+- `backend/**` or `src/**/*.py` or `tests/**/*.py` changed → include backend unit + backend integration
+- `frontend/**` or `*.ts`/`*.tsx`/`*.js`/`*.jsx` changed → include frontend unit
+- `frontend/tests/**` or `playwright.config.*` or `*.e2e.*` changed → include e2e integration
+- `*.sh` changed → no test dispatch (shell scripts rarely have test suites, but note the change)
 - Changes across multiple layers → run `/run-quality-gate`

@@ -1,21 +1,21 @@
 ---
 name: lint
-description: "Run formatting, linting, and type checking. Fixes auto-fixable issues and stages changes."
-argument-hint: "[scope]"
+description: "Run formatting, linting, and type checking. Auto-detects project languages (Python, JS/TS, Bash). Fixes auto-fixable issues and stages changes."
+argument-hint: "[scope] [--fix]"
 disable-model-invocation: true
 ---
 
 # Lint
 
-Runs prettier, ESLint, and TypeScript type checking on changed files or all files.
+Auto-detects project languages and runs the appropriate formatting, linting, and type checking tools.
 
 ## Usage
 
 ```text
 /lint
+/lint --fix
 /lint backend
 /lint frontend
-/lint --fix
 ```
 
 ## Behavior
@@ -28,74 +28,128 @@ git diff --name-only HEAD
 
 If no argument provided, scope to changed files only. If `backend` or `frontend` specified, scope to that workspace.
 
-### 2. Formatting (Prettier)
+### 2. Detect Project Languages
 
-Run prettier check first, then fix:
+Check for these files in the project root (or relevant subdirectory):
+
+| Indicator | Language | Tools |
+|-----------|----------|-------|
+| `pyproject.toml`, `setup.py`, `setup.cfg`, `*.py` in diff | Python | ruff, pyright |
+| `package.json`, `tsconfig.json`, `*.ts`/`*.tsx`/`*.js`/`*.jsx` in diff | JS/TS | prettier, eslint, tsc |
+| `*.sh` in diff | Bash | shellcheck |
+
+Run only the tools that apply. If a tool isn't installed, ask the user if they want to install it via AskUserQuestion.
+
+### 3. Python
+
+**Linting (Ruff):**
 
 ```bash
-# Backend (run from backend/)
-npx prettier --check <changed-backend-files>
+# Check only
+ruff check <changed-py-files>
 
-# Frontend (run from frontend/)
-npx prettier --check <changed-frontend-files>
+# If --fix passed
+ruff check --fix <changed-py-files>
 ```
 
-If `--fix` is passed (or when called from a composite skill that expects fixes):
+**Formatting (Ruff):**
 
 ```bash
-npx prettier --write <changed-files>
+# Check only
+ruff format --check <changed-py-files>
+
+# If --fix passed
+ruff format <changed-py-files>
 ```
 
-Stage any formatting fixes:
+If the project uses `uv`, prefix with `uv run` (check for `uv.lock` or project CLAUDE.md instructions).
+
+Stage any fixes:
 ```bash
 git add <fixed-files>
 ```
 
-### 3. Linting (ESLint)
+**Type checking (Pyright):**
 
 ```bash
-# Backend (run from backend/)
-npx eslint <changed-backend-files>
-
-# Frontend (run from frontend/)
-npx eslint <changed-frontend-files>
+pyright <changed-py-files>
 ```
 
-If lint errors exist in changed files, attempt auto-fix (max 3 attempts):
+Or `uv run pyright` if the project uses uv. Report type errors.
+
+### 4. JavaScript / TypeScript
+
+**Formatting (Prettier):**
 
 ```bash
-npx eslint --fix <changed-files>
+npx prettier --check <changed-js-ts-files>
 ```
 
-Stage any lint fixes. Only lint files in the diff — ignore errors in files you didn't change.
+If `--fix`:
+```bash
+npx prettier --write <changed-js-ts-files>
+```
 
-### 4. Type Checking
+Stage any fixes.
+
+**Linting (ESLint):**
 
 ```bash
-# Backend (if tsconfig.json exists)
-cd backend && npx tsc --noEmit --pretty 2>&1
-
-# Frontend (if tsconfig.json exists)
-cd frontend && npx tsc --noEmit --pretty 2>&1
+npx eslint <changed-js-ts-files>
 ```
 
-Report type errors in changed files. Ignore errors in files you didn't change.
+If lint errors, attempt auto-fix:
+```bash
+npx eslint --fix <changed-js-ts-files>
+```
+
+Stage any fixes. Only lint files in the diff.
+
+**Type checking (TypeScript):**
+
+```bash
+npx tsc --noEmit --pretty 2>&1
+```
+
+Report type errors.
+
+### 5. Bash
+
+**Linting (shellcheck):**
+
+```bash
+shellcheck <changed-sh-files>
+```
+
+Report issues. shellcheck has no auto-fix mode -- report findings for manual review.
 
 ## Output
 
 ```markdown
 ## Lint Results
 
+### Python
+- Ruff: PASS / FIXED N files / FAIL (N remaining)
+- Pyright: PASS / FAIL (N errors in changed files)
+
+### JavaScript / TypeScript
 - Prettier: PASS / FIXED N files / FAIL
 - ESLint: PASS / FIXED N errors / FAIL (N remaining)
 - TypeScript: PASS / FAIL (N errors in changed files)
+
+### Bash
+- shellcheck: PASS / FAIL (N warnings)
+
 - Files staged: N
 - Verdict: PASS / FAIL
 ```
+
+Only include sections for detected languages.
 
 ## Rules
 
 - Only lint and check files in the diff (unless `all` scope specified).
 - Stage auto-fix changes so the user sees them.
-- If type errors exist in changed files, fix them (max 3 attempts). Ignore errors in files you didn't change.
-- Report everything — even if all checks pass, show the summary.
+- If type errors exist in changed files, fix them.
+- Report everything -- even if all checks pass, show the summary.
+- If a tool isn't installed, ask the user if they want to install it via AskUserQuestion.
