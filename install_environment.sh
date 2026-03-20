@@ -237,17 +237,11 @@ for rule_file in "$DOTFILES_DIR"/.claude/rules/*.md; do
     link_file "$rule_file" ~/.claude/rules/"$(basename "$rule_file")"
 done
 
-# Skills (all files in managed skill directories)
-for skill_dir in "$DOTFILES_DIR"/.claude/skills/*/; do
-    [ -d "$skill_dir" ] || continue
-    local_skill=$(basename "$skill_dir")
-    [ -f "$skill_dir/SKILL.md" ] || continue
-    mkdir -p ~/.claude/skills/"$local_skill"
-    for skill_file in "$skill_dir"*; do
-        [ -f "$skill_file" ] || continue
-        link_file "$skill_file" ~/.claude/skills/"$local_skill"/"$(basename "$skill_file")"
-    done
-done
+# Skills — symlink entire directory (previous installs used per-file symlinks)
+if [ -d ~/.claude/skills ] && [ ! -L ~/.claude/skills ]; then
+    rm -rf ~/.claude/skills
+fi
+link_file "$DOTFILES_DIR/.claude/skills" ~/.claude/skills
 
 # Agents
 for agent_file in "$DOTFILES_DIR"/.claude/agents/*.md; do
@@ -265,22 +259,10 @@ done
 mkdir -p "$HOME/.local/bin"
 link_file "$DOTFILES_DIR/scripts/dotfiles" "$HOME/.local/bin/dotfiles"
 
-# ── Community skills (installed via npx, not symlinked) ───────────
+# ── Community skills (windows-protocols is too large for git, lives in ~/.agents/) ──
 echo "Installing community skills..."
 
-if [ ! -d ~/.claude/skills/next-best-practices ]; then
-    npx skills add https://github.com/vercel-labs/next-skills --skill next-best-practices -y -g
-else
-    echo "  next-best-practices already installed"
-fi
-
-if [ ! -d ~/.claude/skills/supabase-postgres-best-practices ]; then
-    npx skills add https://github.com/supabase/agent-skills --skill supabase-postgres-best-practices -y -g
-else
-    echo "  supabase-postgres-best-practices already installed"
-fi
-
-if [ ! -d ~/.claude/skills/windows-protocols ]; then
+if [ ! -d ~/.agents/skills/windows-protocols ]; then
     npx skills add awakecoding/openspecs --skill windows-protocols -y -g
 else
     echo "  windows-protocols already installed"
