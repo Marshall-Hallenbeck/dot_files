@@ -1,6 +1,6 @@
 ---
 name: full-review
-description: "Holistic review pipeline: correctness, security, overcautious check, lint/fix, all tests, fix failures, audits, and final review. The one command that checks everything."
+description: "Holistic review pipeline: simplification, correctness, security, overcautious check, lint/fix, all tests, fix failures, audits, and final review. The one command that checks everything."
 disable-model-invocation: true
 ---
 
@@ -16,7 +16,11 @@ The holistic review pipeline. Runs every review, every check, every test, fixes 
 
 ## Pipeline
 
-### Phase 1: Code Review (iterative)
+### Phase 1: Simplify
+
+Run `/simplify` on uncommitted changes. This refactors recently modified code for clarity, consistency, and maintainability while preserving functionality. If no changes are made, continue -- the rest of the pipeline still runs. This phase runs first so all subsequent validation runs against the simplified code.
+
+### Phase 2: Code Review (iterative)
 
 Run `/review` on uncommitted changes. If it reports P0 or P1 findings:
 1. Fix each finding
@@ -24,19 +28,19 @@ Run `/review` on uncommitted changes. If it reports P0 or P1 findings:
 3. Repeat until verdict is PASS
 4. If unsure how to fix a finding, ask the user before guessing
 
-### Phase 2: Security Review
+### Phase 3: Security Review
 
 Run `/security-review` on uncommitted changes. Record verdict (SECURE / NEEDS FIXES).
 
 If CRITICAL or HIGH findings, fix them before continuing.
 
-### Phase 3: Overcautious Check
+### Phase 4: Overcautious Check
 
 Run `/overcautious-check` on uncommitted changes. Record verdict (CLEAN / BLOCKED).
 
 If BLOCK-level findings, fix them before continuing.
 
-### Phase 4: Quality Gate (lint + tests)
+### Phase 5: Quality Gate (lint + tests)
 
 Run `/run-quality-gate`. This runs:
 - `/lint --fix` (auto-fixes formatting and lint errors, stages fixed files)
@@ -45,9 +49,9 @@ Run `/run-quality-gate`. This runs:
 
 If all pass, continue. If tests fail, pass the failure output to Phase 5.
 
-### Phase 5: Fix Test Failures (if any)
+### Phase 6: Fix Test Failures (if any)
 
-If Phase 4 had test failures, run `/fix-tests` with the failure output from Phase 4 (skip re-running the suite):
+If Phase 5 had test failures, run `/fix-tests` with the failure output from Phase 4 (skip re-running the suite):
 - Diagnose each failure
 - Fix source code (not test assertions)
 - Iterate until all tests pass
@@ -55,7 +59,7 @@ If Phase 4 had test failures, run `/fix-tests` with the failure output from Phas
 
 Record: fixes applied.
 
-### Phase 6: Audits (read-only)
+### Phase 7: Audits (read-only)
 
 Run these checks in sequence. Flag issues but don't auto-fix.
 
@@ -80,7 +84,7 @@ npx jest --coverage --findRelatedTests <changed-files> --coverageReporters=text-
 ```
 Warn if coverage dropped on changed files. Do not block.
 
-### Phase 7: Final Review (conditional)
+### Phase 8: Final Review (conditional)
 
 **Only if changes were made in Phases 1-5** (fixes applied by review, lint, or fix-tests):
 
@@ -88,7 +92,7 @@ Run `/review` one final time on the updated diff to verify fixes didn't introduc
 
 If no changes were made (everything passed clean on first try), skip this phase.
 
-### Phase 8: Summarize Changes
+### Phase 9: Summarize Changes
 
 Run `/summarize-changes` to categorize all uncommitted changes and give the user a clear picture of what they're about to commit.
 
@@ -105,6 +109,7 @@ Run `/summarize-changes` to categorize all uncommitted changes and give the user
 ## Full Review Report
 
 ### Phase Results
+- Simplify: PASS / REFACTORED N files
 - Code review: PASS / NEEDS FIXES (N iterations)
 - Security review: SECURE / NEEDS FIXES
 - Overcautious check: CLEAN / BLOCKED
