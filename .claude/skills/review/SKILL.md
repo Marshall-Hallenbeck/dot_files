@@ -1,13 +1,13 @@
 ---
 name: review
-description: "Review uncommitted code changes for bugs, security issues, and correctness. Like Codex's review but runs locally."
+description: "Review uncommitted code changes for bugs, security issues, and correctness. Finds AND fixes all issues."
 argument-hint: "[path]"
 context: fork
 ---
 
 # Code Review (Uncommitted Changes)
 
-Review all uncommitted changes (staged + unstaged) for bugs and correctness issues. Does NOT post to GitHub — this is a local review.
+Review all uncommitted changes (staged + unstaged) for bugs and correctness issues, then fix every finding. Does NOT post to GitHub — this is a local review.
 
 ## Usage
 
@@ -62,7 +62,7 @@ For each finding:
 - **[P0]** — Drop everything. Blocking bug, security vulnerability, data loss. Universal — no assumptions needed.
 - **[P1]** — Urgent. Should be fixed before committing. Clear bug that will be hit in practice.
 - **[P2]** — Normal. Real issue but lower impact. Should still fix now.
-- **[P3]** — Low. Nice to have. Fix eventually. 
+- **[P3]** — Low. Nice to have. Fix eventually.
 
 ### 5. Self-Check Each Finding
 
@@ -74,27 +74,45 @@ Before reporting a finding, verify:
 
 If confidence is below 70%, drop the finding.
 
-### 6. Output
+### 6. Fix ALL Findings
+
+After identifying findings, fix every one of them — P0 through P3. Do not leave any finding unfixed.
+
+For each finding:
+1. Read the full file for context
+2. Apply the fix using Edit
+3. Briefly note what was changed
+
+Run tests after all fixes to verify nothing broke:
+```bash
+uv run pytest tests/ -x -q
+```
+
+If tests fail due to a fix, adjust the fix until tests pass.
+
+### 7. Output
+
+After fixing, output the review summary:
 
 ```markdown
 ## Code Review
 
 Reviewed N files with uncommitted changes.
 
-### Findings
+### Findings (all fixed)
 
 1. **[P1] Brief title** — `file:line`
 
-   One paragraph explaining why this is a problem and the specific scenario where it manifests.
+   One paragraph explaining the problem. **Fixed:** brief description of the fix.
 
 2. **[P2] Brief title** — `file:line`
 
-   Explanation.
+   Explanation. **Fixed:** brief description of the fix.
 
 ### Verdict: PASS | NEEDS FIXES
 
-- **PASS**: No P0 or P1 findings. Safe to commit.
-- **NEEDS FIXES**: Has P0 or P1 findings that should be addressed.
+- **PASS**: All findings fixed and tests passing.
+- **NEEDS FIXES**: Has findings that could not be auto-fixed (explain why).
 ```
 
 If there are zero findings:
@@ -113,8 +131,8 @@ No issues found. Checked for bugs, security issues, and CLAUDE.md compliance.
 
 - **No false positives over missed bugs.** When in doubt, don't flag it. One wrong finding wastes more time than one missed nit.
 - **Brief comments.** One paragraph max per finding. No multi-paragraph essays.
-- **No code suggestions.** Describe the problem; don't write the fix. The author knows their code.
+- **Fix everything.** Every finding from P0 to P3 gets fixed, not just reported. A clean review means zero open findings.
 - **Respect intent.** If a change looks intentional (renaming, restructuring, removing features), don't flag it as a bug.
 - **Read context.** Always read the full file, not just the diff hunks. Many "bugs" in isolation are correct in context.
-- **Don't run tests or builds.** This is a read-only review. Assume CI handles tests, linting, and type checking.
+- **Run tests after fixes.** Verify fixes don't introduce regressions.
 - **Matter-of-fact tone.** No flattery, no accusations. Just helpful observations.
