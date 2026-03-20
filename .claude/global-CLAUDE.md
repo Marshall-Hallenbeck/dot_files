@@ -4,7 +4,7 @@ These principles apply to ALL projects. Project-specific CLAUDE.md files overrid
 
 ## Environment & Preferences
 
-- Primary OS: Kali Linux (Debian-based)
+- Primary OS: Ubuntu or Kali Linux (Debian-based)
 - Shell: zsh with oh-my-zsh
 - Primary use cases: security tooling, full-stack web development, infrastructure automation
 - Shell scripts: bash (`#!/bin/bash` with `set -euo pipefail`)
@@ -15,7 +15,7 @@ When resolving merge conflicts, ALWAYS preserve upstream/remote changes unless e
 
 ## Debugging
 
-When investigating issues, verify the actual infrastructure routing (e.g., nginx, reverse proxies) BEFORE assuming the problem is in application code. Check how URLs are routed at the infrastructure level first.
+When investigating issues, verify the actual infrastructure routing (e.g., Docker containers and networking, nginx, reverse proxies) BEFORE assuming the problem is in application code. Check how URLs are routed at the infrastructure level first.
 
 When testing or debugging, focus on the actual reported symptom. Do not try random exploratory fixes — diagnose the root cause first, then apply a single targeted fix.
 
@@ -76,6 +76,8 @@ Stay focused on the stated goal. If you think work should extend beyond the orig
 
 - Use `.yml` extension (not `.yaml`) for YAML files unless the project already uses `.yaml`.
 - Use dot notation for attribute access in Python. Do not use `getattr`/`setattr` patterns or `pyright: ignore`/`type: ignore` comments unless absolutely unavoidable for third-party library compatibility.
+- For Python, use f-strings for string interpolation. Do not use `str.format()` or concatenation.
+- Do not create "private" functions or classes with leading underscores e.g. _api_helper() or _apiHelper(), etc.
 
 ## Error Handling
 
@@ -83,13 +85,16 @@ Hard-fail error handling only. No silent fallbacks, no swallowed errors, no try/
 
 ## Testing
 
+When developing an API or web application, there should always be the most simple checks that each endpoint or page is responding at a basic level. For example, if you create a new API route, add a smoke test that hits the route and checks for a 200 response. This ensures the route is wired up correctly before adding more complex tests. Loading the homepage of a web app and checking for a 200 with no console errors is another example of a simple smoke test. For databases, ensure there is a test that can connect to the database and perform a simple query. These basic checks catch fundamental issues early.
+
 Always run the full test suite after multi-file changes and before committing. Verify 0 failures. If tests fail, fix them before proceeding — do not commit with known failures.
 
 ## Static Analysis
 
-Run both Ruff and Pyright as part of the quality gate. Both must pass clean before claiming completion:
+For Python, run both Ruff and Pyright as part of the quality gate. Both must pass clean before claiming completion:
 - `ruff check src/ tests/` — linting and style
 - `pyright` (or project-specific type checker) — type checking
+For other languages, use the applicable alternatives, such as tsx, etc.
 
 Fix issues from both tools, not just one. If a project's CLAUDE.md specifies different commands (e.g., `uv run ruff`, `uv run pyright`), use those.
 

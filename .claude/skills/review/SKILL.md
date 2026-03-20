@@ -41,10 +41,7 @@ For each changed file, read the full file for context (not just the diff hunks).
 
 **Flag an issue ONLY if ALL of these are true:**
 1. It meaningfully impacts accuracy, performance, security, or maintainability
-2. It is discrete and actionable (not a general codebase complaint)
-3. Fixing it doesn't demand rigor absent from the rest of the codebase
 4. It is visible in the changed files (if you see it, own it — regardless of when it was introduced)
-5. The author would likely fix it if aware
 6. It doesn't rely on unstated assumptions about the codebase or intent
 7. If claiming it disrupts other code, you must identify the affected code specifically
 8. It is clearly not just an intentional change
@@ -57,7 +54,6 @@ For each changed file, read the full file for context (not just the diff hunks).
 - Style/formatting (prettier and linters handle this)
 - Missing tests (unless the CLAUDE.md requires them)
 - Type errors, import issues (TypeScript/linters catch these)
-- Issues in files you haven't touched and that aren't related to the change
 - General "could be better" suggestions
 
 ### 4. Assign Priority
@@ -65,8 +61,8 @@ For each changed file, read the full file for context (not just the diff hunks).
 For each finding:
 - **[P0]** — Drop everything. Blocking bug, security vulnerability, data loss. Universal — no assumptions needed.
 - **[P1]** — Urgent. Should be fixed before committing. Clear bug that will be hit in practice.
-- **[P2]** — Normal. Real issue but lower impact. Fix eventually.
-- **[P3]** — Low. Nice to have. Borderline nit with substance.
+- **[P2]** — Normal. Real issue but lower impact. Should still fix now.
+- **[P3]** — Low. Nice to have. Fix eventually. 
 
 ### 5. Self-Check Each Finding
 
