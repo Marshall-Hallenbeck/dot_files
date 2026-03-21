@@ -77,6 +77,7 @@ alias dps='docker compose ps'
 alias dcr='docker compose restart'
 alias dex='docker exec -it'
 
+alias c2h='curlconverter --language http'
 alias sai='sudo apt install'
 alias pr='poetry run'
 alias yolo='claude --dangerously-skip-permissions --effort max'
