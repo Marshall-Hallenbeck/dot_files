@@ -146,6 +146,12 @@ if [ ! -f "$HOME/.atuin/bin/env" ]; then
     curl --proto '=https' --tlsv1.2 -LsSf https://setup.atuin.sh | sh
 fi
 
+# curlconverter
+if ! command -v curlconverter &>/dev/null; then
+    echo "Installing curlconverter..."
+    npm install --global curlconverter
+fi
+
 # ── Claude Code (native installer, auto-updates) ────────────────
 if ! command -v claude &>/dev/null; then
     echo "Installing Claude Code..."
