@@ -21,3 +21,12 @@ Accumulated knowledge from working across projects. Auto-maintained by Claude.
 ## CSS / Tailwind
 
 - In Tailwind v4 with CSS Modules, `@apply` can only resolve Tailwind utility classes — not custom classes defined in `globals.css`. If `.card` is `@apply bg-gray-900 border ...` in globals, you can't `@apply card` inside a `.module.css` file. Inline the utilities directly or apply the class in JSX.
+
+## WAF Bypass Analysis
+
+- AWS WAF event handler detection triggers on `on[event-name]=` (attribute assignment form) but can miss `on<TAB>error=` / `on<LF>error=`. However, HTML5 prohibits whitespace in attribute names, so browsers parse the split differently -- the bypass passes the WAF but the browser never registers the event handler.
+- To map a WAF's XSS rule trigger precisely: test `<img onerror>` (boolean attr, no =) separately from `<img onerror=x>`. The = sign is often what activates the WAF rule.
+
+## XSS in Script Blocks
+
+- HTML entities inside `<script>` (raw text element) are NOT decoded by the browser's JS parser. `&quot;` remains the literal string `&quot;` in JS, not a double-quote. You cannot break out of a JS string using only HTML entity-encoded characters inside a `<script>` block.

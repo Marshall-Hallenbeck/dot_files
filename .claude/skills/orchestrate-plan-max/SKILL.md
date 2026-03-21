@@ -2,7 +2,6 @@
 name: orchestrate-plan-max
 description: "Decompose a plan into parallel work tracks and execute with Opus 4.6 Max Effort subagents. Reads PLAN.md, splits into non-overlapping tracks, spawns agents, and runs integration tests."
 argument-hint: "[path-to-plan]"
-disable-model-invocation: true
 ---
 
 # Orchestrate Plan
