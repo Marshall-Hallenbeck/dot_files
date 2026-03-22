@@ -228,9 +228,12 @@ After=network.target
 Type=simple
 User=root
 WorkingDirectory=$INSTALL_DIR
+ExecStartPre=/bin/bash -c 'for i in \$(seq 1 30); do ss -tlnp | grep -q :9443 || exit 0; echo "Waiting for port 9443 to be released (\$i/30)..."; sleep 2; done; echo "ERROR: port 9443 still in use after 60s"; exit 1'
 ExecStart=/usr/bin/java -Xms256m -Xmx512m -jar $INSTALL_DIR/$JAR_FILE --collaborator-server --collaborator-config=$INSTALL_DIR/collab-config.json
 Restart=on-failure
 RestartSec=5
+TimeoutStopSec=30
+KillSignal=SIGTERM
 
 [Install]
 WantedBy=multi-user.target
@@ -249,11 +252,39 @@ echo "==> Creating cert renewal hook"
 mkdir -p /etc/letsencrypt/renewal-hooks/deploy
 cat > /etc/letsencrypt/renewal-hooks/deploy/burp-collab.sh <<HOOK
 #!/bin/bash
+set -euo pipefail
+
 openssl pkcs8 -topk8 -inform PEM -outform PEM -nocrypt \
   -in "/etc/letsencrypt/live/$CERT_NAME/privkey.pem" \
   -out "$INSTALL_DIR/keys/$DOMAIN.key.pkcs8"
 cp "/etc/letsencrypt/live/$CERT_NAME/fullchain.pem" "$INSTALL_DIR/keys/$DOMAIN.crt"
-systemctl restart $SERVICE_NAME
+
+systemctl stop $SERVICE_NAME
+
+for i in \$(seq 1 30); do
+  ss -tlnp | grep -q :9443 || break
+  echo "Waiting for port 9443 to be released (\$i/30)..."
+  sleep 2
+done
+
+if ss -tlnp | grep -q :9443; then
+  echo "CRITICAL: Port 9443 still in use after 60s. Polling will be DEAD -- no HTTP interaction callbacks!" | tee /dev/stderr
+  echo "CRITICAL: Burp Collaborator polling port 9443 failed to release after cert renewal at \$(date)" | wall
+  logger -t burp-collab -p user.crit "Port 9443 still in use after cert renewal. Polling service will fail to start."
+  exit 1
+fi
+
+systemctl start $SERVICE_NAME
+
+sleep 3
+if ! ss -tlnp | grep -q :9443; then
+  echo "CRITICAL: burp-collab started but port 9443 not listening. Polling is DEAD!" | tee /dev/stderr
+  echo "CRITICAL: Burp Collaborator polling port 9443 not listening after restart at \$(date)" | wall
+  logger -t burp-collab -p user.crit "Port 9443 not listening after restart. Polling service is down."
+  exit 1
+fi
+
+echo "Burp Collaborator restarted successfully. Port 9443 confirmed listening."
 HOOK
 chmod +x /etc/letsencrypt/renewal-hooks/deploy/burp-collab.sh
 
