@@ -12,3 +12,5 @@
 .claude/skills/owasp-sweep
 .claude/skills/peer-review
 .claude/skills/sqli-test
+.claude/skills/init-program
+.claude/skills/graphql-test
