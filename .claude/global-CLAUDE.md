@@ -41,23 +41,6 @@ When anything is ambiguous, unclear, or open to interpretation, use AskUserQuest
 
 Asking a quick question is always preferable to guessing wrong. The user expects to be consulted. Never silently give up, silently pick a default, or make "reasonable assumptions" — ask.
 
-## Workflow Rules
-- Always ask clarifying questions before implementing. Never assume.
-- When there are multiple valid approaches, present them as numbered options with tradeoffs before proceeding.
-- Break work into small chunks and get approval after each chunk.
-- If a task is blocked by external limitations (third-party APIs, minified code, CAPTCHAs), stop after 2 failed attempts, explain why it's blocked, and propose alternative approaches.
-
-## No Defensive Measures Unless Asked
-
-The hard-fail principle from `error-handling.md` extends beyond code to ALL decisions: architecture, agent configuration, skill design, and operational workflows.
-
-- No arbitrary iteration caps, retry limits, or "max attempts" that silently give up — keep going, and ask the user if stuck
-- No guard clauses or validation for scenarios that can't happen
-- No precautionary abstractions, "just in case" parameters, or feature flags
-- No backwards-compatibility shims when you can just change the code
-
-If you think a defensive measure is genuinely needed, ask the user first with AskUserQuestion. The user would rather have a loud failure they can diagnose than a silent "safe" behavior that hides the real problem.
-
 ## Planning & Approach
 
 For any task involving more than 2 file changes: outline your approach in numbered steps first. Wait for user approval before executing. If unsure between approaches, list the options with tradeoffs.
@@ -77,11 +60,6 @@ Stay focused on the stated goal. If you think work should extend beyond the orig
 - Use `.yml` extension (not `.yaml`) for YAML files unless the project already uses `.yaml`.
 - Use dot notation for attribute access in Python. Do not use `getattr`/`setattr` patterns or `pyright: ignore`/`type: ignore` comments unless absolutely unavoidable for third-party library compatibility.
 - For Python, use f-strings for string interpolation. Do not use `str.format()` or concatenation.
-- Do not create "private" functions or classes with leading underscores e.g. _api_helper() or _apiHelper(), etc.
-
-## Error Handling
-
-Hard-fail error handling only. No silent fallbacks, no swallowed errors, no try/catch that returns default values. Errors must propagate or be explicitly logged and re-thrown.
 
 ## Testing
 
@@ -120,35 +98,4 @@ Cross-project insights are accumulated in `~/.claude/global-learned-insights.md`
 
 ## Dotfiles Management
 
-This host's config files are symlinked from `~/.dot_files` (a clone of the dot_files repo).
-
-### Adding New Global Configs
-
-When creating new rules, skills, agents, or config files that should apply to ALL hosts:
-1. Create the file directly in `~/.dot_files/` at the correct relative path
-2. The install script will symlink it on other hosts next time it runs
-
-### Promoting a Local File to Global
-
-If a config file already exists locally and should become global:
-```
-dotfiles promote ~/.claude/rules/my-new-rule.md
-```
-This moves the file into the repo and creates a symlink back.
-
-### Per-Host Overrides
-
-For host-specific configuration (custom paths, secrets, local aliases), use `.local` files:
-- `~/.zshrc.local` — sourced at the end of `.zshrc`
-- `~/.bash_aliases.local` — sourced at the end of `.bash_aliases`
-- `~/.tmux.conf.local` — sourced at the end of `.tmux.conf`
-- `~/.gitconfig.local` — included at the end of `.gitconfig`
-
-These files are gitignored and never symlinked.
-
-### Checking Status
-
-```
-dotfiles status   # show symlink health
-dotfiles pull     # update from remote
-```
+Config files are symlinked from `~/.dot_files` (a clone of the dot_files repo). Global configs go in `~/.dot_files/` at the correct relative path. Promote local files with `dotfiles promote <path>`. Per-host overrides use `.local` files (`.zshrc.local`, `.gitconfig.local`, etc.).
