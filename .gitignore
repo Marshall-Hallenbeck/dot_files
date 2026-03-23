@@ -5,12 +5,5 @@
 !.claude/settings.local.json
 
 # Private BBP skills/agents (symlinked from ~/.bbp, private repo)
-.claude/agents/bbp-*
-.claude/skills/full-sweep
-.claude/skills/graphql-recon
-.claude/skills/idor-test
-.claude/skills/owasp-sweep
-.claude/skills/peer-review
-.claude/skills/sqli-test
-.claude/skills/init-program
-.claude/skills/graphql-test
+.claude/agents/bb*
+.claude/skills/bb*
