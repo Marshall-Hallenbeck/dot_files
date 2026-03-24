@@ -106,7 +106,7 @@ cmd_status() {
             echo "  MISSING:  $target"
             missing=$((missing + 1))
         fi
-    done < <(cd "$DOTFILES_DIR" && git ls-files | grep -E '^\.' | grep -v '^\.(git|claude/(skills|plugins|memory|projects|worktrees))')
+    done < <(cd "$DOTFILES_DIR" && git ls-files | grep -E '^\.' | grep -vE '^\.(git|claude/(skills|plugins|memory|projects|worktrees))')
 
     echo ""
     echo "Status: $ok linked, $broken issues, $missing missing"
