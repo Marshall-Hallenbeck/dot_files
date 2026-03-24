@@ -41,6 +41,11 @@ shellcheck install_environment.sh security.sh
 
 ## Gotchas
 
+- Never create `-team`, `-max`, or model-variant copies of skills. Subagents inherit the parent session's model and effort level. Variant skills drift silently from the canonical version.
+- Agent frontmatter `model: haiku` (or any explicit model) overrides session inheritance. Omit the `model` field to inherit from the session.
+- `/full-review` phases are numbered and cross-referenced. When inserting/removing a phase, update ALL phase number references (forward refs in earlier phases, "Phases 1-N" in final review, output template).
+- `/full-review` composes: `/simplify`, `/review`, `/security-review`, `/overcautious-check`, `/run-quality-gate`, `/fix-tests`, `/test-coverage-review`, `/summarize-changes`. When adding behavior, add it to the composed skill — not to `/full-review` directly.
+- Multiple skills use the same test runner detection table (fix-tests, write-tests, run-unit-tests, review). Keep them in sync when adding runners.
 - Docker tests need `.dockerignore` (excludes `.git`) and `COPY --chown=testuser:testuser` in the Dockerfile — `git init` inside the container fails without correct ownership.
 - Plugins are declared in `settings.json` (`enabledPlugins`) but NOT yet installed by the script — `claude plugin install` commands are still needed.
 - `settings.local.json` contains machine-specific permissions — don't put global settings there.
