@@ -51,14 +51,38 @@ Check `pyproject.toml` for `[tool.pytest.ini_options]` markers -- the project ma
 # Backend integration
 npm run jest:integration --if-present
 npm run test:integration --if-present
+```
 
-# E2E / browser integration
+### E2E / Browser (Playwright, Cypress)
+
+Detect by checking for `playwright.config.*` or `cypress.config.*` in any workspace (root, `frontend/`, `e2e/`, etc.).
+
+**npm script convention** — projects define what "safe E2E" means via scripts:
+
+```bash
+# Prefer safe (read-only) E2E tests — avoids mutations against live services
+npm run test:e2e:safe --if-present
+
+# Fall back to full E2E
 npm run test:e2e --if-present
 npm run e2e --if-present
 ```
+
+**Direct fallback** — if no npm script matches but a Playwright/Cypress config exists:
+
+```bash
+# Playwright (detected via playwright.config.*)
+npx playwright test --reporter=line 2>&1
+
+# Cypress (detected via cypress.config.*)
+npx cypress run 2>&1
+```
+
+Run E2E from the directory containing the config file (e.g., `cd frontend && npx playwright test`).
 
 ## Guardrails
 
 - Fail fast on environment errors (missing services, auth setup, database not running, etc.).
 - Do not skip selected integration scopes silently.
 - If no integration tests are found for a scope, report it explicitly.
+- Prefer `test:e2e:safe` over `test:e2e` — projects use this convention to exclude destructive/mutation tests from automated runs.
