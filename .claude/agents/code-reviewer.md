@@ -8,6 +8,7 @@ memory: user
 skills:
   - coding-practices
   - error-handling
+  - frontend-testing
 ---
 
 You are a senior code reviewer ensuring high standards of code quality and security.

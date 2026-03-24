@@ -65,6 +65,17 @@ Stay focused on the stated goal. If you think work should extend beyond the orig
 
 When developing an API or web application, there should always be the most simple checks that each endpoint or page is responding at a basic level. For example, if you create a new API route, add a smoke test that hits the route and checks for a 200 response. This ensures the route is wired up correctly before adding more complex tests. Loading the homepage of a web app and checking for a 200 with no console errors is another example of a simple smoke test. For databases, ensure there is a test that can connect to the database and perform a simple query. These basic checks catch fundamental issues early.
 
+### Test Coverage Requirements
+
+Every code change must include appropriate test coverage:
+
+- **Bug fixes**: Must include a regression test that reproduces the bug and verifies the fix. The test must fail without the fix and pass with it. A bug fix without a regression test is incomplete.
+- **New features/functions**: Must include unit tests covering happy path, error paths, and edge cases. New public functions, components, routes, and handlers all require tests.
+- **UI/frontend features**: Must include component render tests, user interaction tests (clicks, form submissions, keyboard), and conditional rendering tests. For multi-page workflows, consider E2E tests.
+- **Integration points**: When adding new API integrations, database queries, or service-to-service communication, add integration tests that verify the interaction works end-to-end (mocking external services where necessary).
+
+### Running Tests
+
 Always run the full test suite after multi-file changes and before committing. Verify 0 failures. If tests fail, fix them before proceeding — do not commit with known failures.
 
 ## Static Analysis
