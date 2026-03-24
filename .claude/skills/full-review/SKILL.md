@@ -47,11 +47,11 @@ Run `/run-quality-gate`. This runs:
 - `/run-unit-tests all`
 - `/run-integration-tests all`
 
-If all pass, continue. If tests fail, pass the failure output to Phase 5.
+If all pass, continue. If tests fail, pass the failure output to Phase 6.
 
 ### Phase 6: Fix Test Failures (if any)
 
-If Phase 5 had test failures, run `/fix-tests` with the failure output from Phase 4 (skip re-running the suite):
+If Phase 5 had test failures, run `/fix-tests` with the failure output from Phase 5 (skip re-running the suite):
 - Diagnose each failure
 - Fix source code (not test assertions)
 - Iterate until all tests pass
@@ -59,7 +59,15 @@ If Phase 5 had test failures, run `/fix-tests` with the failure output from Phas
 
 Record: fixes applied.
 
-### Phase 7: Audits (read-only)
+### Phase 7: Test Coverage Review
+
+Run `/test-coverage-review` on uncommitted changes. This identifies new or modified code lacking test coverage and creates the missing tests.
+
+If new tests are created, run the full suite again to verify they pass and don't cause regressions.
+
+Record: tests created, coverage gaps filled.
+
+### Phase 8: Audits (read-only)
 
 Run these checks in sequence. Flag issues but don't auto-fix.
 
@@ -84,15 +92,15 @@ npx jest --coverage --findRelatedTests <changed-files> --coverageReporters=text-
 ```
 Warn if coverage dropped on changed files. Do not block.
 
-### Phase 8: Final Review (conditional)
+### Phase 9: Final Review (conditional)
 
-**Only if changes were made in Phases 1-5** (fixes applied by review, lint, or fix-tests):
+**Only if changes were made in Phases 1-7** (fixes applied by review, lint, fix-tests, or test-coverage-review):
 
 Run `/review` one final time on the updated diff to verify fixes didn't introduce new issues.
 
 If no changes were made (everything passed clean on first try), skip this phase.
 
-### Phase 9: Summarize Changes
+### Phase 10: Summarize Changes
 
 Run `/summarize-changes` to categorize all uncommitted changes and give the user a clear picture of what they're about to commit.
 
@@ -115,6 +123,7 @@ Run `/summarize-changes` to categorize all uncommitted changes and give the user
 - Overcautious check: CLEAN / BLOCKED
 - Quality gate: PASS / FAIL (includes lint --fix + all tests)
 - Test fixes: N/A / FIXED N failures
+- Test coverage: PASS / CREATED N tests
 - Audits: CLEAN / WARNINGS / BLOCKED
 
 ### Auto-Fixed
@@ -122,6 +131,7 @@ Run `/summarize-changes` to categorize all uncommitted changes and give the user
 - [x] Fixed N lint errors
 - [x] Fixed N review findings
 - [x] Fixed N test failures
+- [x] Created N missing tests
 
 ### Warnings
 - [ ] Coverage dropped N% in `file.ts`
@@ -142,7 +152,7 @@ Run `/summarize-changes` to categorize all uncommitted changes and give the user
 
 ## Rules
 
-- **Compose, don't duplicate.** Delegate to `/review`, `/security-review`, `/overcautious-check`, `/run-quality-gate`, `/fix-tests`, and `/summarize-changes`. Don't reimplement their logic.
+- **Compose, don't duplicate.** Delegate to `/review`, `/security-review`, `/overcautious-check`, `/run-quality-gate`, `/fix-tests`, `/test-coverage-review`, and `/summarize-changes`. Don't reimplement their logic.
 - **Never modify test assertions** to make tests pass.
 - **Never commit if secrets are detected.**
 - **Stage auto-fix changes** so the user sees them in the diff.

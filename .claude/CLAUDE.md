@@ -26,7 +26,7 @@ shellcheck install_environment.sh security.sh
   - `global-CLAUDE.md` — Source for `~/.claude/CLAUDE.md` (global instructions for all projects)
   - `skills/` — Custom slash commands (/commit, /review, /fix-tests, etc.)
   - `rules/` — Rule files (verification, coding, git, error-handling, docker, web-dev)
-  - `agents/` — Custom agents (unit-test-writer)
+  - `agents/` — Custom agents (test-writer, code-reviewer, debugger)
   - `hookify.*.local.md` — Hookify enforcement rules
 - `test/` — Docker-based verification (Dockerfile + verify scripts)
 

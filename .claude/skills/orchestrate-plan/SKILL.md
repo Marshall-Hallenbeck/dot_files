@@ -74,6 +74,7 @@ Each subagent prompt must include:
 - The specific tasks from the plan for this track
 - The list of files it is allowed to touch
 - The test commands to run after completion
+- Instruction to write tests for any new functionality (new public functions, components, routes, or handlers) — not just run existing tests. Each track must deliver both implementation and test coverage.
 - Instruction to mark its task as completed when done
 
 ### 5. Monitor Progress

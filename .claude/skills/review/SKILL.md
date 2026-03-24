@@ -41,20 +41,21 @@ For each changed file, read the full file for context (not just the diff hunks).
 
 **Flag an issue ONLY if ALL of these are true:**
 1. It meaningfully impacts accuracy, performance, security, or maintainability
-4. It is visible in the changed files (if you see it, own it — regardless of when it was introduced)
-6. It doesn't rely on unstated assumptions about the codebase or intent
-7. If claiming it disrupts other code, you must identify the affected code specifically
-8. It is clearly not just an intentional change
+2. It is visible in the changed files (if you see it, own it — regardless of when it was introduced)
+3. It doesn't rely on unstated assumptions about the codebase or intent
+4. If claiming it disrupts other code, you must identify the affected code specifically
+5. It is clearly not just an intentional change
 
 **Also check for:**
 - Leftover `console.log`/`console.debug`/`console.warn` statements in production code (not in test files or intentional logging utilities)
 - Dead exports — functions/types exported but not imported anywhere in the codebase
+- Missing test coverage — new or changed public functions, components, routes, or handlers without corresponding tests. Flag as P2.
+- Missing regression tests — bug fixes without a test that reproduces the original bug. Flag as P2.
+- Improvement opportunities — readability, naming, structural improvements that would meaningfully help future readers or maintainers. Flag as P3.
 
 **Explicitly ignore:**
 - Style/formatting (prettier and linters handle this)
-- Missing tests (unless the CLAUDE.md requires them)
 - Type errors, import issues (TypeScript/linters catch these)
-- General "could be better" suggestions
 
 ### 4. Assign Priority
 
@@ -83,10 +84,15 @@ For each finding:
 2. Apply the fix using Edit
 3. Briefly note what was changed
 
-Run tests after all fixes to verify nothing broke:
-```bash
-uv run pytest tests/ -x -q
-```
+Run tests after all fixes to verify nothing broke. Auto-detect the test runner:
+
+| Indicator | Command |
+|-----------|---------|
+| `pyproject.toml`, `pytest.ini`, `conftest.py` | `pytest tests/ -x -q` (prefix with `uv run` if `uv.lock` exists) |
+| `jest.config.*`, `package.json` jest config | `npx jest --bail --no-coverage` |
+| `vitest.config.*` | `npx vitest run` |
+| `Cargo.toml` | `cargo test` |
+| `go.mod` | `go test ./...` |
 
 If tests fail due to a fix, adjust the fix until tests pass.
 
