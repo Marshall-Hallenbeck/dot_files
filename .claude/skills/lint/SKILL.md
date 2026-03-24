@@ -20,13 +20,15 @@ Auto-detects project languages and runs the appropriate formatting, linting, and
 
 ## Behavior
 
-### 1. Detect Changed Files
+### 1. Determine Scope
 
 ```bash
 git diff --name-only HEAD
 ```
 
-If no argument provided, scope to changed files only. If `backend` or `frontend` specified, scope to that workspace.
+- **No argument**: scope to changed files only
+- **`all`**: scope to the entire codebase (run tools without file args, e.g., `ruff check src/ tests/`, `pyright`, `tsc --noEmit`)
+- **`backend` or `frontend`**: scope to that workspace
 
 ### 2. Detect Project Languages
 
@@ -148,8 +150,8 @@ Only include sections for detected languages.
 
 ## Rules
 
-- Only lint and check files in the diff (unless `all` scope specified).
+- Default scope: changed files only. With `all` scope: entire codebase.
 - Stage auto-fix changes so the user sees them.
-- If type errors exist in changed files, fix them.
-- Report everything -- even if all checks pass, show the summary.
+- Fix ALL type errors found in scope — not just "report" them.
+- Report everything — even if all checks pass, show the summary.
 - If a tool isn't installed, ask the user if they want to install it via AskUserQuestion.
