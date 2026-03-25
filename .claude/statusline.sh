@@ -3,6 +3,11 @@ set -euo pipefail
 
 DATA=$(cat)
 
+# Exit cleanly when called before session data is available (initial startup)
+if [[ -z "$DATA" ]] || ! echo "$DATA" | jq -e . >/dev/null 2>&1; then
+  exit 0
+fi
+
 # Extract fields via single jq call
 IFS=$'\t' read -r MODEL MODEL_ID DIR PCT CTX_SIZE COST_RAW DURATION_MS TOK_IN TOK_OUT ADDED REMOVED < <(
     echo "$DATA" | jq -r '[
