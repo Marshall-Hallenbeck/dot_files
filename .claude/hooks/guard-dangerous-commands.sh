@@ -4,13 +4,12 @@ set -euo pipefail
 # PreToolUse hook for Bash: force user approval on dangerous commands.
 # Outputs permissionDecision "ask" to show the permission prompt UI.
 
-INPUT=$(cat)
-COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
+COMMAND=$(echo "$CLAUDE_TOOL_INPUT" | jq -r '.command // empty')
 
-# git add, commit, or push
-if echo "$COMMAND" | grep -qP '(^|\s|;|&&|\|\|)git\s+(add|commit|push)\b'; then
+# git add, commit, push, checkout, rm
+if echo "$COMMAND" | grep -qP '(^|\s|;|&&|\|\|)git\s+(add|commit|push|checkout|rm)\b'; then
   cat <<'HOOK'
-{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"git add/commit/push requires explicit user approval."}}
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"git add/commit/push/checkout/rm requires explicit user approval."}}
 HOOK
   exit 0
 fi

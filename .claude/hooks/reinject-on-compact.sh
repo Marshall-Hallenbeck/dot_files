@@ -4,6 +4,15 @@ set -euo pipefail
 # Re-inject critical behavioral rules after context compaction.
 # These are the rules most likely to cause drift when compacted.
 
+# Consume stdin (hook event JSON) — not reading causes broken pipe errors.
+INPUT=$(cat)
+
+# Only run on compaction events; exit cleanly for startup/resume/clear.
+SOURCE=$(echo "$INPUT" | jq -r '.source // empty' 2>/dev/null || true)
+if [[ "$SOURCE" != "compact" ]]; then
+  exit 0
+fi
+
 RULES_DIR="$HOME/.claude/rules"
 
 echo "=== CRITICAL RULES (re-injected after compaction) ==="
