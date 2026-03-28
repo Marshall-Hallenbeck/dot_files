@@ -59,13 +59,24 @@ If Phase 5 had test failures, run `/fix-tests` with the failure output from Phas
 
 Record: fixes applied.
 
-### Phase 7: Test Coverage Review
+### Phase 7: Test Coverage Review + Regression Tests
 
 Run `/test-coverage-review` on uncommitted changes. This identifies new or modified code lacking test coverage and creates the missing tests.
 
+**Additionally, create regression tests for every P0-P2 finding from Phases 2-4.** For each finding that was fixed:
+1. Write a test that specifically reproduces the bug scenario
+2. The test must verify the correct behavior (pass with the fix, would fail without it)
+3. Choose the appropriate test type:
+   - **Unit test** — for logic bugs, incorrect calculations, wrong return values
+   - **Integration/API test** — for endpoint bugs, query issues, missing headers
+   - **E2E test** — for rendering bugs, UI regressions, page-level failures
+4. Name regression tests descriptively: `test_<what_broke>_regression` or `"<what_broke> regression"`
+
+If the `/review` phase already created regression tests inline (Step 6), verify they exist and are sufficient. If not, create them now.
+
 If new tests are created, run the full suite again to verify they pass and don't cause regressions.
 
-Record: tests created, coverage gaps filled.
+Record: tests created, coverage gaps filled, regression tests for N findings.
 
 ### Phase 8: Audits (read-only)
 
@@ -123,7 +134,7 @@ Run `/summarize-changes` to categorize all uncommitted changes and give the user
 - Overcautious check: CLEAN / BLOCKED
 - Quality gate: PASS / FAIL (includes lint --fix + all tests)
 - Test fixes: N/A / FIXED N failures
-- Test coverage: PASS / CREATED N tests
+- Test coverage: PASS / CREATED N tests (N regression tests for findings)
 - Audits: CLEAN / WARNINGS / BLOCKED
 
 ### Auto-Fixed

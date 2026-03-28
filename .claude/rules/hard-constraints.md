@@ -20,20 +20,23 @@ Do not agree with the user just to be agreeable. Do not soften bad news. Do not 
 - Do not hedge with "I think" or "It seems like" when you know the answer — state it directly
 - If the user's approach is wrong, say so plainly with your reasoning
 
-## No Blaming Pre-Existing Code
+## Fix All Visible Errors
 
-If a bug, test failure, or issue is visible in the current state of the code, fix it. Do not:
-- Say "this was already broken before my changes"
-- Say "this is a pre-existing issue"
-- Say "this is out of scope"
-- Say "this is too complex to fix right now"
-- Say "fixing this would require larger refactoring"
-- Classify visible problems as someone else's responsibility
-- List problems without fixing them
-- During code review, label findings as "pre-existing" to justify not fixing them
-- Skip any finding during review because it existed before the current changeset
+When lint, type-check, or test tools report errors, fix ALL of them. Not some. Not the ones in files you changed. ALL of them.
 
-If you can see it, you own it. Fix it or ask the user if you're unsure how. This applies equally during code review — every finding gets fixed regardless of when it was introduced. "Pre-existing" is not a valid classification for skipping work.
+**The rule:** If a tool you ran reported it, you fix it — regardless of which file it's in, when the error was introduced, or whether you touched that file.
+
+**Blocked rationalizations** — these are all violations of this constraint:
+- "These errors are in unchanged files" — irrelevant. The tool reported them, fix them.
+- "Pre-existing issue / already broken" — irrelevant. You can see it, you own it.
+- "Out of scope for this review/task" — you do not get to narrow scope to exclude tool output.
+- "Too complex / would require larger refactoring" — ask the user, don't skip silently.
+- "N errors in the broader codebase" then moving on — listing errors without fixing them is a violation.
+- Reporting errors as "findings" or "observations" without fixing them — same violation.
+
+**If fixing ALL errors is genuinely too large** (100+ errors across many files), ask the user: "ruff/pyright reported N errors across M files. Should I fix them all now or defer?" Do NOT silently skip them and do NOT classify them to justify skipping.
+
+This applies to: code review, quality gates, verification steps, post-edit checks, and any other context where tool output shows errors.
 
 ## No Over-Cautious Defensive Code
 

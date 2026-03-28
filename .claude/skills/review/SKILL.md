@@ -75,14 +75,21 @@ Before reporting a finding, verify:
 
 If confidence is below 70%, drop the finding.
 
-### 6. Fix ALL Findings
+### 6. Fix ALL Findings and Create Regression Tests
 
 After identifying findings, fix every one of them — P0 through P3. Do not leave any finding unfixed.
 
 For each finding:
 1. Read the full file for context
 2. Apply the fix using Edit
-3. Briefly note what was changed
+3. **Create a regression test** that would have caught this issue. The test must:
+   - Fail without the fix (verify by reasoning about the test against the pre-fix code)
+   - Pass with the fix applied
+   - Be placed in the appropriate test file (unit test for logic bugs, E2E for rendering/integration bugs)
+   - Follow existing test conventions in the project
+4. Briefly note what was changed and what test was added
+
+If a finding is a pure style/naming issue (P3) that doesn't affect behavior, skip the regression test.
 
 Run tests after all fixes to verify nothing broke. Auto-detect the test runner:
 
@@ -109,11 +116,11 @@ Reviewed N files with uncommitted changes.
 
 1. **[P1] Brief title** — `file:line`
 
-   One paragraph explaining the problem. **Fixed:** brief description of the fix.
+   One paragraph explaining the problem. **Fixed:** brief description of the fix. **Regression test:** `test_file:test_name`
 
 2. **[P2] Brief title** — `file:line`
 
-   Explanation. **Fixed:** brief description of the fix.
+   Explanation. **Fixed:** brief description of the fix. **Regression test:** `test_file:test_name`
 
 ### Verdict: PASS | NEEDS FIXES
 

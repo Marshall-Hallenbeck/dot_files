@@ -93,7 +93,6 @@
   },
   "syntaxHighlightingDisabled": false,
   "alwaysThinkingEnabled": true,
-  "effortLevel": "max",
   "voiceEnabled": false,
   "skipDangerousModePermissionPrompt": true
 }
