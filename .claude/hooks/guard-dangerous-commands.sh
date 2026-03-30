@@ -4,7 +4,7 @@ set -euo pipefail
 # PreToolUse hook for Bash: force user approval on dangerous commands.
 # Outputs permissionDecision "ask" to show the permission prompt UI.
 
-COMMAND=$(echo "$CLAUDE_TOOL_INPUT" | jq -r '.command // empty')
+COMMAND=$(jq -r '.tool_input.command // empty')
 
 # git add, commit, push, checkout, rm
 if echo "$COMMAND" | grep -qP '(^|\s|;|&&|\|\|)git\s+(add|commit|push|checkout|rm)\b'; then
