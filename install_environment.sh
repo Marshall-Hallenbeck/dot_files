@@ -91,8 +91,15 @@ if ! command -v docker &>/dev/null; then
             ;;
         kali)
             DOCKER_URL="https://download.docker.com/linux/debian"
-            # Kali doesn't have its own Docker repo; use the underlying Debian codename
-            DOCKER_CODENAME=$(cut -d/ -f1 < /etc/debian_version)
+            # Kali's /etc/debian_version says "kali-rolling", not a usable Debian codename.
+            # Derive it from Kali's Debian base version instead.
+            kali_debian_ver=$(grep -oP 'VERSION_ID="\K[^"]+' /etc/os-release | cut -d. -f1)
+            case "$kali_debian_ver" in
+                2024|2025|2026) DOCKER_CODENAME="bookworm" ;;
+                2023)           DOCKER_CODENAME="bookworm" ;;
+                2022)           DOCKER_CODENAME="bullseye" ;;
+                *)              DOCKER_CODENAME="bookworm" ;; # safe default
+            esac
             ;;
         *)
             echo "  WARNING: unsupported distro '$ID' for Docker, skipping" >&2
