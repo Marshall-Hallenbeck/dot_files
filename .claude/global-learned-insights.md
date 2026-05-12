@@ -43,6 +43,11 @@ Accumulated knowledge from working across projects. Auto-maintained by Claude.
 - `set -u` (nounset) in hook scripts will crash on any env var that isn't set by Claude Code. Use `${VAR:-}` syntax or avoid referencing env vars you haven't verified exist.
 - Hooks under the same `matcher` entry in settings.json share a single stdin pipe. The first hook to read (via `cat`, `jq`, etc.) consumes it — subsequent hooks get empty stdin. Design hooks to be self-contained or place each in its own matcher entry if they all need the input.
 
+## PostgreSQL JSONB Patterns
+
+- GIN indexes on JSONB columns enable `?|` (any key exists), `@>` (contains), `?&` (all keys exist) operators. Use `postgresql_using="gin"` in SQLAlchemy Index definition.
+- SQLAlchemy 2.0 has no built-in support for `?|` -- use `column.op("?|")(pg_array([...]))` with `from sqlalchemy.dialects.postgresql import array as pg_array`.
+
 ## VMware ESXi
 
 - ESXi FIPS mode rejects Ed25519 SSH keys (`ssh-ed25519 not in PubkeyAcceptedAlgorithms`) and EC TLS certs (rhttpproxy crashes with `asn1 encoding routines::nested asn1 error`). Use RSA-4096 for SSH keys and RSA-2048 for TLS certs.
