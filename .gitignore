@@ -2,7 +2,6 @@
 *.local
 # Re-include files that happen to have .local in their name but ARE managed
 !.claude/hookify.*.local.md
-!.claude/settings.local.json
 
 # Private BBP skills/agents (symlinked from ~/.bbp, private repo)
 .claude/agents/bb*
