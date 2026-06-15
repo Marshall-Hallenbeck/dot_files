@@ -53,7 +53,7 @@ fi
 # ── System packages ──────────────────────────────────────────────
 echo "Installing system packages..."
 sudo apt update
-for pkg in zsh tmux vim python3-pip python3-venv git virtualenvwrapper curl wget jq bc xclip net-tools shellcheck ripgrep build-essential unzip ca-certificates; do
+for pkg in zsh tmux vim python3-pip python3-venv git git-lfs virtualenvwrapper curl wget jq bc xclip net-tools shellcheck ripgrep build-essential unzip ca-certificates; do
     dpkg -s "$pkg" &>/dev/null || sudo apt install -y "$pkg"
 done
 
