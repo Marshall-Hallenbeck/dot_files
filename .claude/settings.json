@@ -1,5 +1,4 @@
 {
-  "showThinkingSummaries": true,
   "cleanupPeriodDays": 365,
   "env": {
     "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
@@ -49,6 +48,7 @@
     ],
     "defaultMode": "default"
   },
+  "model": "claude-opus-4-6[1m]",
   "hooks": {
     "SessionStart": [
       {
@@ -94,7 +94,11 @@
   },
   "syntaxHighlightingDisabled": false,
   "alwaysThinkingEnabled": true,
-  "voiceEnabled": false,
+  "showThinkingSummaries": true,
   "skipDangerousModePermissionPrompt": true,
-  "effortLevel": "max"
+  "verbose": true,
+  "remoteControlAtStartup": false,
+  "inputNeededNotifEnabled": true,
+  "agentPushNotifEnabled": true,
+  "voiceEnabled": false
 }

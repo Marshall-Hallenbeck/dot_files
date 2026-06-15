@@ -17,7 +17,9 @@ When resolving merge conflicts, ALWAYS preserve upstream/remote changes unless e
 
 When investigating issues, verify the actual infrastructure routing (e.g., Docker containers and networking, nginx, reverse proxies) BEFORE assuming the problem is in application code. Check how URLs are routed at the infrastructure level first.
 
-When testing or debugging, focus on the actual reported symptom. Do not try random exploratory fixes — diagnose the root cause first, then apply a single targeted fix.
+When testing or debugging, focus on the actual reported symptom. Do not try random exploratory fixes — diagnose the root cause first, then apply a single targeted fix. Explain the underlying cause, then fix *that* — not the symptom. Target the real cause, not its surface effect: remove the duplicate compose file rather than just killing the stale container; rely on an existing flow's guarantee rather than adding a redundant guard.
+
+When your own tooling breaks — e.g., the Bash tool returns exit code 1 or 2 with no output — STOP and diagnose the root cause before reaching for Serena MCP or other shell workarounds. A broken tool is itself a root-cause problem; working around it hides the failure instead of fixing it.
 
 ## External Limitations
 
@@ -25,7 +27,9 @@ If a task is blocked by external limitations (third-party APIs, minified code, C
 
 ## Execution Style
 
-Always execute commands directly. Never provide manual steps for the user to run unless the command is destructive, requires credentials you don't have, or affects systems outside the current machine. Do the work — don't describe the work.
+Always execute commands directly. Never provide manual steps for the user to run unless the command is destructive, requires credentials you don't have, or affects systems outside the current machine. Defer to the user only for irreversible actions (e.g., `git push --force`). Do the work — don't describe the work.
+
+Never ask "want me to fix it?" or "should I fix this?" — if there's a bug, error, warning, or test failure, fix it immediately. The answer is always yes. This applies to everything: code bugs, lint errors, type errors, test failures, compilation warnings. Just fix them.
 
 ## Asking Questions
 
@@ -54,6 +58,8 @@ Before creating any plan, complete a codebase grounding phase. Do not skip this.
 5. **Diff preview** — For each planned change, show the specific before/after for affected lines so the user can validate behavioral correctness.
 
 Stay focused on the stated goal. If you think work should extend beyond the original request, or if the goal is ambiguous, ask before acting — do not pursue tangential fixes, refactors, or improvements unprompted.
+
+When continuing a multi-phase plan from a prior session, resume execution directly at the next incomplete chunk. Do NOT re-summarize prior work or ask clarifying questions unless you hit a genuine blocker.
 
 ## Code Style
 
@@ -87,6 +93,10 @@ For other languages, use the applicable alternatives, such as tsx, etc.
 
 Fix issues from both tools, not just one. If a project's CLAUDE.md specifies different commands (e.g., `uv run ruff`, `uv run pyright`), use those.
 
+## Committing
+
+Before committing, run the full validation pipeline: `pre-commit` hooks, Ruff, Pyright, and the test suite. Fix every failure before committing — including pre-existing config problems (e.g., a broken Ruff config) you hit along the way, not just failures you introduced. Then commit with logical grouping: split unrelated changes into separate commits rather than one mixed commit.
+
 ## Claude Code Configuration
 
 When creating skills or plugins, check whether the context is global (`~/.claude/`) vs project-level (`.claude/`) and place files accordingly. Ask if unsure.
@@ -102,6 +112,10 @@ Never modify shell config files (`.zshrc`, `.bashrc`, `.zshenv`) with `sed`. Use
 ## Docker / Deployment
 
 After modifying any code in Docker-deployed services, consider if a rebuild or restart is needed before testing. Check if the code is mounted in the container, if hot-reload is enabled, or if the change is system/Docker configuration requiring a rebuild. Don't rebuild out of caution or habit — ensure a rebuild is necessary.
+
+## Memory Efficiency
+
+Simple behavioral rules (one sentence) go directly in MEMORY.md as inline text — no backing file needed. Only create a separate `.md` file when the memory contains reference details (IPs, commands, multi-step procedures) that add value beyond the one-liner. Never create a whole markdown file with frontmatter for something that fits in a single line.
 
 ## Learned Insights
 

@@ -43,6 +43,12 @@ Accumulated knowledge from working across projects. Auto-maintained by Claude.
 - `set -u` (nounset) in hook scripts will crash on any env var that isn't set by Claude Code. Use `${VAR:-}` syntax or avoid referencing env vars you haven't verified exist.
 - Hooks under the same `matcher` entry in settings.json share a single stdin pipe. The first hook to read (via `cat`, `jq`, etc.) consumes it — subsequent hooks get empty stdin. Design hooks to be self-contained or place each in its own matcher entry if they all need the input.
 
+## Claude Code Permissions
+
+- Bash allow/deny patterns use colon-star syntax: `Bash(cmd:*)` matches `cmd` + any args (e.g. `Bash(git log:*)`, `Bash(ruff check:*)`). The space form `Bash(cmd *)` is NOT the matcher. Multi-word prefixes work and a short prefix blankets subcommands — `Bash(docker:*)` already covers `docker compose logs ...`.
+- Many read-only commands never prompt (no allowlist entry needed): `cat`/`ls`/`grep`/`find`/`head`/`tail`/`wc`/`cut`/`sort`/`diff`, all git read subcommands (`git log/diff/status/show/branch`), gh read subcommands, `docker ps/images/logs/inspect`. Worth allowlisting only the read-only tools OUTSIDE that set: `objdump`/`nm`/`readelf`/`ping`/`dig`, etc.
+- When cwd is the home directory, the "project" `.claude/settings.json` path resolves to the global `~/.claude/settings.json` — they're the same file. `settings.local.json` holds machine-specific grants and (in this setup) is symlinked into `~/.dot_files`, so it IS dotfiles-tracked despite the usual "local = gitignored" convention.
+
 ## PostgreSQL JSONB Patterns
 
 - GIN indexes on JSONB columns enable `?|` (any key exists), `@>` (contains), `?&` (all keys exist) operators. Use `postgresql_using="gin"` in SQLAlchemy Index definition.
