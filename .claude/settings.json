@@ -1,7 +1,19 @@
 {
   "cleanupPeriodDays": 365,
   "env": {
-    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
+    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
+    "CLAUDE_CODE_ENABLE_TELEMETRY": "0",
+    "CLAUDE_CODE_FORK_SUBAGENT": "1",
+    "CLAUDE_CODE_MAX_TOOL_USE_CONCURRENCY": "20",
+    "CLAUDE_CODE_NO_FLICKER": "1",
+    "CLAUDE_CODE_RESUME_INTERRUPTED_TURN": "1",
+    "CLAUDE_CODE_SCROLL_SPEED": "3",
+    "DISABLE_EXTRA_USAGE_COMMAND": "1",
+    "DISABLE_INSTALL_GITHUB_APP_COMMAND": "1",
+    "DO_NOT_TRACK": "1",
+    "TASK_MAX_OUTPUT_LENGTH": "64000",
+    "CLAUDE_CODE_EFFORT_LEVEL": "max"
   },
   "attribution": {
     "commit": "",
@@ -33,15 +45,6 @@
       "mcp__plugin_playwright_playwright__browser_press_key",
       "mcp__plugin_playwright_playwright__browser_take_screenshot",
       "mcp__plugin_playwright_playwright__browser_wait_for",
-      "mcp__plugin_serena_serena__activate_project",
-      "mcp__plugin_serena_serena__check_onboarding_performed",
-      "mcp__plugin_serena_serena__find_file",
-      "mcp__plugin_serena_serena__get_symbols_overview",
-      "mcp__plugin_serena_serena__list_dir",
-      "mcp__plugin_serena_serena__list_memories",
-      "mcp__plugin_serena_serena__read_file",
-      "mcp__plugin_serena_serena__search_for_pattern",
-      "mcp__plugin_serena_serena__think_about_collected_information",
       "mcp__puppeteer__*",
       "Edit(**/*learned-insights.md)",
       "Bash(uv run:*)"
@@ -83,7 +86,7 @@
     "context7@claude-plugins-official": true,
     "feature-dev@claude-plugins-official": true,
     "playwright@claude-plugins-official": true,
-    "serena@claude-plugins-official": true,
+    "serena@claude-plugins-official": false,
     "explanatory-output-style@claude-plugins-official": true,
     "code-simplifier@claude-plugins-official": true,
     "typescript-lsp@claude-plugins-official": true,
@@ -97,9 +100,10 @@
   "showThinkingSummaries": true,
   "skipDangerousModePermissionPrompt": true,
   "verbose": true,
-  "remoteControlAtStartup": false,
+  "teammateMode": "auto",
+  "remoteControlAtStartup": true,
   "inputNeededNotifEnabled": true,
   "agentPushNotifEnabled": true,
   "voiceEnabled": false,
-  "teammateMode": "auto"
+  "tui": "fullscreen"
 }
