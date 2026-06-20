@@ -6,6 +6,12 @@ Accumulated knowledge from working across projects. Auto-maintained by Claude.
 
 - When adding a FK to an existing model that's mocked with `SimpleNamespace` in tests, every mock instance needs the new attribute added (typically `=None`). Regex-based replacement across test files is efficient for this.
 
+## Claude Code Parallelism Mechanisms
+
+- Three parallelism levels: **Subagents** (Agent tool, invisible helper returning a result), **Agent Teams** (full independent sessions in tmux panes, user can interact with each), **Workflows** (scripted JS orchestration, deterministic fan-out, no mid-flight steering). Choose by steerability needs, not task size.
+- `run_in_background: true` on the Agent tool is the middle ground — the main conversation continues, but the subagent can't be steered. Use for independent lookups that don't gate the next step.
+- `teammateMode: "auto"` in settings.json enables tmux split panes when running inside tmux, falling back to in-process agent panel otherwise. Default changed from `"auto"` to `"in-process"` in v2.1.179.
+
 ## Claude Code Skills vs Agents
 
 - Skills are prompt templates (directory with SKILL.md) injected into the main conversation -- they run as the main Claude instance, can interact with the user mid-execution, and inherit all available tools. Best for orchestration and interactive workflows.
@@ -53,6 +59,10 @@ Accumulated knowledge from working across projects. Auto-maintained by Claude.
 
 - GIN indexes on JSONB columns enable `?|` (any key exists), `@>` (contains), `?&` (all keys exist) operators. Use `postgresql_using="gin"` in SQLAlchemy Index definition.
 - SQLAlchemy 2.0 has no built-in support for `?|` -- use `column.op("?|")(pg_array([...]))` with `from sqlalchemy.dialects.postgresql import array as pg_array`.
+
+## Background Tasks / Polling
+
+- Never use unbounded `until <condition>; do sleep N; done` in `run_in_background` commands. These run forever invisibly if the condition is never met. Use a bounded loop: `for i in $(seq 1 N); do <check> && break; sleep 5; done`.
 
 ## VMware ESXi
 
