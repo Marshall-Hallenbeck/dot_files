@@ -93,9 +93,11 @@
   },
   "syntaxHighlightingDisabled": false,
   "alwaysThinkingEnabled": true,
+  "effortLevel": "xhigh",
   "showThinkingSummaries": true,
   "skipDangerousModePermissionPrompt": true,
   "inputNeededNotifEnabled": true,
   "agentPushNotifEnabled": true,
-  "voiceEnabled": false
+  "voiceEnabled": false,
+  "tui": "fullscreen"
 }
