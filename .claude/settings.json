@@ -2,7 +2,6 @@
   "cleanupPeriodDays": 365,
   "env": {
     "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
-    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
     "CLAUDE_CODE_ENABLE_TELEMETRY": "0",
     "CLAUDE_CODE_FORK_SUBAGENT": "1",
     "CLAUDE_CODE_MAX_TOOL_USE_CONCURRENCY": "20",
@@ -31,10 +30,8 @@
       "Bash(tail:*)",
       "Bash(tee:*)",
       "Bash(wc:*)",
-      "mcp__context7__*",
       "mcp__ide__*",
       "mcp__mcp-server-docker__*",
-      "mcp__memory__*",
       "mcp__playwright__*",
       "mcp__plugin_context7_context7__query-docs",
       "mcp__plugin_context7_context7__resolve-library-id",
@@ -45,7 +42,6 @@
       "mcp__plugin_playwright_playwright__browser_press_key",
       "mcp__plugin_playwright_playwright__browser_take_screenshot",
       "mcp__plugin_playwright_playwright__browser_wait_for",
-      "mcp__puppeteer__*",
       "Edit(**/*learned-insights.md)",
       "Bash(uv run:*)"
     ],
@@ -73,6 +69,46 @@
             "command": "$HOME/.claude/hooks/guard-dangerous-commands.sh"
           }
         ]
+      },
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "new_content=$(echo \"$CLAUDE_TOOL_INPUT\" | jq -r '(.new_string // .content // empty)'); prompt=\"$CLAUDE_USER_PROMPT\"; if [ -z \"$new_content\" ]; then exit 0; fi; if echo \"$new_content\" | grep -Eiq '\\bfallback\\b|graceful[[:space:]]+degrad|degraded[[:space:]]+path|retryWithoutAuth|defaulting[[:space:]]+to|\\?\\?[[:space:]]*\\[\\]|\\|\\|[[:space:]]*\\[\\]|\\?\\?[[:space:]]*\\{\\}|\\|\\|[[:space:]]*\\{\\}'; then if ! echo \"$prompt\" | grep -Eiq '\\bfallback\\b|defensive[[:space:]]+guard|graceful[[:space:]]+degrad|fail[[:space:]]*closed|resilien'; then echo 'BLOCKED: Fallback/defensive guard patterns require explicit user request.'; exit 2; fi; fi"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "file_path=$(echo \"$CLAUDE_TOOL_INPUT\" | jq -r '.file_path // empty'); if [ -z \"$file_path\" ]; then exit 0; fi; case \"$file_path\" in *.ts|*.tsx) ;; *) exit 0;; esac; if [ ! -f \"$(dirname \"$file_path\")/tsconfig.json\" ] && [ ! -f \"$(git -C \"$(dirname \"$file_path\")\" rev-parse --show-toplevel 2>/dev/null)/tsconfig.json\" ]; then exit 0; fi; cd \"$(git -C \"$(dirname \"$file_path\")\" rev-parse --show-toplevel 2>/dev/null)\" && npx tsc --noEmit --pretty 2>&1 | head -20"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "file_path=$(echo \"$CLAUDE_TOOL_INPUT\" | jq -r '.file_path // empty'); if [ -z \"$file_path\" ]; then exit 0; fi; case \"$file_path\" in *.py) ;; *) exit 0;; esac; command -v ruff >/dev/null 2>&1 || exit 0; ruff check --fix \"$file_path\" 2>&1 | head -20; ruff format --check \"$file_path\" 2>&1 | head -5; exit 0"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$HOME/.claude/hooks/save-insights-reminder.sh"
+          }
+        ]
       }
     ]
   },
@@ -91,12 +127,12 @@
     "code-simplifier@claude-plugins-official": true,
     "typescript-lsp@claude-plugins-official": true,
     "pyright-lsp@claude-plugins-official": true,
-    "hookify@claude-plugins-official": false,
     "claude-md-management@claude-plugins-official": true,
     "claude-code-setup@claude-plugins-official": true
   },
   "syntaxHighlightingDisabled": false,
   "alwaysThinkingEnabled": true,
+  "tui": "fullscreen",
   "showThinkingSummaries": true,
   "skipDangerousModePermissionPrompt": true,
   "verbose": true,
@@ -104,6 +140,5 @@
   "remoteControlAtStartup": true,
   "inputNeededNotifEnabled": true,
   "agentPushNotifEnabled": true,
-  "voiceEnabled": false,
-  "tui": "fullscreen"
+  "voiceEnabled": false
 }
