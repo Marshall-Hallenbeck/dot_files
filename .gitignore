@@ -1,5 +1,6 @@
 # Per-host override files (created locally, never committed)
 *.local
+.claude/settings.local.json
 
 # Private BBP skills/agents (symlinked from ~/.bbp, private repo)
 .claude/agents/bb*
