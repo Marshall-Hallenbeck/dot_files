@@ -7,7 +7,7 @@ set -euo pipefail
 COMMAND=$(jq -r '.tool_input.command // empty')
 
 # git add, commit, push, checkout, rm
-if echo "$COMMAND" | grep -qP '(^|\s|;|&&|\|\|)git\s+(add|commit|push|checkout|rm)\b'; then
+if echo "$COMMAND" | grep -qE '(^|[[:space:]]|;|&&|\|\|)git[[:space:]]+(add|commit|push|checkout|rm)\b'; then
   cat <<'HOOK'
 {"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"git add/commit/push/checkout/rm requires explicit user approval."}}
 HOOK
@@ -15,7 +15,7 @@ HOOK
 fi
 
 # rm commands
-if echo "$COMMAND" | grep -qP '(^|\s|;|&&|\|\|)rm\s'; then
+if echo "$COMMAND" | grep -qE '(^|[[:space:]]|;|&&|\|\|)rm[[:space:]]'; then
   cat <<'HOOK'
 {"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"rm command requires explicit user approval."}}
 HOOK

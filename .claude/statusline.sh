@@ -73,8 +73,8 @@ if [ "$PCT" -gt 80 ]; then CTX_CLR="\033[38;5;203m"
 elif [ "$PCT" -gt 50 ]; then CTX_CLR="\033[38;5;222m"
 else CTX_CLR="\033[38;5;157m"
 fi
-if (( $(echo "$COST > 10" | bc -l) )); then COST_CLR="\033[38;5;203m"
-elif (( $(echo "$COST > 2" | bc -l) )); then COST_CLR="\033[38;5;222m"
+if awk "BEGIN{exit !($COST > 10)}"; then COST_CLR="\033[38;5;203m"
+elif awk "BEGIN{exit !($COST > 2)}"; then COST_CLR="\033[38;5;222m"
 else COST_CLR="\033[38;5;157m"
 fi
 
