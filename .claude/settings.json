@@ -46,6 +46,13 @@
       "Edit(**/*learned-insights.md)",
       "Bash(uv run:*)"
     ],
+    "ask": [
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(git checkout:*)",
+      "Bash(rm:*)"
+    ],
     "defaultMode": "default"
   },
   "hooks": {
@@ -56,17 +63,6 @@
           {
             "type": "command",
             "command": "$HOME/.claude/hooks/reinject-on-compact.sh"
-          }
-        ]
-      }
-    ],
-    "PreToolUse": [
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "$HOME/.claude/hooks/guard-dangerous-commands.sh"
           }
         ]
       }
