@@ -63,4 +63,5 @@ git diff main...HEAD --stat
 
 - Do **not** commit by default
 - If the user explicitly asks to commit, proceed to `/commit` after summarizing
+- If the user references a specific issue/feature/bug, ensure all relevant changes are included and unrelated changes are excluded — keep the summary (and any resulting commit) scoped to that work
 - If scope is ambiguous, ask for confirmation before staging

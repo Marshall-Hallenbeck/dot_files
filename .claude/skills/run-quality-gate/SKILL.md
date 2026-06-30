@@ -68,8 +68,8 @@ Agent prompt: "Run Playwright E2E tests via npm run test:e2e:safe in frontend/. 
 ## Enforcement
 
 - Any failing gate means overall failure.
-- **Fix ALL errors** — lint, type, and test failures must be fixed regardless of when they were introduced. "Pre-existing" is not a valid reason to skip.
-- Do not skip failing suites to force a pass.
+- **Fix ALL errors AND warnings** — lint errors, lint warnings, type errors, and test failures must all be fixed regardless of when they were introduced. "Pre-existing" is not a valid reason to skip, and a warning is not a valid thing to leave behind. A gate passes only at **zero errors and zero warnings**.
+- **Never silence to pass.** No inline `eslint-disable` / `@ts-ignore` / `@ts-expect-error`, no `.skip` / `.only`, no skipping failing suites. Fix the underlying cause. If a lint rule is genuinely wrong for this codebase, change the lint *config* deliberately and say so — don't suppress inline.
 - Do not report errors and move on — fix them before claiming the gate passed.
 
 ## Output Format
