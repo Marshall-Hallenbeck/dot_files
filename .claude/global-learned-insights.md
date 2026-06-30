@@ -64,11 +64,33 @@ Accumulated knowledge from working across projects. Auto-maintained by Claude.
 
 - Never use unbounded `until <condition>; do sleep N; done` in `run_in_background` commands. These run forever invisibly if the condition is never met. Use a bounded loop: `for i in $(seq 1 N); do <check> && break; sleep 5; done`.
 
-## VMware ESXi
+## CLI Tool Behavior
 
-- ESXi FIPS mode rejects Ed25519 SSH keys (`ssh-ed25519 not in PubkeyAcceptedAlgorithms`) and EC TLS certs (rhttpproxy crashes with `asn1 encoding routines::nested asn1 error`). Use RSA-4096 for SSH keys and RSA-2048 for TLS certs.
-- ESXi uses BusyBox — `bash` is not available. Use `sh` for remote command execution via SSH.
-- ESXi SSH authorized keys live at `/etc/ssh/keys-<user>/authorized_keys` (not `~/.ssh/`). The `AuthorizedKeysFile` directive in sshd_config confirms this path.
-- When replacing ESXi TLS certs, restart `rhttpproxy` and `hostd` but NOT `vpxa` (the vCenter agent). Restarting vpxa triggers vCenter to re-provision a VMCA-signed cert, overwriting the custom cert.
-- vCenter's `ReconnectHost_Task` always re-provisions VMCA certs on the ESXi host, even with `force=false`. To update the expected thumbprint without triggering cert re-provisioning, directly update `vpx_host.expected_ssl_thumbprint` in the VCDB PostgreSQL database.
-- vCenter 8 LE cert replacement requires publishing ISRG Root X1 to VECS TRUSTED_ROOTS via `dir-cli trustedcert publish`, and restarting vsphere-ui after MACHINE_SSL_CERT changes. Without the trusted root, vsphere-ui can't validate the cert chain when connecting to STS/SSO (HTTP 500 on /ui/login).
+- `searchsploit --strict` disables fuzzy version range expansion (e.g., "1.1" won't match "1.0 < 1.3"). The `-s` flag is the short form. Without it, a search for "Apache 2.4" returns every Apache exploit that mentions any version in the 2.x range.
+
+## Testing
+
+- When a value has a formatter and a parser (dates, IDs, query strings), add a round-trip property test (`parse(format(x)) === x`) covering every formatter output shape. Teaching the formatter a new shape without updating the parser silently corrupts data on the next edit→save cycle.
+- @testing-library/react only registers its automatic `cleanup()` when a global `afterEach` exists at import time — with Vitest that means `test.globals: true` in vitest.config; otherwise DOM leaks between tests.
+
+## Docker Compose
+
+- `docker compose` interpolates `$VAR`/`${VAR}` inside `command:`/`entrypoint:` blocks at parse time — embedded shell scripts silently lose their variables (unset vars become empty with only a warning). Escape every shell-runtime `$` as `$$`. `docker compose config` re-escapes surviving literals back to `$$` in its output, so asserting the `$$` form in rendered output plus zero "variable is not set" warnings makes a solid regression check.
+- Compose `${VAR:?message}` hard-fails the deploy when a variable is unset/empty — use it for credentials instead of `${VAR:-default}`, which silently ships the default (e.g. Grafana admin/admin).
+
+## Prometheus
+
+- `absent(metric)` alert rules fire PERMANENTLY when the metric's exporter was never deployed/scraped — an alert meant to detect an outage instead manufactures one, while non-absent() rules against missing metrics silently never fire. Keep alert rules and scrape jobs in sync (and lint for it).
+- Standalone cAdvisor exposes no restart-count metric; detect restart loops with `changes(container_start_time_seconds{name=~".+"}[15m]) > N`.
+
+## Git Credential Helpers
+
+- `GIT_ASKPASS` helpers run as child processes and read credentials from their environment — variables sourced from a file without `set -a`/`export` are invisible to them, so pushes fail auth even though the parent script sees the variable.
+
+## zsh vs bash Scripting Gotchas
+
+- zsh does NOT word-split unquoted `$VAR` (unlike bash). Storing a command line in a string (`CMD="sshpass -p $PASS ssh host"`) and invoking `$CMD` makes zsh treat the entire string as one command name — it fails AND the "command not found" error echoes the fully-expanded line, leaking any embedded secrets into the terminal/log. Wrap remote-command helpers in functions (or arrays), never command-strings.
+
+## SQLite
+
+- `sqlite3 db ".backup 'dest'"` uses the online backup API, which reads through the source connection — committed WAL frames ARE included. No prior `wal_checkpoint` is needed for backup correctness (checkpoint first only when copying the raw file directly).

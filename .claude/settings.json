@@ -45,6 +45,13 @@
       "Edit(**/*learned-insights.md)",
       "Bash(uv run:*)"
     ],
+    "ask": [
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(git checkout:*)",
+      "Bash(rm:*)"
+    ],
     "defaultMode": "default"
   },
   "model": "claude-opus-4-6[1m]",
@@ -61,15 +68,6 @@
       }
     ],
     "PreToolUse": [
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "$HOME/.claude/hooks/guard-dangerous-commands.sh"
-          }
-        ]
-      },
       {
         "matcher": "Write|Edit|MultiEdit",
         "hooks": [
@@ -132,6 +130,7 @@
   },
   "syntaxHighlightingDisabled": false,
   "alwaysThinkingEnabled": true,
+  "effortLevel": "xhigh",
   "tui": "fullscreen",
   "showThinkingSummaries": true,
   "skipDangerousModePermissionPrompt": true,
