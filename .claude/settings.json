@@ -8,7 +8,8 @@
     "CLAUDE_CODE_RESUME_INTERRUPTED_TURN": "1",
     "CLAUDE_CODE_SCROLL_SPEED": "3",
     "TASK_MAX_OUTPUT_LENGTH": "64000",
-    "CLAUDE_CODE_EFFORT_LEVEL": "max"
+    "CLAUDE_CODE_EFFORT_LEVEL": "max",
+    "CLAUDE_AFK_TIMEOUT_MS": "86400000"
   },
   "attribution": {
     "commit": "",
