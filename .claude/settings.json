@@ -99,7 +99,7 @@
             "hooks": [
                 {
                     "type": "command",
-                    "command": "file_path=$(echo \"$CLAUDE_TOOL_INPUT\" | jq -r '.file_path // empty'); if [ -z \"$file_path\" ]; then exit 0; fi; case \"$file_path\" in *.sh|*.bash) ;; *) exit 0;; esac; command -v shellcheck >/dev/null 2>&1 || exit 0; shellcheck -S warning \"$file_path\" 2>&1 | head -20; exit 0"
+                    "command": "file_path=$(echo \"$CLAUDE_TOOL_INPUT\" | jq -r '.file_path // empty'); if [ -z \"$file_path\" ]; then exit 0; fi; case \"$file_path\" in *.sh|*.bash) ;; *) exit 0;; esac; command -v shellcheck >/dev/null 2>&1 || exit 0; shellcheck -S style \"$file_path\" 2>&1 | head -20; exit 0"
                 }
             ]
         }
