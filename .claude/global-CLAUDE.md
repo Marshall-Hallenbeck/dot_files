@@ -31,6 +31,33 @@ Always execute commands directly. Never provide manual steps for the user to run
 
 Never ask "want me to fix it?" or "should I fix this?" — if there's a bug, error, warning, or test failure, fix it immediately. The answer is always yes. This applies to everything: code bugs, lint errors, type errors, test failures, compilation warnings. Just fix them.
 
+## Remote Access & Infrastructure Work
+
+When a task involves a remote host and SSH or API credentials are available in the current environment, use them directly — do not hand the user manual steps or UI instructions. "You have SSH access to X" is authorization to act. Check for existing SSH keys (`~/.ssh/`), env vars, and `.env` files before concluding access is unavailable.
+
+Before starting a remote deployment session, explicitly list the credentials/env vars the session needs. If any are missing, ask for them upfront rather than hitting auth errors mid-deploy.
+
+Before any significant remote deploy (new service, cert renewal, config push), run `/preflight [user@host]` to verify reachability, disk space, and credentials. Most homelab deploy failures trace back to predictable pre-conditions (quota, permissions, password mismatch) that a 30-second check would surface.
+
+## Constraint Discovery
+
+Before implementing anything that touches IDs, naming conventions, or data storage, ask explicitly:
+- ID format: numeric auto-increment, UUID, slug, or something else?
+- Target: live DB, seed/fixture file, or migration?
+- Exact values or approximations acceptable?
+- Any project-specific naming conventions (snake_case, camelCase, kebab)?
+
+One upfront question eliminates multiple wrong-guess rework cycles. Never assume — ask.
+
+## Live Verification
+
+Never declare a task done based on tests alone when the actual runtime is observable. "It should work" is not verification.
+
+- **Android:** ADB must show the device connected (`adb devices`), build must install cleanly, and the changed screen must visually render on device.
+- **Web apps:** E2E tests must pass against the real running stack (containers healthy per `docker compose ps`, not just mocked unit tests).
+- **Homelab/infra:** After deploying, verify the live state — `curl` the endpoint, check `systemctl status`, read config from the running service. A deploy is not done until the running system reflects the change.
+- **Databases/data:** After a schema change or data migration, query the live DB and confirm the data looks correct.
+
 ## Asking Questions
 
 When anything is ambiguous, unclear, or open to interpretation, use AskUserQuestion to clarify BEFORE proceeding. Do not guess, assume, or pick a default — ask. This applies everywhere: code, architecture, agent configuration, skill design, and operational decisions. Specific examples:
