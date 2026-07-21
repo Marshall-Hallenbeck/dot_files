@@ -8,6 +8,8 @@ disable-model-invocation: true
 
 Examines uncommitted changes to identify new or modified code that lacks test coverage, then creates the missing tests. Covers unit, integration, and E2E test gaps.
 
+> **Project assumptions:** example commands assume a `uv` Python backend plus a `frontend/` (Jest/Playwright) layout. Detect the actual project first and adapt paths, test runner, and package manager; skip layers the project doesn't have (e.g. no `frontend/` → no Jest/Playwright step).
+
 ## Usage
 
 ```

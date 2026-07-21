@@ -8,6 +8,16 @@ disable-model-invocation: false
 
 Runs the full verification pipeline for high-confidence changes. All gates run **in parallel via background agents** for maximum speed.
 
+## Project assumptions — detect and adapt before running
+
+The gate commands below assume a Python-backend (`uv`, `src/`, `tests/`) plus `frontend/` (Jest + Playwright) layout. Before running, detect the actual project and **skip or adapt any gate that does not apply**:
+- No `uv.lock` → drop the `uv run` prefix (use plain `pytest`/`ruff`/`pyright`, or the project's package manager).
+- No `frontend/` dir → skip Gates 3, 5, 6 (TypeScript, Jest, Playwright).
+- Source dir isn't `src/` → substitute the real path; detect the test runner via the same table `/run-unit-tests` uses.
+- No Playwright / no `test:e2e:safe` script → skip Gate 6.
+
+Run only the gates that match the project. A gate skipped because its tooling is absent is a PASS, not a failure.
+
 ## Usage
 
 ```text

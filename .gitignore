@@ -6,3 +6,22 @@
 # Private BBP skills/agents (symlinked from ~/.bbp, private repo)
 .claude/agents/bb*
 .claude/skills/bb*
+
+# Machine-specific Claude local settings (ends in .json, so *.local misses it)
+.claude/settings.local.json
+
+# Secrets — never commit (defense-in-depth; nothing sensitive is tracked today)
+*.pem
+*.key
+id_rsa*
+id_ed25519*
+id_ecdsa*
+id_dsa*
+*.p12
+*.pfx
+*.ppk
+*.kdbx
+*.ovpn
+.env*
+*.token
+.secrets/

@@ -8,7 +8,6 @@
     "CLAUDE_CODE_RESUME_INTERRUPTED_TURN": "1",
     "CLAUDE_CODE_SCROLL_SPEED": "3",
     "TASK_MAX_OUTPUT_LENGTH": "64000",
-    "CLAUDE_CODE_EFFORT_LEVEL": "max",
     "CLAUDE_AFK_TIMEOUT_MS": "86400000"
   },
   "attribution": {
@@ -51,7 +50,7 @@
     ],
     "defaultMode": "default"
   },
-  "model": "claude-opus-4-6[1m]",
+  "model": "claude-fable-5[1m]",
   "hooks": {
     "SessionStart": [
       {
@@ -62,6 +61,14 @@
             "command": "$HOME/.claude/hooks/reinject-on-compact.sh"
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$HOME/.claude/hooks/inject-insights-index.sh"
+          }
+        ]
       }
     ],
     "PreToolUse": [
@@ -70,39 +77,21 @@
         "hooks": [
           {
             "type": "command",
-            "command": "new_content=$(echo \"$CLAUDE_TOOL_INPUT\" | jq -r '(.new_string // .content // empty)'); prompt=\"$CLAUDE_USER_PROMPT\"; if [ -z \"$new_content\" ]; then exit 0; fi; if echo \"$new_content\" | grep -Eiq '\\bfallback\\b|graceful[[:space:]]+degrad|degraded[[:space:]]+path|retryWithoutAuth|defaulting[[:space:]]+to|\\?\\?[[:space:]]*\\[\\]|\\|\\|[[:space:]]*\\[\\]|\\?\\?[[:space:]]*\\{\\}|\\|\\|[[:space:]]*\\{\\}'; then if ! echo \"$prompt\" | grep -Eiq '\\bfallback\\b|defensive[[:space:]]+guard|graceful[[:space:]]+degrad|fail[[:space:]]*closed|resilien'; then echo 'BLOCKED: Fallback/defensive guard patterns require explicit user request.'; exit 2; fi; fi"
+            "command": "$HOME/.claude/hooks/guard-fallback-patterns.sh"
           }
         ]
       }
     ],
     "PostToolUse": [
-        {
-            "matcher": "Edit|Write|MultiEdit",
-            "hooks": [
-                {
-                    "type": "command",
-                    "command": "file_path=$(echo \"$CLAUDE_TOOL_INPUT\" | jq -r '.file_path // empty'); if [ -z \"$file_path\" ]; then exit 0; fi; case \"$file_path\" in *.ts|*.tsx) ;; *) exit 0;; esac; if [ ! -f \"$(dirname \"$file_path\")/tsconfig.json\" ] && [ ! -f \"$(git -C \"$(dirname \"$file_path\")\" rev-parse --show-toplevel 2>/dev/null)/tsconfig.json\" ]; then exit 0; fi; cd \"$(git -C \"$(dirname \"$file_path\")\" rev-parse --show-toplevel 2>/dev/null)\" && npx tsc --noEmit --pretty 2>&1 | head -20"
-                }
-            ]
-        },
-        {
-            "matcher": "Edit|Write|MultiEdit",
-            "hooks": [
-                {
-                    "type": "command",
-                    "command": "file_path=$(echo \"$CLAUDE_TOOL_INPUT\" | jq -r '.file_path // empty'); if [ -z \"$file_path\" ]; then exit 0; fi; case \"$file_path\" in *.py) ;; *) exit 0;; esac; command -v ruff >/dev/null 2>&1 || exit 0; ruff check --fix \"$file_path\" 2>&1 | head -20; ruff format --check \"$file_path\" 2>&1 | head -5; exit 0"
-                }
-            ]
-        },
-        {
-            "matcher": "Edit|Write|MultiEdit",
-            "hooks": [
-                {
-                    "type": "command",
-                    "command": "file_path=$(echo \"$CLAUDE_TOOL_INPUT\" | jq -r '.file_path // empty'); if [ -z \"$file_path\" ]; then exit 0; fi; case \"$file_path\" in *.sh|*.bash) ;; *) exit 0;; esac; command -v shellcheck >/dev/null 2>&1 || exit 0; shellcheck -S style \"$file_path\" 2>&1 | head -20; exit 0"
-                }
-            ]
-        }
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$HOME/.claude/hooks/post-edit-lint.sh"
+          }
+        ]
+      }
     ],
     "Stop": [
       {
@@ -126,15 +115,12 @@
     "context7@claude-plugins-official": true,
     "feature-dev@claude-plugins-official": true,
     "playwright@claude-plugins-official": true,
-    "serena@claude-plugins-official": false,
-    "explanatory-output-style@claude-plugins-official": true,
     "code-simplifier@claude-plugins-official": true,
     "typescript-lsp@claude-plugins-official": true,
     "pyright-lsp@claude-plugins-official": true,
     "claude-md-management@claude-plugins-official": true,
     "claude-code-setup@claude-plugins-official": true
   },
-  "syntaxHighlightingDisabled": false,
   "alwaysThinkingEnabled": true,
   "effortLevel": "xhigh",
   "tui": "fullscreen",
@@ -144,6 +130,5 @@
   "teammateMode": "auto",
   "remoteControlAtStartup": true,
   "inputNeededNotifEnabled": true,
-  "agentPushNotifEnabled": true,
-  "voiceEnabled": false
+  "agentPushNotifEnabled": true
 }

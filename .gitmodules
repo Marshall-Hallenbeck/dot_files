@@ -1,3 +1,0 @@
-[submodule "vendor/openspecs"]
-	path = vendor/openspecs
-	url = https://github.com/awakecoding/openspecs.git

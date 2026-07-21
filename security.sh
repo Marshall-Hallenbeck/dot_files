@@ -2,6 +2,8 @@
 # shellcheck disable=SC1071
 # setup script for my security tooling, etc
 
+set -euo pipefail
+
 ### FOLDER STRUCTURE
 # requires a shell that supports brace expansion (zsh, bash, etc)
 echo "Creating folder structure"
@@ -53,44 +55,61 @@ fi
 
 pipx ensurepath
 
+# Capture installed pipx packages once, then guard installs against it. A
+# herestring (not a pipe) avoids a SIGPIPE race with grep -q under pipefail, and
+# checking the captured list keeps re-runs idempotent under set -euo pipefail.
+PIPX_INSTALLED=$(pipx list --short 2>/dev/null || true)
+pipx_install_if_missing() {
+    local name="$1"; shift
+    grep -qi "^$name " <<<"$PIPX_INSTALLED" || pipx install "$@"
+}
+
 echo "Installing uv"
-pipx install uv
+command -v uv >/dev/null 2>&1 || pipx install uv
 
 if ! command -v poetry &> /dev/null; then
     echo "Installing Poetry"
-    curl -sSL https://install.python-poetry.org | python3 -
+    curl -fsSL https://install.python-poetry.org | python3 -
 fi
 
 echo "Installing Impacket from Git"
-pipx install git+https://github.com/fortra/impacket.git
+pipx_install_if_missing impacket git+https://github.com/fortra/impacket.git
 #git clone https://github.com/fortra/impacket.git ~/pentest/tools/ad_and_windows/impacket
 # to install the sample scripts/etc, run `python3 -m pip install .`
 
 ### TOOLS
 echo "Installing cidrize"
-pipx install cidrize
+pipx_install_if_missing cidrize cidrize
 
 echo "Installing NetExec via GitHub, uv (editable)"
-git clone git+https://github.com/Pennyw0rth/NetExec ~/pentest/tools/ad_and_windows/NetExec
-uv tool install ~/pentest/tools/ad_and_windows/NetExec -e --force
+NETEXEC_DIR="$HOME/pentest/tools/ad_and_windows/NetExec"
+[ -d "$NETEXEC_DIR" ] || git clone https://github.com/Pennyw0rth/NetExec "$NETEXEC_DIR"
+uv tool install "$NETEXEC_DIR" -e --force
 # pipx install git+https://github.com/Pennyw0rth/NetExec
 
 echo "Installing smbclientng"
-pipx install smbclientng
+pipx_install_if_missing smbclientng smbclientng
 
 echo "Installing full smbcrawler"
-pipx install 'smbcrawler[binary-conversion]'
+pipx_install_if_missing smbcrawler 'smbcrawler[binary-conversion]'
 
 if ! command -v sliver &> /dev/null; then
     echo "Installing Sliver via install script"
-    curl https://sliver.sh/install | sudo bash
+    # Download to a file (with -f so an HTTP error body is never piped to a root
+    # shell), then run — instead of `curl | sudo bash`.
+    sliver_installer=$(mktemp)
+    curl -fsSL https://sliver.sh/install -o "$sliver_installer"
+    sudo bash "$sliver_installer"
+    rm -f "$sliver_installer"
 fi
 
 if [ ! -d "$HOME/BurpSuitePro" ]; then
     echo "Installing BurpSuitePro"
     wget "https://portswigger.net/burp/releases/download?product=pro&type=Linux" -O ~/burp_suite_pro.sh
     chmod +x ~/burp_suite_pro.sh
-    . ~/burp_suite_pro.sh
+    # Run in a subshell (not sourced) so the installer can't leak into or abort
+    # this script under set -e.
+    bash ~/burp_suite_pro.sh
     rm -f ~/burp_suite_pro.sh
 fi
 
@@ -98,6 +117,10 @@ if ! command -v pdtm &> /dev/null; then
     echo "Installing Project Discovery tools"
     go install github.com/projectdiscovery/pdtm/cmd/pdtm@latest
 fi
+# go installs to $GOPATH/bin (default ~/go/bin), which may not be on PATH — add
+# it so pdtm is runnable (otherwise set -e aborts here on a fresh install).
+GOPATH_BIN="$(go env GOPATH)/bin"
+export PATH="$GOPATH_BIN:$PATH"
 pdtm -install-all
 
 #echo "Installing ffuf"

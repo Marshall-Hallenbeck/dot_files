@@ -22,10 +22,16 @@ Write comprehensive unit tests for a given module or file. Detects the test runn
 ### 1. Detect Test Runner and Conventions
 
 Auto-detect from project files:
-- `jest.config.*` or `vitest.config.*` → Jest/Vitest
-- `pyproject.toml` / `pytest.ini` / `conftest.py` → pytest
-- `Cargo.toml` → cargo test
-- `go.mod` → go test
+
+| Indicator | Runner | Run command | Single test command |
+|-----------|--------|-------------|---------------------|
+| `pyproject.toml`, `pytest.ini`, `conftest.py` | pytest | `pytest tests/ -v 2>&1` | `pytest <file>::<test> -v 2>&1` |
+| `jest.config.*`, `package.json` scripts | Jest | `npx jest --verbose --no-coverage 2>&1` | `npx jest --testPathPattern="<file>" --testNamePattern="<test>" 2>&1` |
+| `vitest.config.*` | Vitest | `npx vitest run 2>&1` | `npx vitest run <file> -t "<test>" 2>&1` |
+| `Cargo.toml` | cargo | `cargo test 2>&1` | `cargo test <test_name> 2>&1` |
+| `go.mod` | go | `go test ./... 2>&1` | `go test -run <TestName> ./path/... 2>&1` |
+
+If the project uses `uv` (check for `uv.lock`), prefix pytest with `uv run`.
 
 Then read 1-2 existing test files in the project to learn conventions:
 - Import style and test organization

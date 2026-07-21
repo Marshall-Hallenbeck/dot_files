@@ -80,7 +80,7 @@ ${template1 AP}                                                             ${te
 ${template1 Signal}             ${template2}${wireless_link_qual_perc wlan0} ${template3}${wireless_link_bar wlan0}
 ${template1 Download}           ${template2}${downspeed wlan0}              ${template3}${downspeedgraph wlan0}
 ${template1 Upload}             ${template2}${upspeed wlan0}                ${template3}${upspeedgraph wlan0}
-${template1 Total Down/Up}                                                  ${template3}${totaldown wlan0}↓ / {totalup wlan0}↑
+${template1 Total Down/Up}                                                  ${template3}${totaldown wlan0}↓ / ${totalup wlan0}↑
 ${else}${if_existing /proc/net/route enp0s31f6}\
 ${template1 Ip}                                                             ${template3}${addr enp0s31f6}
 ${template1 Download}           ${template2}${downspeed eth0}               ${template3}${downspeedgraph enp0s31f6}

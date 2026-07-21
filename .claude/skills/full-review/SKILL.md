@@ -45,7 +45,7 @@ A passing gate means **zero lint errors AND zero lint warnings**, zero type erro
 
 ### Phase 6: Fix Test Failures (if any)
 
-If Phase 5 had test failures, run `/fix-tests` with the failure output from Phase 5 (skip re-running the suite):
+If Phase 5 had test failures, run `/fix-tests` with the failure output from Phase 5 (skip re-running the suite, and skip its commit step — this pipeline never commits):
 - Diagnose each failure
 - Fix source code (not test assertions)
 - Iterate until all tests pass

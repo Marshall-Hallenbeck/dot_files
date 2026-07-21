@@ -56,7 +56,7 @@ check_link ".msf4/config" ~/.msf4/config
 
 echo "── Dotfile content (not clobbered by tool installers) ──"
 check ".zshrc has our custom prompt" grep -q 'git_prompt_info' ~/.zshrc
-check ".zshrc has our plugins" grep -q 'colored-man-pages' ~/.zshrc
+check ".zshrc has our plugins" grep -qF 'plugins=(virtualenv)' ~/.zshrc
 check ".zshrc NOT oh-my-zsh template" bash -c '! grep -q "ZSH_THEME=\"robbyrussell\"" ~/.zshrc'
 check ".zshrc does NOT have hardcoded node path" bash -c '! grep -q "v24.0.0" ~/.zshrc'
 check ".zshrc sources .zshrc.local" grep -q 'zshrc.local' ~/.zshrc
@@ -80,18 +80,16 @@ check_file "atuin installed" ~/.atuin/bin/env
 
 echo "── Claude Code ──"
 # shellcheck disable=SC2016
-check "claude CLI installed" bash -c 'export NVM_DIR="$HOME/.nvm" && [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh" && command -v claude'
+check "claude CLI installed" bash -c 'export PATH="$HOME/.local/bin:$PATH"; export NVM_DIR="$HOME/.nvm" && [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh" && command -v claude'
 
 echo "── Default shell ──"
 check "zsh is default shell" grep -q "testuser.*/zsh" /etc/passwd
 
 echo "── Claude Code config ──"
 check_link "CLAUDE.md" ~/.claude/CLAUDE.md
-check_link "hooks.json" ~/.claude/hooks.json
 check_link "statusline.sh" ~/.claude/statusline.sh
 check "statusline.sh executable" test -x ~/.claude/statusline.sh
 check_link "settings.json" ~/.claude/settings.json
-check_link "settings.local.json" ~/.claude/settings.local.json
 
 echo "── Claude Code rules ──"
 for rule in verification coding-practices git-conventions web-dev error-handling docker; do
@@ -99,22 +97,37 @@ for rule in verification coding-practices git-conventions web-dev error-handling
 done
 
 echo "── Claude Code skills ──"
-# Dynamically check skills that have SKILL.md files in the repo
+# skills/ is deployed as a whole-directory symlink, so individual SKILL.md files
+# are real files inside it (not individual symlinks). Verify the dir symlink,
+# then that each repo skill resolves through it.
+check "skills dir is a symlink" test -L ~/.claude/skills
 for skill_dir in /repo/.claude/skills/*/; do
     skill=$(basename "$skill_dir")
     if [ -f "$skill_dir/SKILL.md" ]; then
-        check_link "skill: $skill" ~/.claude/skills/"$skill"/SKILL.md
+        check_file "skill: $skill" ~/.claude/skills/"$skill"/SKILL.md
     fi
 done
 
 echo "── Claude Code hookify rules ──"
 for hookify_file in /repo/.claude/hookify.*.local.md; do
+    [ -e "$hookify_file" ] || continue
     hookify=$(basename "$hookify_file")
     check_link "hookify: $hookify" ~/.claude/"$hookify"
 done
 
 echo "── Claude Code agents ──"
-check_link "agent: unit-test-writer" ~/.claude/agents/unit-test-writer.md
+for agent_file in /repo/.claude/agents/*.md; do
+    [ -e "$agent_file" ] || continue
+    agent=$(basename "$agent_file" .md)
+    check_link "agent: $agent" ~/.claude/agents/"$agent".md
+done
+
+echo "── Claude Code commands ──"
+for cmd_file in /repo/.claude/commands/*.md; do
+    [ -e "$cmd_file" ] || continue
+    cmd=$(basename "$cmd_file" .md)
+    check_link "command: $cmd" ~/.claude/commands/"$cmd".md
+done
 
 echo "── dotfiles helper ──"
 check_link "dotfiles helper" ~/.local/bin/dotfiles
