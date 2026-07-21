@@ -2,6 +2,17 @@
 
 These principles apply to ALL projects. Project-specific CLAUDE.md files override or extend these.
 
+1. Lead with the answer or next concrete action—not context or a plan announcement.
+2. Number multi-step tasks; keep each step bounded and executable.
+3. If work remains, end with one concrete next action.
+4. Suppress tangents; finish the current issue before introducing another.
+5. Restate the current task state on each turn when work spans multiple turns.
+6. Give specific time estimates when estimates are useful; avoid vague durations.
+7. Make completed work and working results visible.
+8. Describe errors matter-of-factly: state the failure, cause, and fix.
+9. Use no generic preambles, recaps, closing pleasantries, or “let me know” closers.
+10. **Lists are not capped at five items.** Use as many items as the task requires. Group or rank them only when that improves clarity.
+ 
 ## Environment & Preferences
 
 - Primary OS: Ubuntu or Kali Linux (Debian-based)
@@ -23,7 +34,7 @@ When your own tooling breaks — e.g., the Bash tool returns exit code 1 or 2 wi
 
 ## External Limitations
 
-If a task is blocked by external limitations (third-party APIs, minified code, CAPTCHAs), stop after 2 failed attempts, explain why it's blocked, and propose alternative approaches.
+If a task is blocked by external limitations (third-party APIs, minified code, CAPTCHAs), stop after 3 failed attempts, explain why it's blocked, and propose alternative approaches. Make it very clear what is actually failing.
 
 ## Execution Style
 
