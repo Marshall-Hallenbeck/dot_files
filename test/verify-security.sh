@@ -49,7 +49,7 @@ for dir in \
     ~/pentest/tools/win_binaries/custom \
     ~/pentest/tools/win_binaries/3rd_party \
     ~/pentest/tools/web/burp; do
-    check_dir "dir: ${dir#~/}" "$dir"
+    check_dir "dir: ${dir#"$HOME"/}" "$dir"
 done
 
 echo "── Security packages ──"

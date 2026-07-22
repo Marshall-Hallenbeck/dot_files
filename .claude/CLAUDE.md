@@ -5,11 +5,12 @@ Personal dotfiles and Claude Code config repo. Bootstraps a complete dev environ
 ## Commands
 
 ```bash
-# Run tests (requires Docker)
-make test-ubuntu          # Test on Ubuntu 24.04
+# Run tests
+make test-hooks           # Hook regression tests (fast, no Docker)
+make test-ubuntu          # Test on Ubuntu 24.04 (requires Docker)
 make test-debian          # Test on Debian Bookworm
 make test-kali            # Test on Kali Linux
-make test-all             # All three distros
+make test-all             # Hooks + all three distros
 make test-security-kali   # Security tools on Kali
 make test-clean           # Remove test images
 
@@ -27,7 +28,8 @@ shellcheck install_environment.sh security.sh
   - `skills/` — Custom slash commands (/commit, /review, /fix-tests, etc.)
   - `rules/` — Rule files (verification, coding, git, error-handling, docker, web-dev)
   - `agents/` — Custom agents (test-writer, code-reviewer, debugger)
-  - `hookify.*.local.md` — Hookify enforcement rules
+  - `commands/` — Custom slash commands (/preflight, /review-and-commit)
+  - `hooks/` — Hook scripts (per-file symlinked); hook config lives in `settings.json`
 - `test/` — Docker-based verification (Dockerfile + verify scripts)
 
 ## Key Patterns

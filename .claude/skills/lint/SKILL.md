@@ -152,6 +152,7 @@ Only include sections for detected languages.
 
 - Default scope: changed files only. With `all` scope: entire codebase.
 - Stage auto-fix changes so the user sees them.
-- Fix ALL type errors found in scope — not just "report" them.
+- **Fix ALL findings — errors AND warnings — not just the auto-fixable ones.** After `--fix`, manually resolve everything that remains (lint warnings, type errors, shellcheck warnings) by fixing the underlying code. A clean lint is **zero errors and zero warnings**.
+- **Never silence to pass.** No inline `eslint-disable`, `@ts-ignore`, `@ts-expect-error`, `# noqa`, or `# type: ignore`. Fix the cause. If a rule is genuinely wrong for this codebase, change the lint *config* deliberately and say so.
 - Report everything — even if all checks pass, show the summary.
 - If a tool isn't installed, ask the user if they want to install it via AskUserQuestion.

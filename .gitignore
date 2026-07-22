@@ -1,7 +1,28 @@
 # Per-host override files (created locally, never committed)
 *.local
+
+# Machine-specific Claude local settings (ends in .json, so *.local misses it)
 .claude/settings.local.json
+
+# Re-include files that happen to have .local in their name but ARE managed
+!.claude/hookify.*.local.md
 
 # Private BBP skills/agents (symlinked from ~/.bbp, private repo)
 .claude/agents/bb*
 .claude/skills/bb*
+
+# Secrets — never commit (defense-in-depth; nothing sensitive is tracked today)
+*.pem
+*.key
+id_rsa*
+id_ed25519*
+id_ecdsa*
+id_dsa*
+*.p12
+*.pfx
+*.ppk
+*.kdbx
+*.ovpn
+.env*
+*.token
+.secrets/

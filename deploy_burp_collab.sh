@@ -51,7 +51,7 @@ JAR_URL="https://portswigger.net/burp/releases/download?product=pro&type=jar"
 JAR_FILE="burpsuite_pro.jar"
 SERVICE_NAME="burp-collab"
 CERT_NAME="${DOMAIN//./-}-wildcard"
-SERVER_IP=$(curl -s4 ifconfig.me)
+SERVER_IP=$(curl -fs4 https://ifconfig.me)
 
 # DO token — required for DNS-01 wildcard cert
 if [ -z "${DO_TOKEN:-}" ]; then

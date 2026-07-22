@@ -37,8 +37,13 @@ elif [ "$MODE" = "security" ]; then
     # Skip everything from "Installing Go" onward (interactive tools, systemd, snap)
     {
         echo '#!/bin/bash'
+        echo 'set -euo pipefail'
         echo 'sudo apt-get update'
-        sed -n '5,39p' /repo/security.sh
+        # Extract folder-structure + package section, up to (not including) the
+        # Go block. Marker-based so it survives line-number shifts in security.sh.
+        # set -euo pipefail is prepended so the subset runs under the same
+        # strictness as the real security.sh (which sets it at the top).
+        sed -n '/^### FOLDER STRUCTURE/,/^# Conditionally install Go/p' /repo/security.sh | head -n -1
     } > /tmp/security_subset.sh
     chmod +x /tmp/security_subset.sh
 

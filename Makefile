@@ -1,4 +1,4 @@
-.PHONY: test-ubuntu test-debian test-kali test-all test-security-kali test-clean
+.PHONY: test-ubuntu test-debian test-kali test-all test-security-kali test-hooks test-clean
 
 DOCKER_BUILD = docker build -f test/Dockerfile
 
@@ -18,7 +18,10 @@ test-security-kali:
 	$(DOCKER_BUILD) --build-arg BASE_IMAGE=kalilinux/kali-rolling -t dotfiles-test:kali-security .
 	docker run --rm dotfiles-test:kali-security security
 
-test-all: test-ubuntu test-debian test-kali
+test-hooks:
+	bash test/verify-hooks.sh
+
+test-all: test-hooks test-ubuntu test-debian test-kali
 
 test-clean:
 	-docker rmi dotfiles-test:ubuntu dotfiles-test:debian dotfiles-test:kali dotfiles-test:kali-security

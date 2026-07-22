@@ -91,7 +91,21 @@ Before reporting:
 
 Drop findings below 70% confidence.
 
-### 6. Output
+### 6. Fix Every Finding
+
+Fix every finding you reported — CRITICAL, HIGH, MEDIUM, AND LOW. A clean security review leaves zero open findings, not just zero CRITICAL/HIGH.
+
+For each finding:
+1. Read the full file for context.
+2. Apply the fix (parameterize the query, add the missing auth/ownership check, move the secret to an env var, narrow the over-fetch, restrict CORS, add the rate limit, etc.).
+3. Add a regression test where one is meaningful — e.g. a test asserting the endpoint returns 403 for a non-owner, or that a query rejects an injection payload. Follow the project's existing test conventions.
+4. Briefly note what changed and what test was added.
+
+Only leave a finding unfixed if (a) it's a verified false positive — say so and why — or (b) the fix needs a threat-model decision (e.g. "should this role be allowed here at all?") that only the user can make — surface it explicitly and ask. Never defer a real finding silently.
+
+Run the test suite after fixes to confirm nothing broke.
+
+### 7. Output
 
 ```markdown
 ## Security Review
@@ -108,12 +122,14 @@ Scanned N files with uncommitted changes.
 
    Description.
 
-### Verdict: SECURE / NEEDS FIXES
+### Verdict: SECURE / NEEDS INPUT
 ```
 
+Each finding line should end with **Fixed:** a one-line description of the fix (and the regression test, if added).
+
 Verdicts:
-- **SECURE**: No CRITICAL or HIGH findings.
-- **NEEDS FIXES**: Has CRITICAL or HIGH findings that must be addressed.
+- **SECURE**: Zero open findings at any severity (CRITICAL through LOW) — everything found was fixed.
+- **NEEDS INPUT**: A finding remains only because it needs a user threat-model decision or was flagged as a false positive. List exactly which, and why.
 
 If zero findings, report "No security issues found" with verdict SECURE.
 
@@ -121,6 +137,7 @@ If zero findings, report "No security issues found" with verdict SECURE.
 
 - **Security only.** Don't flag code quality, style, or correctness issues — that's `/review`'s domain.
 - **No false positives.** A wrong security finding causes alert fatigue. When in doubt, don't flag.
-- **Brief.** One paragraph max per finding. Describe the attack vector, not the fix.
+- **Find AND fix.** Every real finding (CRITICAL→LOW) gets fixed, not just reported. A clean review leaves zero open findings.
+- **Brief.** One paragraph max per finding: describe the attack vector, then state the fix in one line.
 - **Respect frameworks.** Don't flag things the framework already handles (React escaping, Strapi auth middleware).
 - **Read context.** A SQL query in a migration script is not injection. A hardcoded string in a test is not a secret leak.

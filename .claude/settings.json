@@ -1,7 +1,14 @@
 {
   "cleanupPeriodDays": 365,
   "env": {
-    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
+    "CLAUDE_CODE_FORK_SUBAGENT": "1",
+    "CLAUDE_CODE_MAX_TOOL_USE_CONCURRENCY": "20",
+    "CLAUDE_CODE_NO_FLICKER": "1",
+    "CLAUDE_CODE_RESUME_INTERRUPTED_TURN": "1",
+    "CLAUDE_CODE_SCROLL_SPEED": "3",
+    "TASK_MAX_OUTPUT_LENGTH": "64000",
+    "CLAUDE_AFK_TIMEOUT_MS": "86400000"
   },
   "attribution": {
     "commit": "",
@@ -19,10 +26,8 @@
       "Bash(tail:*)",
       "Bash(tee:*)",
       "Bash(wc:*)",
-      "mcp__context7__*",
       "mcp__ide__*",
       "mcp__mcp-server-docker__*",
-      "mcp__memory__*",
       "mcp__playwright__*",
       "mcp__plugin_context7_context7__query-docs",
       "mcp__plugin_context7_context7__resolve-library-id",
@@ -33,21 +38,19 @@
       "mcp__plugin_playwright_playwright__browser_press_key",
       "mcp__plugin_playwright_playwright__browser_take_screenshot",
       "mcp__plugin_playwright_playwright__browser_wait_for",
-      "mcp__plugin_serena_serena__activate_project",
-      "mcp__plugin_serena_serena__check_onboarding_performed",
-      "mcp__plugin_serena_serena__find_file",
-      "mcp__plugin_serena_serena__get_symbols_overview",
-      "mcp__plugin_serena_serena__list_dir",
-      "mcp__plugin_serena_serena__list_memories",
-      "mcp__plugin_serena_serena__read_file",
-      "mcp__plugin_serena_serena__search_for_pattern",
-      "mcp__plugin_serena_serena__think_about_collected_information",
-      "mcp__puppeteer__*",
       "Edit(**/*learned-insights.md)",
       "Bash(uv run:*)"
     ],
+    "ask": [
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(git checkout:*)",
+      "Bash(rm:*)"
+    ],
     "defaultMode": "default"
   },
+  "model": "claude-fable-5[1m]",
   "hooks": {
     "SessionStart": [
       {
@@ -58,15 +61,45 @@
             "command": "$HOME/.claude/hooks/reinject-on-compact.sh"
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$HOME/.claude/hooks/inject-insights-index.sh"
+          }
+        ]
       }
     ],
     "PreToolUse": [
       {
-        "matcher": "Bash",
+        "matcher": "Write|Edit|MultiEdit",
         "hooks": [
           {
             "type": "command",
-            "command": "$HOME/.claude/hooks/guard-dangerous-commands.sh"
+            "command": "$HOME/.claude/hooks/guard-fallback-patterns.sh"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$HOME/.claude/hooks/post-edit-lint.sh"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$HOME/.claude/hooks/save-insights-reminder.sh"
           }
         ]
       }
@@ -82,22 +115,20 @@
     "context7@claude-plugins-official": true,
     "feature-dev@claude-plugins-official": true,
     "playwright@claude-plugins-official": true,
-    "serena@claude-plugins-official": false,
-    "explanatory-output-style@claude-plugins-official": true,
     "code-simplifier@claude-plugins-official": true,
     "typescript-lsp@claude-plugins-official": true,
     "pyright-lsp@claude-plugins-official": true,
-    "hookify@claude-plugins-official": false,
     "claude-md-management@claude-plugins-official": true,
     "claude-code-setup@claude-plugins-official": true
   },
-  "syntaxHighlightingDisabled": false,
   "alwaysThinkingEnabled": true,
   "effortLevel": "xhigh",
+  "tui": "fullscreen",
   "showThinkingSummaries": true,
   "skipDangerousModePermissionPrompt": true,
+  "verbose": true,
+  "teammateMode": "auto",
+  "remoteControlAtStartup": true,
   "inputNeededNotifEnabled": true,
-  "agentPushNotifEnabled": true,
-  "voiceEnabled": false,
-  "tui": "fullscreen"
+  "agentPushNotifEnabled": true
 }

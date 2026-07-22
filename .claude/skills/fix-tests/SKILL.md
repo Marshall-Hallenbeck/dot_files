@@ -117,9 +117,9 @@ After the suite is green:
 - Reverted change to `module.py:30` -- applied alternative fix at line 52.
 ```
 
-### 6. Commit (only if ALL tests pass)
+### 6. Commit (only if ALL tests pass AND /fix-tests was invoked directly)
 
-If the full suite is green, create a commit:
+**Skip this step entirely when /fix-tests is composed by another skill or pipeline (e.g. /full-review)** — that caller owns whether and when to commit. Only when the user invoked /fix-tests directly and the full suite is green, create a commit:
 
 ```bash
 git add <all-fixed-files>

@@ -92,7 +92,21 @@ For each pattern found, determine:
    - **WARN**: Catch-and-log-only, optional chaining on expected data, lint suppression
    - **INFO**: Patterns at system boundaries that may be intentional
 
-### 5. Output
+### 5. Fix Every Finding
+
+Fix every BLOCK and WARN finding — and any INFO that is a genuine masking pattern rather than a legitimate boundary. The fix is always to let the failure **surface**: remove the empty catch / fallback / silencer so the error propagates, re-throw after logging, un-skip the test, or delete the lint/type suppression and address the underlying warning. **Never fix one of these by adding MORE error handling** — this skill removes excessive handling, it does not add it.
+
+For each finding:
+1. Read the full file for context.
+2. Apply the fix (let it throw / propagate / surface).
+3. If removing a swallow changes a caller's contract, update the caller to handle the now-visible error correctly (propagate or surface — never re-swallow).
+4. Note what changed.
+
+Only leave a finding unfixed if it is a verified legitimate boundary (a false positive — say which and why). Never defer a real masking pattern silently.
+
+Run the test suite after fixes to confirm behavior still holds.
+
+### 6. Output
 
 ```markdown
 ## Overcautious Check
@@ -119,8 +133,8 @@ Scanned N files with recent changes.
 ### Verdict: BLOCKED / CLEAN
 ```
 
-**BLOCKED** = any BLOCK-level findings exist.
-**CLEAN** = no BLOCK or WARN findings. INFO-only or no findings.
+**CLEAN** = zero open findings — every BLOCK and WARN was fixed (INFO-only legitimate boundaries are fine).
+**NEEDS INPUT** = a finding remains only because it's a verified legitimate boundary (false positive) you're surfacing for confirmation.
 
 If zero findings:
 
@@ -150,5 +164,5 @@ These are NOT overcautious — do not flag them:
 - **Read full files, not just diff hunks.** A catch block 5 lines below a changed line IS relevant context.
 - **Don't flag system boundaries.** Validating user input, handling 404s, parsing external data — these need graceful handling.
 - **Don't suggest adding error handling.** This skill finds EXCESSIVE error handling, not missing error handling.
-- **One paragraph max per finding.** Describe the problem and why it masks failures.
-- **No code suggestions.** Describe the problem; don't write the fix.
+- **One paragraph max per finding.** Describe the problem and why it masks failures, then fix it.
+- **Find AND fix.** Remove every masking pattern (BLOCK/WARN) so failures surface. The fix is to let the error propagate — never to add new defensive code.

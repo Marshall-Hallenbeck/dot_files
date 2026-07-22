@@ -53,7 +53,7 @@ fi
 # ── System packages ──────────────────────────────────────────────
 echo "Installing system packages..."
 sudo apt update
-for pkg in zsh tmux vim python3-pip python3-venv git virtualenvwrapper curl wget jq bc xclip net-tools shellcheck ripgrep build-essential unzip ca-certificates; do
+for pkg in zsh tmux vim python3-pip python3-venv git git-lfs virtualenvwrapper curl wget jq bc xclip net-tools shellcheck ripgrep build-essential unzip ca-certificates; do
     dpkg -s "$pkg" &>/dev/null || sudo apt install -y "$pkg"
 done
 
@@ -113,7 +113,11 @@ if ! command -v docker &>/dev/null; then
             sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
         sudo apt update
         sudo apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-        sudo systemctl enable docker --now
+        # Only enable the service where systemd is the init system — systemctl
+        # aborts on containers / WSL-without-systemd, which would kill the install.
+        if [ -d /run/systemd/system ]; then
+            sudo systemctl enable docker --now
+        fi
         sudo usermod -aG docker "$(whoami)"
     fi
 fi
@@ -150,7 +154,9 @@ nvm alias default "$NODE_VERSION"
 
 if [ ! -f "$HOME/.atuin/bin/env" ]; then
     echo "Installing atuin..."
-    curl --proto '=https' --tlsv1.2 -LsSf https://setup.atuin.sh | sh
+    # atuin's installer declares #!/bin/sh but uses bashisms — it exits 2 under
+    # dash (Ubuntu's /bin/sh). Pipe to bash explicitly.
+    curl --proto '=https' --tlsv1.2 -LsSf https://setup.atuin.sh | bash
 fi
 
 # curlconverter
@@ -227,9 +233,7 @@ mkdir -p ~/.claude/rules ~/.claude/agents
 
 # Top-level config files
 link_file "$DOTFILES_DIR/.claude/global-CLAUDE.md" ~/.claude/CLAUDE.md
-link_file "$DOTFILES_DIR/.claude/hooks.json" ~/.claude/hooks.json
 link_file "$DOTFILES_DIR/.claude/settings.json" ~/.claude/settings.json
-link_file "$DOTFILES_DIR/.claude/settings.local.json" ~/.claude/settings.local.json
 link_file "$DOTFILES_DIR/.claude/statusline.sh" ~/.claude/statusline.sh
 link_file "$DOTFILES_DIR/.claude/global-learned-insights.md" ~/.claude/global-learned-insights.md
 chmod +x ~/.claude/statusline.sh
@@ -243,6 +247,15 @@ for hook_file in "$DOTFILES_DIR"/.claude/hooks/*; do
     [ -f "$hook_file" ] || continue
     link_file "$hook_file" ~/.claude/hooks/"$(basename "$hook_file")"
 done
+
+# Remove dangling symlinks left behind by hooks/settings deleted from the repo
+find ~/.claude/hooks -maxdepth 1 -xtype l -delete || true
+if [ -L ~/.claude/settings.local.json ] && [ ! -e ~/.claude/settings.local.json ]; then
+    rm ~/.claude/settings.local.json
+fi
+if [ -L ~/.claude/hooks.json ] && [ ! -e ~/.claude/hooks.json ]; then
+    rm ~/.claude/hooks.json
+fi
 
 # Rules
 for rule_file in "$DOTFILES_DIR"/.claude/rules/*.md; do
@@ -260,6 +273,13 @@ link_file "$DOTFILES_DIR/.claude/skills" ~/.claude/skills
 for agent_file in "$DOTFILES_DIR"/.claude/agents/*.md; do
     [ -f "$agent_file" ] || continue
     link_file "$agent_file" ~/.claude/agents/"$(basename "$agent_file")"
+done
+
+# Commands
+mkdir -p ~/.claude/commands
+for cmd_file in "$DOTFILES_DIR"/.claude/commands/*.md; do
+    [ -f "$cmd_file" ] || continue
+    link_file "$cmd_file" ~/.claude/commands/"$(basename "$cmd_file")"
 done
 
 # Hookify rules
