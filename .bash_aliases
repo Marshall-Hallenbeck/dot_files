@@ -27,8 +27,33 @@ ssh-add ~/.ssh/id_rsa
 ssh-add ~/.ssh/main'
 
 # xclip for copying from terminal
-alias xclip='xclip -selection c'
-alias xclipx='tr -d "\n" | xclip -selection c'
+# alias xclip='xclip -selection c'
+# alias xclipx='tr -d "\n" | xclip -selection c'
+
+# copy stdin to the Windows clipboard using OSC 52.
+copy() {
+    if [[ -n ${TMUX:-} ]]; then
+        # tmux sends the buffer to Tabby via OSC 52.
+        tmux load-buffer -w -
+    else
+        # Send OSC 52 directly to Tabby.
+        {
+            printf '\033]52;c;'
+            base64 -w0
+            printf '\a'
+        } > /dev/tty
+    fi
+}
+
+# copy stdin after removing every newline.
+copyx() {
+    tr -d '\n' | copy
+}
+
+# now overwrite xclip commands in case I fall back to memory
+# if you need to ACTUALLY run xclip, do `command xclip`
+alias xclip='copy'
+alias xclipx='copyx'
 
 alias curlv='curl -v'
 alias exploitdb='cd /usr/share/exploitdb/'
@@ -48,14 +73,20 @@ function realping()
     getent ahostsv4 $1 | grep STREAM | awk '{ print $1 }'
 }
 alias rp='realping'
-alias get_displays='(cd /tmp/.X11-unix && for x in X*; do echo ":${x#X}"; done)'
 alias test_x11='~/projects/dot_files/test-x11-displays.sh'
 alias elevator='docker compose down -v && docker compose up'
 alias build-elevator='docker compose down -v && docker compose up --build'
 alias clean_docker_images='for line in $(sudo docker images -aq); do sudo docker rmi -f $line; done'
 alias get_displays="xauth list 2>/dev/null | awk '{print $1}' | grep -oE ':[0-9]+' | sort -u"
-alias set_display_10='export DISPLAY=localhost:10'
-alias set_display_11='export DISPLAY=localhost:11'
+set_display() {
+    if [[ $# -ne 1 || ! $1 =~ ^[0-9]+$ ]]; then
+        printf 'Usage: set_display <display-number>\n' >&2
+        return 2
+    fi
+
+    export DISPLAY="localhost:${1}.0"
+    printf 'DISPLAY=%s\n' "$DISPLAY"
+}
 alias reload_tmux='tmux source-file ~/.tmux.conf'
 alias ta='tmux attach -t'
 alias tl='tmux list-sessions'
