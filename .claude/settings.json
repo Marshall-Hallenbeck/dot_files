@@ -112,7 +112,7 @@
   "enabledPlugins": {
     "security-guidance@claude-plugins-official": true,
     "frontend-design@claude-plugins-official": true,
-    "context7@claude-plugins-official": true,
+    "context7@claude-plugins-official": false,
     "feature-dev@claude-plugins-official": true,
     "playwright@claude-plugins-official": true,
     "code-simplifier@claude-plugins-official": true,
@@ -122,7 +122,7 @@
     "claude-code-setup@claude-plugins-official": true
   },
   "alwaysThinkingEnabled": true,
-  "effortLevel": "xhigh",
+  "effortLevel": "high",
   "tui": "fullscreen",
   "showThinkingSummaries": true,
   "skipDangerousModePermissionPrompt": true,
