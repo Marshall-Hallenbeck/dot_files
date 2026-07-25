@@ -153,12 +153,19 @@ def sync_plugins() -> list[str]:
     plugins = doc.get("plugins")
     if plugins is None:
         return []
-    compatibility_disabled = {"security-guidance@claude-plugins-official"}
+    # These Claude hook plugins are either incompatible with Codex or stale
+    # output styles that must not survive after Claude stops enabling them.
+    compatibility_disabled = {
+        "security-guidance@claude-plugins-official",
+        "explanatory-output-style@claude-plugins-official",
+        "learning-output-style@claude-plugins-official",
+    }
     changed = []
-    for name, enabled in settings.items():
+    managed_names = set(settings) | compatibility_disabled
+    for name in sorted(managed_names):
         if name not in plugins:
             continue
-        desired = bool(enabled) and name not in compatibility_disabled
+        desired = bool(settings.get(name, False)) and name not in compatibility_disabled
         if bool(plugins[name].get("enabled", True)) != desired:
             plugins[name]["enabled"] = desired
             changed.append(f"{name}:{str(desired).lower()}")
@@ -194,20 +201,18 @@ def main() -> int:
     parser.add_argument("--compat-only", action="store_true")
     parser.add_argument("--restart-daemon-on-change", action="store_true")
     args = parser.parse_args()
-    root = git_root(pathlib.Path(args.cwd).expanduser().resolve())
     STATE_DIR.mkdir(parents=True, exist_ok=True)
-    key = hashlib.sha256(str(root).encode()).hexdigest()
-    state_file = STATE_DIR / f"{key}.json"
-    with (STATE_DIR / f"{key}.lock").open("w") as lock:
-        fcntl.flock(lock, fcntl.LOCK_EX)
-        state = load_json(state_file)
-        if args.compat_only:
+
+    if args.compat_only:
+        state_file = STATE_DIR / "compat.json"
+        with (STATE_DIR / "compat.lock").open("w") as lock:
+            fcntl.flock(lock, fcntl.LOCK_EX)
+            state = load_json(state_file)
             hook_changes = sync_hook_scripts()
             skills, skill_changes = sync_skills(set(state.get("skillNames", [])))
             plugin_changes = sync_plugins()
             result = {
                 "status": "ok",
-                "root": str(root),
                 "skills": skill_changes,
                 "plugins": plugin_changes,
                 "hooks": hook_changes,
@@ -220,7 +225,14 @@ def main() -> int:
             state_file.write_text(json.dumps(state, indent=2) + "\n")
             if not args.quiet:
                 print(json.dumps(result, indent=2))
-            return 0
+        return 0
+
+    root = git_root(pathlib.Path(args.cwd).expanduser().resolve())
+    key = hashlib.sha256(str(root).encode()).hexdigest()
+    state_file = STATE_DIR / f"{key}.json"
+    with (STATE_DIR / f"{key}.lock").open("w") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        state = load_json(state_file)
         fingerprint = source_fingerprint(root)
         hook_changes = sync_hook_scripts()
         if not args.force and state.get("fingerprint") == fingerprint and not hook_changes:
