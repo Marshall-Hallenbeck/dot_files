@@ -77,3 +77,14 @@ precmd () { echo -n "\x1b]1337;CurrentDir=$(pwd)\x07" }
 [ -f "$HOME/.zshrc.local" ] && source "$HOME/.zshrc.local"
 
 #zprof # uncomment this and the first line for profiling
+
+# >>> grok installer >>>
+export PATH="$HOME/.grok/bin:$PATH"
+fpath=(~/.grok/completions/zsh $fpath)
+autoload -Uz compinit && compinit -C
+# <<< grok installer <<<
+
+# sentry
+fpath=("/home/marshall/.local/share/zsh/site-functions" $fpath)
+
+. "$HOME/.local/bin/env"
