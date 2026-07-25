@@ -47,14 +47,16 @@ check "non-code file -> skip (silent)" "" "$out"
 rm -rf "$tmpdir"
 
 echo "── save-insights-reminder.sh ──"
-t=$(mktemp)
-printf '%s\n' '{"type":"assistant","message":{"content":[{"type":"text","text":"a ★ Insight block"}]}}' > "$t"
-if echo "{\"transcript_path\":\"$t\"}" | bash "$HOOKS_DIR/save-insights-reminder.sh" | grep -q "not saved"; then res=reminded; else res=silent; fi
-check "unsaved insight -> remind" "reminded" "$res"
-printf '%s\n' '{"type":"assistant","message":{"content":[{"type":"text","text":"★ Insight saved to learned-insights"}]}}' > "$t"
-out=$(echo "{\"transcript_path\":\"$t\"}" | bash "$HOOKS_DIR/save-insights-reminder.sh")
+out=$(echo '{"hook_event_name":"Stop","stop_hook_active":false,"last_assistant_message":"a ★ Insight block"}' | bash "$HOOKS_DIR/save-insights-reminder.sh")
+decision=$(echo "$out" | jq -r '.decision // "allow"')
+reason=$(echo "$out" | jq -r '.reason // empty')
+check "unsaved insight -> block stop" "block" "$decision"
+if echo "$reason" | grep -q "not saved"; then res=explained; else res=missing; fi
+check "unsaved insight -> explain block" "explained" "$res"
+out=$(echo '{"hook_event_name":"Stop","stop_hook_active":false,"last_assistant_message":"★ Insight saved to learned-insights"}' | bash "$HOOKS_DIR/save-insights-reminder.sh")
 check "saved insight -> silent" "" "$out"
-rm -f "$t"
+out=$(echo '{"hook_event_name":"Stop","stop_hook_active":true,"last_assistant_message":"a ★ Insight block"}' | bash "$HOOKS_DIR/save-insights-reminder.sh")
+check "active stop hook -> avoid continuation loop" "" "$out"
 
 echo "── inject-insights-index.sh ──"
 out=$(echo '{"source":"startup"}' | bash "$HOOKS_DIR/inject-insights-index.sh" | jq -r '.hookSpecificOutput.hookEventName // "none"')

@@ -1,27 +1,19 @@
 #!/bin/bash
 # Stop hook: remind to persist ★ Insight blocks that weren't saved.
 #
-# Hook input arrives on STDIN as JSON. The assistant's response text is NOT in
-# the Stop payload — it lives in the transcript file at .transcript_path, so we
-# read the last assistant message from there (there is no CLAUDE_STOP_RESPONSE
-# env var). Low practical value now that insight-saving is decoupled from ★
-# blocks (see rules/auto-save-insights.md); kept as a backstop.
+# Hook input arrives on STDIN as JSON. Stop events expose the completed response
+# directly at .last_assistant_message. If this hook already blocked one stop,
+# .stop_hook_active is true and the next stop must pass to avoid a loop.
+set -euo pipefail
 
 input=$(cat)
-transcript=$(echo "$input" | jq -r '.transcript_path // empty')
-[ -z "$transcript" ] && exit 0
-[ -f "$transcript" ] || exit 0
+stop_hook_active=$(jq -r '.stop_hook_active // false' <<< "$input")
+[ "$stop_hook_active" = "true" ] && exit 0
 
-# Last assistant message's text blocks, joined.
-last_assistant=$(jq -rs '
-  map(select(.type == "assistant")) | last | .message.content
-  | if type == "array" then map(select(.type == "text") | .text) | join("\n") else (. // "") end
-' "$transcript" 2>/dev/null || true)
+last_assistant=$(jq -r '.last_assistant_message // empty' <<< "$input")
 [ -z "$last_assistant" ] && exit 0
 
-if echo "$last_assistant" | grep -qF '★ Insight'; then
-    if ! echo "$last_assistant" | grep -qF 'learned-insights'; then
-        echo "Your response contained ★ Insight blocks that were not saved. Persist noteworthy ones: global → ~/.claude/global-learned-insights.md, project → .claude/project-learned-insights.md. Skip if trivial or duplicate."
-    fi
+if [[ "$last_assistant" == *"★ Insight"* && "$last_assistant" != *"learned-insights"* ]]; then
+    reason="Your response contained ★ Insight blocks that were not saved. Persist noteworthy ones: global → ~/.claude/global-learned-insights.md, project → .claude/project-learned-insights.md. Skip if trivial or duplicate."
+    jq -cn --arg reason "$reason" '{decision:"block",reason:$reason}'
 fi
-exit 0
