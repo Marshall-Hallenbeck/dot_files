@@ -106,6 +106,18 @@ Accumulated knowledge from working across projects. Auto-maintained by Claude.
 - A full `/storage/log` breaks vCenter WebSSO login — vsphere-ui can't write SAML session state, producing "No matching request found for WebSSO response." The error is misleading (looks like SSO/cert misconfiguration, actually disk space).
 - VMware services on VCSA 8.0 are managed by `vmon-cli`, not systemd directly. All vmware-*.service units show as "masked" in systemctl — this is normal. Use `/usr/lib/vmware-vmon/vmon-cli -s <svc>` for status.
 
+## Claude Code Bash Tool
+
+- Parallel Bash tool calls in one message share the same persistent working directory — a `cd` in one call leaks into its siblings (two parallel `npm run test` calls both ran in backend/). Give every call an absolute `cd` prefix when parallelizing.
+
+## Error Handling Refactors
+
+- When narrowing a blanket `catch → 400` to a typed error class, audit every path that previously flowed through the catch: broad catches often mask genuinely broken code paths as plausible client errors (a "not found" 400 that was really an unresolvable id). Expect the narrowing to surface latent bugs — that's it working.
+
+## Git Staging
+
+- Once an insertion and a nearby deletion in the same file get entangled by diff minimization, hunk-level staging (`git apply --cached` on extracted hunks) can't separate them. Clean split: temporarily revert one change so the diff is pure, commit, re-apply, commit.
+
 ## Git Credential Helpers
 
 - `GIT_ASKPASS` helpers run as child processes and read credentials from their environment — variables sourced from a file without `set -a`/`export` are invisible to them, so pushes fail auth even though the parent script sees the variable.
@@ -130,9 +142,15 @@ Accumulated knowledge from working across projects. Auto-maintained by Claude.
 - `systemctl enable/start` aborts with "System has not been booted with systemd as init system" on any host where systemd isn't PID 1 (Docker containers, WSL-without-systemd). Under `set -e` this kills the whole install script. Guard service-enable with `if [ -d /run/systemd/system ]; then systemctl ...; fi` — a presence check, not error-masking. This is a portability bug static review misses (it only fails off-systemd) — running the install in a container surfaces it.
 - Verifying symlinks: a whole-directory symlink (`~/.claude/skills -> repo/skills`) makes files INSIDE it real files, not symlinks — so a per-file `[ -L dir/file ]` check FAILS ("exists but not a symlink"). Verify the directory symlink itself (`[ -L dir ]`) plus that each file resolves (`[ -f dir/file ]`), not each file's link-ness.
 
+## SSH Remote Scripting
+
+- `ssh host 'bash -s' <<'EOF'` delivers the script over **stdin** — any inner command that reads stdin (`docker exec -i`, `psql` without `-c`, `read`) **swallows the rest of the script**; bash hits EOF and exits 0 mid-script with no error. Fix: drop `-i` from docker execs that don't consume stdin, add `< /dev/null` to stdin-hungry commands, and keep `-i` only where stdin is the intended data source (`docker exec -i ... pg_restore < dump`). For anything nontrivial, prefer `ssh host "command string"` or scp-then-execute over stdin scripts.
+
 ## zsh vs bash Scripting Gotchas
 
 - zsh does NOT word-split unquoted `$VAR` (unlike bash). Storing a command line in a string (`CMD="sshpass -p $PASS ssh host"`) and invoking `$CMD` makes zsh treat the entire string as one command name — it fails AND the "command not found" error echoes the fully-expanded line, leaking any embedded secrets into the terminal/log. Wrap remote-command helpers in functions (or arrays), never command-strings.
+
+- `long_running.sh | tee log` in zsh reports **tee's** exit code — a failing script looks like exit 0 (zsh doesn't default to pipefail). Prefix background/task runner pipelines with `set -o pipefail;` or task-completion notifications lie about success.
 
 ## SQLite
 
@@ -163,3 +181,23 @@ Accumulated knowledge from working across projects. Auto-maintained by Claude.
 - ESXi upgrades stage the new image into the INACTIVE bootbank with a state snapshot from staging time, while hourly backups keep updating only the active bank. The upgrade reboot swaps banks and can resurrect months-old config (certs, passwords, authorized_keys). After any ESXi upgrade reboot, verify the served cert and re-push config before trusting automation against the host.
 - Locked out of ESXi root (password reverted/unknown) while the host is still CONNECTED in vCenter: `docker run vmware/powerclicore` → `Connect-VIServer <vcenter>` → `Get-EsxCli -VMHost <host> -V2` → `$esxcli.system.account.set.Invoke(@{id="root";password=...;passwordconfirmation=...})` — esxcli passthrough runs over the vCenter→vpxa channel, no host creds needed. `sshpass` exit code 5 = wrong password (vs 255 = other SSH failure).
 - Cert-revert forensics: a "self-signed" cert with an issuer of `CN=CA, DC=vsphere, DC=local` is VMCA-signed, and an OLD notBefore date proves a restored file (state/backup rollback) rather than fresh re-provisioning — a new VMCA push or hostd regen would be dated at event time.
+
+## Strapi
+
+- Strapi v5 changed server config `proxy` from v4's boolean to an object — `proxy: { koa: true }` sets Koa's `app.proxy`; a v4-style `proxy: true` is **silently ignored**. Symptom behind a TLS-terminating reverse proxy: OAuth/grant endpoints 500 with "Cannot send secure cookie over unencrypted connection" (koa-session refuses the secure cookie because ctx.secure is false without trusted X-Forwarded-Proto). Invisible in dev (no TLS) — smoke-test the OAuth entry endpoint over HTTPS.
+- The users-permissions admin "Enable sign-ups" advanced setting only gates `POST /api/auth/local/register`. OAuth provider flows (`/api/connect/<provider>` → `/api/auth/<provider>/callback`) create accounts unconditionally — to make a Strapi app invite-only, gate account creation inside the provider callback (custom provider override or users-permissions extension), not via the admin toggle.
+
+## Cloud Provisioning (first-boot)
+
+- Fresh Ubuntu VMs hold the dpkg lock for minutes after boot (cloud-init + unattended-upgrades). Any bootstrap script must `cloud-init status --wait` before apt operations and use `apt-get -o DPkg::Lock::Timeout=600` for the independently-timed unattended-upgrades runs.
+- Let's Encrypt negative-caches NXDOMAIN per the zone's SOA minimum TTL (DigitalOcean zones: 1800s). If certbot runs before a freshly created DNS record propagates, retries keep failing with NXDOMAIN until the negative TTL expires — even after authoritative NS serve the record. Wait for `dig @<authoritative-ns>` to resolve BEFORE the first issuance attempt; after a failed attempt, wait out the full TTL (and mind the 5-failures/hour rate limit).
+
+## DigitalOcean
+
+- Projects are organizational folders only — no functional isolation. DNS records are domain-scoped, not project-scoped: any token with domain write access can add records to a domain regardless of which project holds it, and adding a subdomain A record never touches existing records. API tokens ARE team-scoped, so resources in a different *team* (vs project) need a separate token.
+- App Platform (as of mid-2026) has no persistent volumes — container filesystems are wiped every deploy. Apps that write local files (e.g. Strapi's default upload provider) must move that state to Spaces/S3 before migrating. Ingress rules support both path-prefix and domain (authority) matching to route different hostnames to different components.
+
+## GitHub CLI
+
+- `gh` has no first-class sub-issue command. Link native sub-issues via GraphQL: fetch both issues' node IDs, then `gh api graphql -H "GraphQL-Features: sub_issues" -f query='mutation{addSubIssue(input:{issueId:"<parent>",subIssueId:"<child>"}){subIssue{number}}}'`. The parent issue then renders a sub-issue progress tracker.
+- Strapi v5 content-API input validation rejects relation keys the caller cannot READ: writing a relation (e.g. a custom `created_by` → users-permissions user) through a validated body requires the caller's role to hold `find` on the TARGET content type, else 400 "Invalid key <field>". Revoking `plugin::users-permissions.user.find` from a role silently breaks every controller that injects user relations into `ctx.request.body` before `super.create()`. Service-level `strapi.documents().create()` calls bypass this validation.
