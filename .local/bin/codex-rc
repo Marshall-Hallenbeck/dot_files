@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+set -euo pipefail
+unit=codex-app-server.service
+wait_ready() {
+  local socket="$HOME/.codex/app-server-control/app-server-control.sock"
+  for _ in $(seq 1 90); do
+    [[ -S "$socket" ]] && return 0
+    sleep 1
+  done
+  echo "Codex App Server did not create $socket within 90 seconds" >&2
+  return 1
+}
+case "${1:-status}" in
+  start) echo "Starting Codex App Server..."; systemctl --user start "$unit"; wait_ready; echo "Codex App Server is ready." ;;
+  stop) echo "Stopping Codex App Server (graceful MCP shutdown can take about 30 seconds)..."; systemctl --user stop "$unit"; "$HOME/.local/libexec/codex-rc-cleanup"; echo "Codex App Server is stopped." ;;
+  restart) echo "Restarting Codex App Server (graceful MCP shutdown can take about 30 seconds)..."; systemctl --user restart "$unit"; wait_ready; echo "Codex App Server is ready." ;;
+  enable) systemctl --user enable --now "$unit" agent-sync.timer ;;
+  disable) systemctl --user disable --now "$unit" agent-sync.timer; "$HOME/.local/libexec/codex-rc-cleanup" ;;
+  sync) exec "$HOME/.local/bin/agent-sync" --root "$HOME/code/turins_tavern" ;;
+  sync-force) exec "$HOME/.local/bin/agent-sync" --root "$HOME/code/turins_tavern" --force ;;
+  sync-status) exec "$HOME/.local/bin/agent-sync" status --root "$HOME/code/turins_tavern" ;;
+  logs) exec journalctl --user -u "$unit" -n "${2:-100}" --no-pager ;;
+  config) printf 'Canonical instructions: %s\nCanonical MCP/config: %s\nClaude generated: %s\nCodex generated: %s\nCodex overlay: %s\n' "$HOME/code/turins_tavern/.ruler/AGENTS.md" "$HOME/code/turins_tavern/.ruler/ruler.toml" "$HOME/code/turins_tavern/CLAUDE.md" "$HOME/code/turins_tavern/AGENTS.md" "$HOME/code/turins_tavern/.ai-config/AGENTS.codex.md" ;;
+  status)
+    systemctl --user status "$unit" --no-pager || true
+    "$HOME/.codex/packages/standalone/current/codex" doctor --json | python3 -c 'import json,sys; x=json.load(sys.stdin); print(json.dumps(x["checks"].get("app_server.status"),indent=2))'
+    ;;
+  *) echo "Usage: codex-rc {start|stop|restart|status|logs|sync|sync-force|sync-status|enable|disable|config}" >&2; exit 2 ;;
+esac

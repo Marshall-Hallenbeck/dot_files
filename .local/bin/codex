@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+set -euo pipefail
+REAL="$HOME/.codex/packages/standalone/current/codex"
+MARKER="$HOME/.codex/remote-control-stopped"
+if [[ "${1:-}" == "app-server" && "${2:-}" == "daemon" ]]; then
+    case "${3:-status}" in
+        start|enable-remote-control) exec "$HOME/.local/bin/codex-rc" start ;;
+        stop|disable-remote-control) exec "$HOME/.local/bin/codex-rc" stop ;;
+        status) exec "$HOME/.local/bin/codex-rc" status ;;
+        bootstrap) exec "$HOME/.local/bin/codex-rc" enable ;;
+    esac
+fi
+if [[ "${1:-}" == "app-server" && "${2:-}" == "proxy" && -e "$MARKER" ]]; then
+    echo "Codex Remote Control is deliberately stopped; run: codex-rc start" >&2
+    exit 75
+fi
+exec "$REAL" "$@"

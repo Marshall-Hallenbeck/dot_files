@@ -1,0 +1,76 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+action="${1:-status}"
+project="${2:-${CLAUDE_RC_PROJECT:-turins-tavern}}"
+unit="claude-rc@${project}.service"
+
+wait_state() {
+  local expected="$1"
+  for _ in $(seq 1 30); do
+    if [[ "$(systemctl --user is-active "$unit" 2>/dev/null || true)" == "$expected" ]]; then
+      return 0
+    fi
+    sleep 1
+  done
+  echo "$unit did not reach $expected within 30 seconds" >&2
+  return 1
+}
+
+case "$action" in
+  start)
+    echo "Starting Claude Remote Control: $project..."
+    systemctl --user start "$unit"
+    wait_state active
+    echo "Claude Remote Control is active."
+    ;;
+  stop)
+    echo "Stopping Claude Remote Control: $project..."
+    systemctl --user stop "$unit"
+    wait_state inactive
+    echo "Claude Remote Control is stopped."
+    ;;
+  restart)
+    echo "Restarting Claude Remote Control: $project..."
+    systemctl --user restart "$unit"
+    wait_state active
+    echo "Claude Remote Control is active."
+    ;;
+  enable)
+    systemctl --user enable --now "$unit"
+    wait_state active
+    echo "Claude Remote Control is enabled and active: $project"
+    ;;
+  disable)
+    systemctl --user disable --now "$unit"
+    wait_state inactive
+    echo "Claude Remote Control is disabled and stopped: $project"
+    ;;
+  status)
+    systemctl --user status "$unit" --no-pager || true
+    ;;
+  logs)
+    exec journalctl --user -u "$unit" -n "${3:-100}" --no-pager
+    ;;
+  config)
+    systemctl --user cat "$unit"
+    printf '\nProject link: %s\n' "$HOME/.config/claude-rc/projects/$project"
+    printf 'Working directory: %s\n' "$(readlink -f "$HOME/.config/claude-rc/projects/$project")"
+    ;;
+  sync)
+    exec "$HOME/.local/bin/agent-sync" --root "$HOME/code/turins_tavern"
+    ;;
+  sync-force)
+    exec "$HOME/.local/bin/agent-sync" --root "$HOME/code/turins_tavern" --force
+    ;;
+  sync-status)
+    exec "$HOME/.local/bin/agent-sync" status --root "$HOME/code/turins_tavern"
+    ;;
+  list)
+    systemctl --user list-units 'claude-rc@*.service' --all --no-pager
+    ;;
+  *)
+    echo "Usage: claude-rc {start|stop|restart|status|logs|enable|disable|config|list|sync|sync-force|sync-status} [project]" >&2
+    exit 2
+    ;;
+esac

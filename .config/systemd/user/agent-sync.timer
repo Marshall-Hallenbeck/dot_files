@@ -1,0 +1,12 @@
+[Unit]
+Description=Periodically synchronize Claude Code and Codex configuration
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=2min
+AccuracySec=15s
+Persistent=true
+Unit=agent-sync.service
+
+[Install]
+WantedBy=timers.target

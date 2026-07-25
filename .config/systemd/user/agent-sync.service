@@ -1,0 +1,7 @@
+[Unit]
+Description=Synchronize canonical Ruler configuration to Claude Code and Codex
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/code/turins_tavern
+ExecStart=%h/.local/bin/agent-sync --root %h/code/turins_tavern --no-restart --quiet

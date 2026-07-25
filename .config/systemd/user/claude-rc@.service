@@ -1,0 +1,15 @@
+[Unit]
+Description=Claude Remote Control environment: %i
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/.config/claude-rc/projects/%i
+Environment=PATH=%h/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+ExecStart=%h/.local/bin/claude remote-control --name %i --permission-mode bypassPermissions --spawn same-dir
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=default.target

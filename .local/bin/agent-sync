@@ -1,0 +1,294 @@
+#!/usr/bin/env python3
+"""Synchronize canonical Ruler configuration to Claude Code and Codex."""
+
+from __future__ import annotations
+
+import argparse
+import fcntl
+import hashlib
+import json
+import os
+import pathlib
+import subprocess
+import sys
+import tempfile
+import time
+
+HOME = pathlib.Path.home()
+STATE_DIR = HOME / ".cache/agent-sync"
+RULER = HOME / ".local/bin/ruler"
+COMPAT_SYNC = HOME / ".local/bin/codex-config-sync"
+EXPECTED_RULER_VERSION = "0.3.44"
+
+
+def git_root(path: pathlib.Path) -> pathlib.Path:
+    result = subprocess.run(
+        ["git", "-C", str(path), "rev-parse", "--show-toplevel"],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return pathlib.Path(result.stdout.strip()).resolve()
+
+
+def update_digest(digest: "hashlib._Hash", path: pathlib.Path, label: str) -> None:
+    digest.update(label.encode())
+    digest.update(b"\0")
+    if path.is_symlink():
+        digest.update(b"symlink\0")
+        digest.update(os.readlink(path).encode())
+        digest.update(b"\0")
+        try:
+            update_digest(digest, path.resolve(strict=True), f"{label}:target")
+        except (FileNotFoundError, RuntimeError):
+            digest.update(b"broken-symlink\0")
+        return
+    if not path.exists():
+        digest.update(b"missing\0")
+        return
+    if path.is_file():
+        digest.update(b"file\0")
+        digest.update(path.read_bytes())
+        digest.update(b"\0")
+        return
+    digest.update(b"dir\0")
+    for child in sorted(path.rglob("*")):
+        relative = str(child.relative_to(path))
+        if child.is_symlink():
+            digest.update(relative.encode() + b"\0symlink\0" + os.readlink(child).encode() + b"\0")
+            try:
+                update_digest(
+                    digest,
+                    child.resolve(strict=True),
+                    f"{label}:{relative}:target",
+                )
+            except (FileNotFoundError, RuntimeError):
+                digest.update(b"broken-symlink\0")
+        elif child.is_file():
+            digest.update(relative.encode() + b"\0file\0" + child.read_bytes() + b"\0")
+
+
+def digest_paths(paths: dict[str, pathlib.Path]) -> str:
+    digest = hashlib.sha256()
+    for label, path in sorted(paths.items()):
+        update_digest(digest, path, label)
+    return digest.hexdigest()
+
+
+def source_paths(root: pathlib.Path) -> dict[str, pathlib.Path]:
+    return {
+        "ruler": root / ".ruler",
+        "codex-overlay": root / ".ai-config/AGENTS.codex.md",
+        "claude-settings": HOME / ".claude/settings.json",
+        "claude-global-skills": HOME / ".claude/skills",
+        "claude-compact-hook": HOME / ".claude/hooks/reinject-on-compact.sh",
+        "claude-stop-hook": HOME / ".claude/hooks/save-insights-reminder.sh",
+    }
+
+
+def output_paths(root: pathlib.Path) -> dict[str, pathlib.Path]:
+    return {
+        "claude-instructions": root / "CLAUDE.md",
+        "codex-instructions": root / "AGENTS.md",
+        "codex-shared-instructions": root / ".ai-config/AGENTS.shared.md",
+        "claude-project-mcp": root / ".mcp.json",
+        "codex-project-config": root / ".codex/config.toml",
+        "codex-global-config": HOME / ".codex/config.toml",
+        "codex-global-skills": HOME / ".agents/skills",
+        "codex-hooks": HOME / ".codex/hooks",
+    }
+
+
+def hash_outputs(root: pathlib.Path) -> dict[str, str]:
+    result: dict[str, str] = {}
+    for label, path in output_paths(root).items():
+        digest = hashlib.sha256()
+        update_digest(digest, path, label)
+        result[label] = digest.hexdigest()
+    return result
+
+
+def load_state(path: pathlib.Path) -> dict:
+    try:
+        return json.loads(path.read_text())
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {}
+
+
+def atomic_write(path: pathlib.Path, content: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile("w", dir=path.parent, delete=False) as handle:
+        handle.write(content)
+        temporary = pathlib.Path(handle.name)
+    temporary.chmod(path.stat().st_mode & 0o777 if path.exists() else 0o644)
+    temporary.replace(path)
+
+
+def build_codex_instructions(root: pathlib.Path) -> None:
+    shared = (root / ".ai-config/AGENTS.shared.md").read_text().rstrip()
+    overlay = (root / ".ai-config/AGENTS.codex.md").read_text().strip()
+    atomic_write(
+        root / "AGENTS.md",
+        f"{shared}\n\n<!-- Codex-specific overlay -->\n\n{overlay}\n",
+    )
+
+
+def run_checked(command: list[str], quiet: bool) -> None:
+    result = subprocess.run(command, capture_output=True, text=True)
+    if result.returncode != 0:
+        if result.stdout:
+            print(result.stdout, end="", file=sys.stderr)
+        if result.stderr:
+            print(result.stderr, end="", file=sys.stderr)
+        raise subprocess.CalledProcessError(result.returncode, command)
+    if not quiet:
+        if result.stdout:
+            print(result.stdout, end="")
+        if result.stderr:
+            print(result.stderr, end="", file=sys.stderr)
+
+
+def service_active(unit: str) -> bool:
+    return subprocess.run(
+        ["systemctl", "--user", "is-active", "--quiet", unit]
+    ).returncode == 0
+
+
+def restart_services(changed: list[str], quiet: bool) -> None:
+    codex_relevant = {
+        "codex-instructions",
+        "codex-shared-instructions",
+        "codex-project-config",
+        "codex-global-config",
+        "codex-global-skills",
+        "codex-hooks",
+    }
+    claude_relevant = {"claude-instructions", "claude-project-mcp"}
+
+    if codex_relevant.intersection(changed) and service_active("codex-app-server.service"):
+        if not quiet:
+            print("Restarting Codex App Server to load synchronized configuration...", flush=True)
+        subprocess.run(
+            ["systemctl", "--user", "restart", "codex-app-server.service"], check=True
+        )
+        socket = HOME / ".codex/app-server-control/app-server-control.sock"
+        deadline = time.monotonic() + 90
+        while time.monotonic() < deadline and not socket.is_socket():
+            time.sleep(1)
+        if not socket.is_socket():
+            raise RuntimeError(f"Codex control socket was not ready after 90 seconds: {socket}")
+
+    if claude_relevant.intersection(changed) and service_active(
+        "claude-rc@turins-tavern.service"
+    ):
+        if not quiet:
+            print("Restarting Claude Remote Control to load synchronized configuration...", flush=True)
+        subprocess.run(
+            ["systemctl", "--user", "restart", "claude-rc@turins-tavern.service"],
+            check=True,
+        )
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("action", nargs="?", choices=("sync", "check", "status"), default="sync")
+    parser.add_argument("--root", default=os.getcwd())
+    parser.add_argument("--force", action="store_true")
+    parser.add_argument("--no-restart", action="store_true")
+    parser.add_argument("--quiet", action="store_true")
+    args = parser.parse_args()
+
+    root = git_root(pathlib.Path(args.root).expanduser().resolve())
+    if not (root / ".ruler/ruler.toml").is_file():
+        raise RuntimeError(f"Ruler is not initialized for {root}")
+    version = subprocess.run(
+        [str(RULER), "--version"], check=True, capture_output=True, text=True
+    ).stdout.strip()
+    if version != EXPECTED_RULER_VERSION:
+        raise RuntimeError(
+            f"expected Ruler {EXPECTED_RULER_VERSION}, found {version}; audit and pin upgrades before use"
+        )
+
+    STATE_DIR.mkdir(parents=True, exist_ok=True)
+    key = hashlib.sha256(str(root).encode()).hexdigest()
+    state_path = STATE_DIR / f"{key}.json"
+    lock_path = STATE_DIR / f"{key}.lock"
+    source_hash = digest_paths(source_paths(root))
+    current_outputs = hash_outputs(root)
+    state = load_state(state_path)
+
+    if args.action in ("check", "status"):
+        synced = (
+            state.get("sourceHash") == source_hash
+            and state.get("outputHashes") == current_outputs
+        )
+        result = {
+            "status": "synced" if synced else "drifted",
+            "root": str(root),
+            "rulerVersion": version,
+            "lastSync": state.get("updatedAt"),
+        }
+        print(json.dumps(result, indent=2))
+        return 0 if args.action == "status" or synced else 1
+
+    changed: list[str] = []
+    with lock_path.open("w") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        source_hash = digest_paths(source_paths(root))
+        before = hash_outputs(root)
+        state = load_state(state_path)
+        if (
+            not args.force
+            and state.get("sourceHash") == source_hash
+            and state.get("outputHashes") == before
+        ):
+            if not args.quiet:
+                print(json.dumps({"status": "unchanged", "root": str(root)}))
+            return 0
+
+        run_checked(
+            [
+                str(RULER),
+                "apply",
+                "--project-root",
+                str(root),
+                "--agents",
+                "claude,codex",
+                "--local-only",
+                "--no-gitignore",
+                "--no-backup",
+                "--no-skills",
+                "--no-subagents",
+            ],
+            args.quiet,
+        )
+        build_codex_instructions(root)
+        run_checked(
+            [str(COMPAT_SYNC), "--cwd", str(root), "--compat-only", "--quiet"],
+            True,
+        )
+        after = hash_outputs(root)
+        changed = [name for name in sorted(after) if before.get(name) != after[name]]
+        state_path.write_text(
+            json.dumps(
+                {
+                    "sourceHash": digest_paths(source_paths(root)),
+                    "outputHashes": after,
+                    "updatedAt": int(time.time()),
+                    "rulerVersion": version,
+                    "changed": changed,
+                },
+                indent=2,
+            )
+            + "\n"
+        )
+
+    if changed and not args.no_restart:
+        restart_services(changed, args.quiet)
+    if not args.quiet:
+        print(json.dumps({"status": "ok", "root": str(root), "changed": changed}, indent=2))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -1,0 +1,25 @@
+#!/usr/bin/env python3
+import os, pathlib, signal, time
+home=pathlib.Path.home(); marker=home/'.codex/remote-control-stopped'; marker.parent.mkdir(parents=True,exist_ok=True); marker.touch()
+me=os.getpid(); targets=[]
+for entry in pathlib.Path('/proc').iterdir():
+    if not entry.name.isdigit() or int(entry.name)==me: continue
+    try: argv=[x.decode(errors='replace') for x in (entry/'cmdline').read_bytes().split(b'\0') if x]
+    except Exception: continue
+    if not argv or pathlib.Path(argv[0]).name not in {'codex','codex-x86_64-unknown-linux-musl'}: continue
+    is_proxy=len(argv)>=3 and argv[1:3]==['app-server','proxy']
+    is_server=len(argv)>=2 and argv[1]=='app-server' and ('--remote-control' in argv or '--listen' in argv or any(x.startswith('--listen=') for x in argv))
+    if is_proxy or is_server: targets.append(int(entry.name))
+for pid in targets:
+    try: os.kill(pid,signal.SIGTERM)
+    except ProcessLookupError: pass
+for _ in range(30):
+    if not any(pathlib.Path(f'/proc/{p}').exists() for p in targets): break
+    time.sleep(.1)
+for pid in targets:
+    if pathlib.Path(f'/proc/{pid}').exists():
+        try: os.kill(pid,signal.SIGKILL)
+        except ProcessLookupError: pass
+sock=home/'.codex/app-server-control/app-server-control.sock'
+try: sock.unlink()
+except FileNotFoundError: pass
