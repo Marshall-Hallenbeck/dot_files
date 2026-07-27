@@ -85,6 +85,6 @@ autoload -Uz compinit && compinit -C
 # <<< grok installer <<<
 
 # sentry
-fpath=("/home/marshall/.local/share/zsh/site-functions" $fpath)
+fpath=("$HOME/.local/share/zsh/site-functions" $fpath)
 
 . "$HOME/.local/bin/env"

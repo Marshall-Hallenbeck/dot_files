@@ -3,7 +3,7 @@
 Run pre-flight checks before deploying to a remote host. Catches the most common homelab deploy failure modes (quota, permissions, credential mismatch) before anything breaks.
 
 ## Arguments
-`$ARGUMENTS` — target host, e.g. `ansible@192.168.8.67` or `plex@192.168.8.204`. If blank, check the current local machine only.
+`$ARGUMENTS` — target host, e.g. `ansible@host.example` or `user@server.example`. If blank, check the current local machine only.
 
 ## Checks
 

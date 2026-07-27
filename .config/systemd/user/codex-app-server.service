@@ -7,7 +7,7 @@ Wants=network-online.target
 Type=simple
 Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin
 ExecStartPre=/usr/bin/rm -f %h/.codex/remote-control-stopped
-ExecStartPre=%h/.local/bin/agent-sync --root %h/code/turins_tavern --no-restart --quiet
+ExecStartPre=%h/.local/bin/codex-config-sync --compat-only --quiet
 ExecStart=%h/.codex/packages/standalone/current/codex app-server --remote-control --listen unix://
 ExecStopPost=%h/.local/libexec/codex-rc-cleanup
 Restart=on-failure

@@ -31,6 +31,22 @@ def git_root(path: pathlib.Path) -> pathlib.Path:
     return pathlib.Path(result.stdout.strip()).resolve()
 
 
+def discover_roots(projects_dir: pathlib.Path | None = None) -> list[pathlib.Path]:
+    """Return unique Ruler-enabled roots registered as Claude RC projects."""
+    projects_dir = projects_dir or HOME / ".config/claude-rc/projects"
+    if not projects_dir.is_dir():
+        return []
+    roots: set[pathlib.Path] = set()
+    for project in projects_dir.iterdir():
+        try:
+            root = project.resolve(strict=True)
+        except (FileNotFoundError, RuntimeError):
+            continue
+        if (root / ".ruler/ruler.toml").is_file():
+            roots.add(root)
+    return sorted(roots, key=str)
+
+
 def update_digest(digest: "hashlib._Hash", path: pathlib.Path, label: str) -> None:
     digest.update(label.encode())
     digest.update(b"\0")
@@ -154,7 +170,35 @@ def service_active(unit: str) -> bool:
     ).returncode == 0
 
 
-def restart_services(changed: list[str], quiet: bool) -> None:
+def claude_units_for_root(
+    root: pathlib.Path,
+    projects_dir: pathlib.Path | None = None,
+    active=service_active,
+) -> list[str]:
+    """Return active Claude RC units whose registered project resolves to root."""
+    projects_dir = projects_dir or HOME / ".config/claude-rc/projects"
+    if not projects_dir.is_dir():
+        return []
+    wanted = root.resolve()
+    units: list[str] = []
+    for project in sorted(projects_dir.iterdir(), key=lambda path: path.name):
+        try:
+            if project.resolve(strict=True) != wanted:
+                continue
+        except (FileNotFoundError, RuntimeError):
+            continue
+        unit = subprocess.run(
+            ["systemd-escape", "--template=claude-rc@.service", "--", project.name],
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
+        if active(unit):
+            units.append(unit)
+    return units
+
+
+def restart_services(root: pathlib.Path, changed: list[str], quiet: bool) -> None:
     codex_relevant = {
         "codex-instructions",
         "codex-shared-instructions",
@@ -178,27 +222,63 @@ def restart_services(changed: list[str], quiet: bool) -> None:
         if not socket.is_socket():
             raise RuntimeError(f"Codex control socket was not ready after 90 seconds: {socket}")
 
-    if claude_relevant.intersection(changed) and service_active(
-        "claude-rc@turins-tavern.service"
-    ):
-        if not quiet:
-            print("Restarting Claude Remote Control to load synchronized configuration...", flush=True)
-        subprocess.run(
-            ["systemctl", "--user", "restart", "claude-rc@turins-tavern.service"],
-            check=True,
-        )
+    if claude_relevant.intersection(changed):
+        for unit in claude_units_for_root(root):
+            if not quiet:
+                print(f"Restarting {unit} to load synchronized configuration...", flush=True)
+            subprocess.run(["systemctl", "--user", "restart", unit], check=True)
+
+
+def aggregate_return_code(current: int, child: int) -> int:
+    """Keep the first failure and normalize signal exits to shell convention."""
+    if current != 0 or child == 0:
+        return current
+    return child if child > 0 else 128 + abs(child)
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("action", nargs="?", choices=("sync", "check", "status"), default="sync")
-    parser.add_argument("--root", default=os.getcwd())
+    project_source = parser.add_mutually_exclusive_group()
+    project_source.add_argument("--root")
+    project_source.add_argument(
+        "--all",
+        action="store_true",
+        help="synchronize every Ruler project registered under ~/.config/claude-rc/projects",
+    )
     parser.add_argument("--force", action="store_true")
     parser.add_argument("--no-restart", action="store_true")
     parser.add_argument("--quiet", action="store_true")
+    parser.add_argument("--skip-compat", action="store_true", help=argparse.SUPPRESS)
     args = parser.parse_args()
 
-    root = git_root(pathlib.Path(args.root).expanduser().resolve())
+    if args.all:
+        roots = discover_roots()
+        if not roots:
+            if not args.quiet:
+                print(json.dumps({"status": "no-projects", "roots": []}))
+            return 0
+        return_code = 0
+        if args.action == "sync":
+            compat_command = [str(COMPAT_SYNC), "--compat-only", "--quiet"]
+            if args.force:
+                compat_command.append("--force")
+            run_checked(compat_command, True)
+        for root in roots:
+            command = [sys.executable, str(pathlib.Path(__file__).resolve()), args.action, "--root", str(root)]
+            if args.action == "sync":
+                command.append("--skip-compat")
+            if args.force:
+                command.append("--force")
+            if args.no_restart:
+                command.append("--no-restart")
+            if args.quiet:
+                command.append("--quiet")
+            result = subprocess.run(command)
+            return_code = aggregate_return_code(return_code, result.returncode)
+        return return_code
+
+    root = git_root(pathlib.Path(args.root or os.getcwd()).expanduser().resolve())
     if not (root / ".ruler/ruler.toml").is_file():
         raise RuntimeError(f"Ruler is not initialized for {root}")
     version = subprocess.run(
@@ -263,10 +343,11 @@ def main() -> int:
             args.quiet,
         )
         build_codex_instructions(root)
-        run_checked(
-            [str(COMPAT_SYNC), "--cwd", str(root), "--compat-only", "--quiet"],
-            True,
-        )
+        if not args.skip_compat:
+            compat_command = [str(COMPAT_SYNC), "--cwd", str(root), "--compat-only", "--quiet"]
+            if args.force:
+                compat_command.append("--force")
+            run_checked(compat_command, True)
         after = hash_outputs(root)
         changed = [name for name in sorted(after) if before.get(name) != after[name]]
         state_path.write_text(
@@ -284,7 +365,7 @@ def main() -> int:
         )
 
     if changed and not args.no_restart:
-        restart_services(changed, args.quiet)
+        restart_services(root, changed, args.quiet)
     if not args.quiet:
         print(json.dumps({"status": "ok", "root": str(root), "changed": changed}, indent=2))
     return 0

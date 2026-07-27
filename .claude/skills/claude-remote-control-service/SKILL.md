@@ -33,9 +33,9 @@ This keeps service instance names simple and avoids escaping full paths in syste
 
 Determine these before acting:
 
-- `ENV_NAME`: display/service name, e.g. `fabius`, `cawl-dev`, `turins-tavern`.
-- `PROJECT_DIR`: absolute project directory, e.g. `/home/marshall/code/turins_tavern`.
-- `REMOTE_HOST`: optional SSH target if configuring another host, e.g. `marshall@192.168.8.245`.
+- `ENV_NAME`: display/service name, e.g. `example-project`, `development`, or another short environment label.
+- `PROJECT_DIR`: absolute project directory discovered on the target host, e.g. `$HOME/projects/example-project`.
+- `REMOTE_HOST`: optional SSH target if configuring another host, e.g. `user@host.example`.
 
 If the user provides an obvious project name but not a path, inspect common project roots before asking:
 

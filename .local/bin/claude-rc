@@ -2,8 +2,57 @@
 set -euo pipefail
 
 action="${1:-status}"
-project="${2:-${CLAUDE_RC_PROJECT:-turins-tavern}}"
-unit="claude-rc@${project}.service"
+project_arg="${2:-}"
+projects_dir="$HOME/.config/claude-rc/projects"
+
+select_project() {
+  if [[ -n "$project_arg" ]]; then
+    printf '%s\n' "$project_arg"
+    return
+  fi
+  if [[ -n "${CLAUDE_RC_PROJECT:-}" ]]; then
+    printf '%s\n' "$CLAUDE_RC_PROJECT"
+    return
+  fi
+
+  local -a projects=()
+  local path
+  shopt -s nullglob
+  for path in "$projects_dir"/*; do
+    [[ -e "$path" ]] || continue
+    projects+=("$(basename "$path")")
+  done
+  shopt -u nullglob
+
+  if (( ${#projects[@]} == 1 )); then
+    printf '%s\n' "${projects[0]}"
+    return
+  fi
+  if (( ${#projects[@]} == 0 )); then
+    echo "No Claude Remote Control projects are registered under $projects_dir" >&2
+  else
+    echo "Multiple Claude Remote Control projects are registered; pass one explicitly:" >&2
+    printf '  %s\n' "${projects[@]}" >&2
+  fi
+  return 2
+}
+
+resolve_project_root() {
+  local project="$1"
+  local link="$projects_dir/$project"
+  if [[ ! -e "$link" ]]; then
+    echo "Claude Remote Control project is not registered: $project ($link)" >&2
+    return 2
+  fi
+  readlink -f "$link"
+}
+
+project=""
+unit=""
+if [[ "$action" != "list" ]]; then
+  project="$(select_project)"
+  unit="$(systemd-escape --template=claude-rc@.service -- "$project")"
+fi
 
 wait_state() {
   local expected="$1"
@@ -53,18 +102,22 @@ case "$action" in
     exec journalctl --user -u "$unit" -n "${3:-100}" --no-pager
     ;;
   config)
+    root="$(resolve_project_root "$project")"
     systemctl --user cat "$unit"
-    printf '\nProject link: %s\n' "$HOME/.config/claude-rc/projects/$project"
-    printf 'Working directory: %s\n' "$(readlink -f "$HOME/.config/claude-rc/projects/$project")"
+    printf '\nProject link: %s\n' "$projects_dir/$project"
+    printf 'Working directory: %s\n' "$root"
     ;;
   sync)
-    exec "$HOME/.local/bin/agent-sync" --root "$HOME/code/turins_tavern"
+    root="$(resolve_project_root "$project")"
+    exec "$HOME/.local/bin/agent-sync" --root "$root"
     ;;
   sync-force)
-    exec "$HOME/.local/bin/agent-sync" --root "$HOME/code/turins_tavern" --force
+    root="$(resolve_project_root "$project")"
+    exec "$HOME/.local/bin/agent-sync" --root "$root" --force
     ;;
   sync-status)
-    exec "$HOME/.local/bin/agent-sync" status --root "$HOME/code/turins_tavern"
+    root="$(resolve_project_root "$project")"
+    exec "$HOME/.local/bin/agent-sync" status --root "$root"
     ;;
   list)
     systemctl --user list-units 'claude-rc@*.service' --all --no-pager

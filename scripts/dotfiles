@@ -2,14 +2,38 @@
 set -euo pipefail
 
 DOTFILES_DIR="$HOME/.dot_files"
+AI_REMOTE_CONTROL_FEATURE="ai-remote-control"
+AI_REMOTE_CONTROL_MARKER="$HOME/.config/dotfiles/features/$AI_REMOTE_CONTROL_FEATURE"
+AI_REMOTE_CONTROL_PATHS=(
+    .config/systemd/user/agent-sync.service
+    .config/systemd/user/agent-sync.timer
+    .config/systemd/user/claude-rc@.service
+    .config/systemd/user/codex-app-server.service
+    .local/bin/agent-sync
+    .local/bin/claude-rc
+    .local/bin/codex
+    .local/bin/codex-config-sync
+    .local/bin/codex-rc
+    .local/libexec/codex-config-sync.py
+    .local/libexec/codex-rc-cleanup
+)
+
+is_ai_remote_control_path() {
+    local candidate="$1" path
+    for path in "${AI_REMOTE_CONTROL_PATHS[@]}"; do
+        [ "$candidate" = "$path" ] && return 0
+    done
+    return 1
+}
 
 usage() {
     echo "Usage: dotfiles <command>"
     echo ""
     echo "Commands:"
-    echo "  promote <path>  Move a local file into the repo and symlink it back"
-    echo "  status          Show symlink status of managed files"
-    echo "  pull            Pull latest changes from remote"
+    echo "  promote <path>                         Move a local file into the repo and symlink it back"
+    echo "  status                                 Show symlink status of managed files"
+    echo "  feature-enable ai-remote-control       Back up and link optional Remote Control assets"
+    echo "  pull                                   Pull latest changes from remote"
     echo ""
     echo "Examples:"
     echo "  dotfiles promote ~/.claude/rules/my-rule.md"
@@ -53,6 +77,8 @@ cmd_promote() {
 
 cmd_status() {
     local ok=0 broken=0 missing=0
+    local ai_remote_control_enabled=false
+    [ -e "$AI_REMOTE_CONTROL_MARKER" ] && ai_remote_control_enabled=true
 
     # Files that live in the repo only and are NOT deployed to ~/
     local -a repo_only=(.gitignore .dockerignore .claude/CLAUDE.md)
@@ -63,6 +89,12 @@ cmd_status() {
 
     # Read managed file list from the repo
     while IFS= read -r rel_path; do
+        # Remote Control services and wrappers are audited only after the
+        # feature has been explicitly deployed on this host.
+        if ! $ai_remote_control_enabled && is_ai_remote_control_path "$rel_path"; then
+            continue
+        fi
+
         # Skip repo-only files
         local skip=false
         for excluded in "${repo_only[@]}"; do
@@ -112,6 +144,94 @@ cmd_status() {
     echo "Status: $ok linked, $broken issues, $missing missing"
 }
 
+cmd_feature_enable() {
+    local feature="$1"
+    if [ "$feature" != "$AI_REMOTE_CONTROL_FEATURE" ]; then
+        echo "ERROR: Unknown feature '$feature'" >&2
+        exit 1
+    fi
+
+    local managed_python="${CODEX_CONFIG_SYNC_PYTHON:-$HOME/.local/share/codex-config-sync-venv/bin/python}"
+    if [ -e "$DOTFILES_DIR/.local/bin/codex-config-sync" ] && \
+       [ -e "$DOTFILES_DIR/.local/libexec/codex-config-sync.py" ]; then
+        if [ ! -x "$managed_python" ] || ! "$managed_python" -c 'import tomlkit' >/dev/null 2>&1; then
+            if [ -n "${CODEX_CONFIG_SYNC_PYTHON:-}" ]; then
+                echo "ERROR: CODEX_CONFIG_SYNC_PYTHON cannot import tomlkit: $managed_python" >&2
+                exit 1
+            fi
+            command -v python3 >/dev/null 2>&1 || {
+                echo "ERROR: python3 is required to provision codex-config-sync" >&2
+                exit 1
+            }
+            python3 -m venv "$HOME/.local/share/codex-config-sync-venv"
+            "$HOME/.local/share/codex-config-sync-venv/bin/pip" install \
+                --disable-pip-version-check --quiet 'tomlkit==0.13.3'
+            managed_python="$HOME/.local/share/codex-config-sync-venv/bin/python"
+        fi
+        "$managed_python" -c 'import tomlkit' >/dev/null 2>&1 || {
+            echo "ERROR: managed codex-config-sync interpreter cannot import tomlkit: $managed_python" >&2
+            exit 1
+        }
+    fi
+
+    local backup_root="" rel_path source target backup changed=0
+    local parent_rel current component
+    local -a path_parts
+
+    for rel_path in "${AI_REMOTE_CONTROL_PATHS[@]}"; do
+        source="$DOTFILES_DIR/$rel_path"
+        [ -e "$source" ] || continue
+        target="$HOME/$rel_path"
+        if [ -L "$target" ] && [ "$(readlink -f "$target")" = "$(readlink -f "$source")" ]; then
+            continue
+        fi
+
+        parent_rel="$(dirname "$rel_path")"
+        current="$HOME"
+        IFS='/' read -r -a path_parts <<< "$parent_rel"
+        for component in "${path_parts[@]}"; do
+            current="$current/$component"
+            if [ -d "$current" ] && [ ! -L "$current" ]; then
+                continue
+            fi
+            if [ -e "$current" ] || [ -L "$current" ]; then
+                if [ -z "$backup_root" ]; then
+                    backup_root="$(mktemp -d "$HOME/.dotfiles-backup-$feature-XXXXXXXX")"
+                fi
+                backup="$backup_root/${current#"$HOME/"}"
+                mkdir -p "$(dirname "$backup")"
+                mv -- "$current" "$backup"
+            fi
+            mkdir "$current"
+        done
+
+        if [ -e "$target" ] || [ -L "$target" ]; then
+            if [ -z "$backup_root" ]; then
+                backup_root="$(mktemp -d "$HOME/.dotfiles-backup-$feature-XXXXXXXX")"
+            fi
+            backup="$backup_root/$rel_path"
+            mkdir -p "$(dirname "$backup")"
+            mv -- "$target" "$backup"
+        fi
+        mkdir -p "$(dirname "$target")"
+        ln -s "$source" "$target"
+        changed=$((changed + 1))
+    done
+
+    mkdir -p "$(dirname "$AI_REMOTE_CONTROL_MARKER")"
+    : > "$AI_REMOTE_CONTROL_MARKER"
+    if command -v systemctl >/dev/null 2>&1; then
+        if ! systemctl --user daemon-reload; then
+            echo "WARNING: Remote Control files are linked, but the user systemd manager could not be reloaded." >&2
+        fi
+    fi
+
+    echo "Enabled $feature: $changed link(s) updated; no services were started or restarted."
+    if [ -n "$backup_root" ]; then
+        echo "Backups: $backup_root"
+    fi
+}
+
 cmd_pull() {
     git -C "$DOTFILES_DIR" pull
 }
@@ -131,6 +251,13 @@ case "$1" in
         ;;
     status)
         cmd_status
+        ;;
+    feature-enable)
+        if [ $# -lt 2 ]; then
+            echo "ERROR: feature-enable requires a feature name" >&2
+            exit 1
+        fi
+        cmd_feature_enable "$2"
         ;;
     pull)
         cmd_pull

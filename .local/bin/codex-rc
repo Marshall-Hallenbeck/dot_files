@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
+
 unit=codex-app-server.service
+action="${1:-status}"
+root_arg="${2:-${AGENT_SYNC_ROOT:-}}"
+projects_dir="$HOME/.config/claude-rc/projects"
+
 wait_ready() {
   local socket="$HOME/.codex/app-server-control/app-server-control.sock"
   for _ in $(seq 1 90); do
@@ -10,20 +15,120 @@ wait_ready() {
   echo "Codex App Server did not create $socket within 90 seconds" >&2
   return 1
 }
-case "${1:-status}" in
-  start) echo "Starting Codex App Server..."; systemctl --user start "$unit"; wait_ready; echo "Codex App Server is ready." ;;
-  stop) echo "Stopping Codex App Server (graceful MCP shutdown can take about 30 seconds)..."; systemctl --user stop "$unit"; "$HOME/.local/libexec/codex-rc-cleanup"; echo "Codex App Server is stopped." ;;
-  restart) echo "Restarting Codex App Server (graceful MCP shutdown can take about 30 seconds)..."; systemctl --user restart "$unit"; wait_ready; echo "Codex App Server is ready." ;;
-  enable) systemctl --user enable --now "$unit" agent-sync.timer ;;
-  disable) systemctl --user disable --now "$unit" agent-sync.timer; "$HOME/.local/libexec/codex-rc-cleanup" ;;
-  sync) exec "$HOME/.local/bin/agent-sync" --root "$HOME/code/turins_tavern" ;;
-  sync-force) exec "$HOME/.local/bin/agent-sync" --root "$HOME/code/turins_tavern" --force ;;
-  sync-status) exec "$HOME/.local/bin/agent-sync" status --root "$HOME/code/turins_tavern" ;;
-  logs) exec journalctl --user -u "$unit" -n "${2:-100}" --no-pager ;;
-  config) printf 'Canonical instructions: %s\nCanonical MCP/config: %s\nClaude generated: %s\nCodex generated: %s\nCodex overlay: %s\n' "$HOME/code/turins_tavern/.ruler/AGENTS.md" "$HOME/code/turins_tavern/.ruler/ruler.toml" "$HOME/code/turins_tavern/CLAUDE.md" "$HOME/code/turins_tavern/AGENTS.md" "$HOME/code/turins_tavern/.ai-config/AGENTS.codex.md" ;;
+
+resolve_sync_root() {
+  local requested="$root_arg"
+  if [[ -n "$requested" ]]; then
+    if [[ -e "$projects_dir/$requested" ]]; then
+      readlink -f "$projects_dir/$requested"
+      return
+    fi
+    if [[ -d "$requested" ]]; then
+      readlink -f "$requested"
+      return
+    fi
+    echo "Agent sync root or registered project does not exist: $requested" >&2
+    return 2
+  fi
+
+  local git_root=""
+  git_root="$(git -C "$PWD" rev-parse --show-toplevel 2>/dev/null || true)"
+  if [[ -n "$git_root" && -f "$git_root/.ruler/ruler.toml" ]]; then
+    readlink -f "$git_root"
+    return
+  fi
+
+  local -a roots=()
+  local path root
+  shopt -s nullglob
+  for path in "$projects_dir"/*; do
+    [[ -e "$path" ]] || continue
+    root="$(readlink -f "$path")"
+    [[ -f "$root/.ruler/ruler.toml" ]] || continue
+    seen=false
+    for existing in "${roots[@]}"; do
+      if [[ "$existing" == "$root" ]]; then
+        seen=true
+        break
+      fi
+    done
+    $seen || roots+=("$root")
+  done
+  shopt -u nullglob
+
+  if (( ${#roots[@]} == 1 )); then
+    printf '%s\n' "${roots[0]}"
+    return
+  fi
+  if (( ${#roots[@]} == 0 )); then
+    echo "No Ruler-enabled project could be discovered; pass a root or set AGENT_SYNC_ROOT" >&2
+  else
+    echo "Multiple Ruler-enabled projects were discovered; pass a root or set AGENT_SYNC_ROOT:" >&2
+    printf '  %s\n' "${roots[@]}" >&2
+  fi
+  return 2
+}
+
+print_config() {
+  local root="$1"
+  printf 'Canonical instructions: %s\n' "$root/.ruler/AGENTS.md"
+  printf 'Canonical MCP/config: %s\n' "$root/.ruler/ruler.toml"
+  printf 'Claude generated: %s\n' "$root/CLAUDE.md"
+  printf 'Codex generated: %s\n' "$root/AGENTS.md"
+  printf 'Codex overlay: %s\n' "$root/.ai-config/AGENTS.codex.md"
+}
+
+case "$action" in
+  start)
+    echo "Starting Codex App Server..."
+    systemctl --user start "$unit"
+    wait_ready
+    echo "Codex App Server is ready."
+    ;;
+  stop)
+    echo "Stopping Codex App Server (graceful MCP shutdown can take about 30 seconds)..."
+    systemctl --user stop "$unit"
+    "$HOME/.local/libexec/codex-rc-cleanup"
+    echo "Codex App Server is stopped."
+    ;;
+  restart)
+    echo "Restarting Codex App Server (graceful MCP shutdown can take about 30 seconds)..."
+    systemctl --user restart "$unit"
+    wait_ready
+    echo "Codex App Server is ready."
+    ;;
+  enable)
+    systemctl --user enable --now "$unit" agent-sync.timer
+    ;;
+  disable)
+    systemctl --user disable --now "$unit" agent-sync.timer
+    "$HOME/.local/libexec/codex-rc-cleanup"
+    ;;
+  sync)
+    root="$(resolve_sync_root)"
+    exec "$HOME/.local/bin/agent-sync" --root "$root"
+    ;;
+  sync-force)
+    root="$(resolve_sync_root)"
+    exec "$HOME/.local/bin/agent-sync" --root "$root" --force
+    ;;
+  sync-status)
+    root="$(resolve_sync_root)"
+    exec "$HOME/.local/bin/agent-sync" status --root "$root"
+    ;;
+  logs)
+    exec journalctl --user -u "$unit" -n "${2:-100}" --no-pager
+    ;;
+  config)
+    root="$(resolve_sync_root)"
+    print_config "$root"
+    ;;
   status)
     systemctl --user status "$unit" --no-pager || true
     "$HOME/.codex/packages/standalone/current/codex" doctor --json | python3 -c 'import json,sys; x=json.load(sys.stdin); print(json.dumps(x["checks"].get("app_server.status"),indent=2))'
     ;;
-  *) echo "Usage: codex-rc {start|stop|restart|status|logs|sync|sync-force|sync-status|enable|disable|config}" >&2; exit 2 ;;
+  *)
+    echo "Usage: codex-rc {start|stop|restart|status|logs|sync|sync-force|sync-status|enable|disable|config} [project-root-or-name]" >&2
+    exit 2
+    ;;
 esac
