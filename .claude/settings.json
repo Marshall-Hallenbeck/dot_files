@@ -48,9 +48,9 @@
       "Bash(git checkout:*)",
       "Bash(rm:*)"
     ],
-    "defaultMode": "default"
+    "defaultMode": "auto"
   },
-  "model": "claude-fable-5[1m]",
+  "model": "opus[1m]",
   "hooks": {
     "SessionStart": [
       {
@@ -126,8 +126,9 @@
   "tui": "fullscreen",
   "showThinkingSummaries": true,
   "skipDangerousModePermissionPrompt": true,
-  "verbose": true,
-  "teammateMode": "auto",
+  "editorMode": "normal",
+  "verbose": false,
+  "teammateMode": "tmux",
   "remoteControlAtStartup": true,
   "inputNeededNotifEnabled": true,
   "agentPushNotifEnabled": true

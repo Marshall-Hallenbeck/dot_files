@@ -52,13 +52,13 @@ Before any significant remote deploy (new service, cert renewal, config push), r
 
 ## Constraint Discovery
 
-Before implementing anything that touches IDs, naming conventions, or data storage, ask explicitly:
+Before implementing anything that touches IDs, naming conventions, or data storage, inspect the project and resolve:
 - ID format: numeric auto-increment, UUID, slug, or something else?
 - Target: live DB, seed/fixture file, or migration?
 - Exact values or approximations acceptable?
 - Any project-specific naming conventions (snake_case, camelCase, kebab)?
 
-One upfront question eliminates multiple wrong-guess rework cycles. Never assume — ask.
+Ask only when these constraints remain genuinely unresolved after repository and issue inspection.
 
 ## Live Verification
 
@@ -71,7 +71,7 @@ Never declare a task done based on tests alone when the actual runtime is observ
 
 ## Asking Questions
 
-When anything is ambiguous, unclear, or open to interpretation, use AskUserQuestion to clarify BEFORE proceeding. Do not guess, assume, or pick a default — ask. This applies everywhere: code, architecture, agent configuration, skill design, and operational decisions. Specific examples:
+Ask a clarifying question only when unresolved ambiguity would materially change the result and cannot be resolved from the repository, issue, prior user choices, or established project conventions. An explicit request to implement, build, fix, or change something authorizes in-scope execution; do not ask the user to approve that same work again.
 
 - Ambiguous requirements or feature scope
 - Unclear implementation approach (multiple reasonable options)
@@ -81,18 +81,18 @@ When anything is ambiguous, unclear, or open to interpretation, use AskUserQuest
 - Whether to fix source code vs test assertions
 - Anything where a wrong assumption would waste effort or produce the wrong result
 
-Asking a quick question is always preferable to guessing wrong. The user expects to be consulted. Never silently give up, silently pick a default, or make "reasonable assumptions" — ask.
+Make repository-backed, reversible, in-scope decisions autonomously. Ask before destructive actions, meaningful scope expansion, or choices that remain genuinely blocking after investigation.
 
 ## Planning & Approach
 
-For any task involving more than 2 file changes: outline your approach in numbered steps first. Wait for user approval before executing. If unsure between approaches, list the options with tradeoffs.
+For any task involving more than 2 file changes, outline the approach in numbered steps. If the user explicitly requested implementation, building, fixing, or changing, that request is approval to execute the plan; proceed without another approval checkpoint. Wait only when the user requested planning/review without implementation, a genuinely blocking product choice remains, or the next action is destructive or outside the authorized scope.
 
 Before creating any plan, complete a codebase grounding phase. Do not skip this.
 
 1. **Discovery** — Use Grep and Glob to find all files relevant to the area. List every file found.
 2. **Fact extraction** — For each relevant file, read it and extract: exported functions/types with exact signatures, key business logic (status transitions, validation rules, enum values), existing abstractions and helpers, and current test coverage.
-3. **Fact document** — Create a structured summary with sections: Existing Types & Interfaces, Current Behavior (with `file:line` citations), Existing Abstractions Available for Reuse, Current Test Coverage & Gaps. Present this to the user first.
-4. **Plan with citations** — After user confirms the fact document, create the implementation plan. Every assertion must include a `[file:line]` citation. Flag any assumption that cannot be verified with `UNVERIFIED`.
+3. **Fact document** — Create a structured summary with sections: Existing Types & Interfaces, Current Behavior (with `file:line` citations), Existing Abstractions Available for Reuse, Current Test Coverage & Gaps. For explicit implementation requests, use this as an internal grounding artifact or concise progress update without pausing execution.
+4. **Plan with citations** — Create the implementation plan from the fact document. Every assertion must include a `[file:line]` citation. Flag any assumption that cannot be verified with `UNVERIFIED`. For explicit implementation requests, begin execution immediately after the plan unless a blocking condition above applies.
 5. **Diff preview** — For each planned change, show the specific before/after for affected lines so the user can validate behavioral correctness.
 
 Stay focused on the stated goal. If you think work should extend beyond the original request, or if the goal is ambiguous, ask before acting — do not pursue tangential fixes, refactors, or improvements unprompted.

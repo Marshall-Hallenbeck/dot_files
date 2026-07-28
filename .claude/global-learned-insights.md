@@ -20,6 +20,7 @@ Accumulated knowledge from working across projects. Auto-maintained by Claude.
 
 ## Next.js App Router / React SSR
 
+- App Router `not-found.tsx` is rendered inside the active layouts, so it must return segment UI only; returning `<html>`, `<head>`, or `<body>` creates nested documents and hydration failures. Only `global-not-found.tsx` owns the full document shell.
 - Next.js `loading.tsx` creates Suspense boundaries that permanently mask client-side rendering failures. If a client component fails inside a loading.tsx Suspense, React silently shows the fallback forever with zero console errors. Remove loading.tsx from pages where the component handles its own loading state (`{!data && <Skeleton />}`).
 
 - `useSearchParams()` causes SSR suspension. Combined with Suspense boundaries in Turbopack dev mode, client-side resolution can fail silently. Replace with `useState(() => new URLSearchParams(window.location.search))` only when Suspense interaction is problematic (i.e., `loading.tsx` exists and masks failures).
@@ -148,9 +149,12 @@ Accumulated knowledge from working across projects. Auto-maintained by Claude.
 
 ## zsh vs bash Scripting Gotchas
 
+- In zsh, `path` is a special array tied to `PATH`; using `path` as a loop or local variable rewrites the command search path and can make ordinary commands suddenly report “command not found.” Use a different variable name such as `file_path`.
 - zsh does NOT word-split unquoted `$VAR` (unlike bash). Storing a command line in a string (`CMD="sshpass -p $PASS ssh host"`) and invoking `$CMD` makes zsh treat the entire string as one command name — it fails AND the "command not found" error echoes the fully-expanded line, leaking any embedded secrets into the terminal/log. Wrap remote-command helpers in functions (or arrays), never command-strings.
 
 - `long_running.sh | tee log` in zsh reports **tee's** exit code — a failing script looks like exit 0 (zsh doesn't default to pipefail). Prefix background/task runner pipelines with `set -o pipefail;` or task-completion notifications lie about success.
+
+- zsh's `NOMATCH` also applies inside command substitutions: unquoted Git revisions such as `HEAD^` and SQL fragments such as `count(*)` can fail before the command runs. Quote glob-bearing arguments (`git rev-parse 'HEAD^'`) and keep SQL fully quoted (or use `COUNT(1)`).
 
 ## SQLite
 
