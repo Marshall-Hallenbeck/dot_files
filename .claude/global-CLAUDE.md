@@ -144,6 +144,8 @@ Fix issues from both tools, not just one. If a project's CLAUDE.md specifies dif
 
 Before committing, run the full validation pipeline: `pre-commit` hooks, Ruff, Pyright, and the test suite. Fix every failure before committing — including pre-existing config problems (e.g., a broken Ruff config) you hit along the way, not just failures you introduced. Then commit with logical grouping: split unrelated changes into separate commits rather than one mixed commit.
 
+For a branch with an open pull request, end each commit subject with `(#<PR>)` and add `Refs #<PR>` in the body. Add `Sentry-Issue: <SENTRY-ID>` for Sentry work. Add `Refs #<issue>` for each related GitHub issue, or use a closing keyword only when the commit resolves it. Use the same references on merge commits. Do not invent references. Agent commit commands must not use `--no-verify` or `git commit -n`.
+
 ## Claude Code Configuration
 
 When creating skills or plugins, check whether the context is global (`~/.claude/`) vs project-level (`.claude/`) and place files accordingly. Ask if unsure.

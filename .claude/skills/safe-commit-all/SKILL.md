@@ -46,12 +46,17 @@ For each logical group:
 2. Generate a commit message following Conventional Commits (`<type>(scope): description`).
    - If the user provided a message and there's only one group, use that message.
    - If the user provided a message and there are multiple groups, use it for the most relevant group and generate messages for the others.
-3. **Add GitHub issue references** if the work relates to an issue:
-   - Include `(#<number>)` at the end of the commit subject line.
-   - If the commit fully resolves the issue, add `Closes #<number>` in the body.
+3. **Add required traceability references**:
+   - If the branch has an open pull request, end the subject with `(#<PR>)` and add `Refs #<PR>` in the body.
+   - If the work has a Sentry issue, add `Sentry-Issue: <SENTRY-ID>` in the body.
+   - If the work has a related GitHub issue, add `Refs #<issue>` in the body. Use `Closes #<issue>` only when the commit fully resolves that issue.
+   - If no pull request exists yet, use the related GitHub issue number for the subject suffix. Do not invent a reference.
+   - Use the same references on merge commits.
 4. Commit:
    ```bash
-   git commit -m "<message>"
+   git commit -m "<type>(<scope>): <description> (#<PR>)" \
+     -m "Refs #<PR>" \
+     -m "Sentry-Issue: <SENTRY-ID>"
    ```
 
 ### 4. Report Results
@@ -67,10 +72,14 @@ Committed:
 
 If no changes exist and the user explicitly requested a checkpoint:
 ```bash
-git commit --allow-empty -m "<message>"
+git commit --allow-empty -m "<message> (#<PR>)" \
+  -m "Refs #<PR>" \
+  -m "Sentry-Issue: <SENTRY-ID>"
 ```
+Apply only verified references. If no pull request or Sentry issue applies, omit its placeholder and trailer.
 
 ## Hard Rules
 
 - Never run tests, linters, type checks, or quality gates.
+- Never use `--no-verify` or `git commit -n`.
 - If no changes exist and no checkpoint was requested, abort.

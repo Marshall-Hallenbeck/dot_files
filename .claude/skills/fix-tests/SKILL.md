@@ -121,14 +121,14 @@ After the suite is green:
 
 **Skip this step entirely when /fix-tests is composed by another skill or pipeline (e.g. /full-review)** — that caller owns whether and when to commit. Only when the user invoked /fix-tests directly and the full suite is green, create a commit:
 
+Resolve the open pull request and all verified Sentry and GitHub issue references before committing. On a branch with an open pull request, end the subject with `(#<PR>)` and add `Refs #<PR>`. Add `Sentry-Issue: <SENTRY-ID>` and related GitHub issue trailers when applicable. Do not invent a reference.
+
 ```bash
 git add <all-fixed-files>
-git commit -m "fix: resolve N test failures
-
-<for each fix, one line with file:line and root cause>
-
-Fixes applied autonomously via /fix-tests.
-Test assertions changed where justified (see details above)."
+git commit -m "fix: resolve N test failures (#<PR>)" \
+  -m "<for each fix, one line with file:line and root cause>" \
+  -m "Refs #<PR>" \
+  -m "Sentry-Issue: <SENTRY-ID>"
 ```
 
 If any tests remain failing, do NOT commit. Present the report and let the user decide.

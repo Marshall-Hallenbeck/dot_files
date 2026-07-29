@@ -4,10 +4,14 @@
 
 Follow Conventional Commits: `<type>(scope): description`. Focus on "why" not "what". Use imperative mood. `add` = wholly new, `update` = enhancement to existing.
 
-**GitHub Issue References:**
-- Include `(#<number>)` at the end of the commit subject line
-- Closing keywords in body: `Closes #<number>`, `Fixes #<number>`, `Resolves #<number>`
-- Partial progress: `Part of #<number>` or just `(#<number>)` in the subject
+**Required references:**
+- Open pull request: end the subject with `(#<PR>)` and add `Refs #<PR>` in the body.
+- Sentry work: add `Sentry-Issue: <SENTRY-ID>` in the body.
+- Related GitHub issue: add `Refs #<issue>` in the body.
+- Resolved GitHub issue: use `Closes #<issue>`, `Fixes #<issue>`, or `Resolves #<issue>` in the body.
+- Merge commits use the same references.
+- If no pull request exists, use the related GitHub issue in the subject. Never invent a reference.
+- Agent commit commands must not use `--no-verify` or `git commit -n`.
 
 ## Branch Naming
 

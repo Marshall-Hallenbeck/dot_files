@@ -177,6 +177,9 @@ if ! command -v codex &>/dev/null; then
     npm install -g @openai/codex
     sudo ln -sf "$(npm prefix -g)/bin/codex" /usr/local/bin/codex
 fi
+mkdir -p ~/.codex
+link_file "$DOTFILES_DIR/.codex/AGENTS.md" ~/.codex/AGENTS.md
+link_file "$DOTFILES_DIR/.codex/hooks.json" ~/.codex/hooks.json
 
 # ── GitHub Copilot ───────────────────────────────────────────────
 if ! command -v copilot &>/dev/null; then
@@ -247,6 +250,24 @@ for hook_file in "$DOTFILES_DIR"/.claude/hooks/*; do
     [ -f "$hook_file" ] || continue
     link_file "$hook_file" ~/.claude/hooks/"$(basename "$hook_file")"
 done
+
+commit_reference_hook="$HOME/.claude/hooks/validate-commit-references.sh"
+bash "$commit_reference_hook" --install "$DOTFILES_DIR"
+codex_trust_checker="$DOTFILES_DIR/.codex/verify-hook-trust.py"
+if ! python3 "$codex_trust_checker" "$DOTFILES_DIR"; then
+    echo "Codex must trust the commit-reference hooks before setup can continue."
+    echo "Trust both hooks in /hooks. Then run /exit."
+    if [ -t 0 ] && [ -t 1 ]; then
+        codex --no-alt-screen -C "$DOTFILES_DIR"
+    else
+        echo "Run Codex, use /hooks, and run this installer again." >&2
+        exit 1
+    fi
+    if ! python3 "$codex_trust_checker" "$DOTFILES_DIR"; then
+        echo "Codex commit-reference hooks are not trusted. Setup stopped." >&2
+        exit 1
+    fi
+fi
 
 # Remove dangling symlinks left behind by hooks/settings deleted from the repo
 find ~/.claude/hooks -maxdepth 1 -xtype l -delete || true
