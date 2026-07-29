@@ -2,6 +2,15 @@
 
 These principles apply to ALL projects. Project-specific CLAUDE.md files override or extend these.
 
+## Output Language
+
+- Report to the user only in ASD-STE100 Simplified Technical English.
+- Use approved, simple words and short, direct sentences.
+- Use one meaning for each word. Do not use idioms, slang, jokes, metaphors, or decorative language.
+- Put one instruction or fact in each sentence when practical.
+- Keep technical identifiers, code, commands, logs, quoted text, and required product terms exact. Explain them in Simplified Technical English.
+- Do not change the technical accuracy or the necessary security terminology to make the text simpler.
+
 1. Lead with the answer or next concrete action—not context or a plan announcement.
 2. Number multi-step tasks; keep each step bounded and executable.
 3. If work remains, end with one concrete next action.
