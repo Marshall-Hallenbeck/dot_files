@@ -155,7 +155,9 @@ Accumulated knowledge from working across projects. Auto-maintained by Claude.
 - `long_running.sh | tee log` in zsh reports **tee's** exit code — a failing script looks like exit 0 (zsh doesn't default to pipefail). Prefix background/task runner pipelines with `set -o pipefail;` or task-completion notifications lie about success.
 
 - zsh's `NOMATCH` also applies inside command substitutions: unquoted Git revisions such as `HEAD^` and SQL fragments such as `count(*)` can fail before the command runs. Quote glob-bearing arguments (`git rev-parse 'HEAD^'`) and keep SQL fully quoted (or use `COUNT(1)`).
+- `${PIPESTATUS[0]}` is bash-only; zsh spells it lowercase `$pipestatus[1]` (1-indexed). In zsh the bash form silently expands to empty, so `echo "EXIT=${PIPESTATUS[0]}"` prints nothing rather than erroring — capture the exit code without a pipe when checking a linter/test command.
 
+- nvm lazy-load stubs (`node()/npm()/npx()` calling a `nvm()` stub) commonly `unfunction nvm node npm npx` **before** verifying `$NVM_DIR/nvm.sh` loaded. Any shell that inherits the functions but not the `export NVM_DIR` (non-interactive tool shells) then fails the guard with the stubs already gone, emitting `nvm:3: command not found: nvm` on every node call — which pollutes stdout/stderr of linters and breaks output parsing. Fix: re-derive `: "${NVM_DIR:=$HOME/.nvm}"` inside the stub and check the file exists *before* unfunctioning.
 ## SQLite
 
 - `sqlite3 db ".backup 'dest'"` uses the online backup API, which reads through the source connection — committed WAL frames ARE included. No prior `wal_checkpoint` is needed for backup correctness (checkpoint first only when copying the raw file directly).
@@ -216,3 +218,18 @@ Accumulated knowledge from working across projects. Auto-maintained by Claude.
 
 - `cmd | tail -N` (or `| grep`) makes the pipeline exit with the LAST command's code — a failing test run reports exit 0 and background tasks look "completed" while tests failed. Pattern: `cmd > /tmp/out.log 2>&1; echo "exit=$?"; tail -N /tmp/out.log`. Same trap chains state-changing git commands: `git checkout ... | tail -2 && next-cmd` runs `next-cmd` even when checkout aborted.
 - `journalctl -f` block-buffers when piped (empty output even with `grep --line-buffered` downstream). For "wait until N events" watchers, poll `journalctl --since "$TS" | grep -c pattern` in a loop instead of streaming.
+## Windows GUI Automation over SSH
+
+- A GUI app launched from an SSH (non-interactive/session-0) shell loads its DLLs but cannot render or drive a UI (e.g. mstsc connects to nothing). Drive it in a **logged-in interactive console session**: register a scheduled task with `New-ScheduledTaskPrincipal -LogonType Interactive -UserId <console user>` + `Start-ScheduledTask` — it runs on that user's desktop. If the console is at the lock screen (no logged-in user), this path is unavailable (needs autologon / real login).
+- **UIA `TogglePattern.Toggle()`/`InvokePattern.Invoke()` often does NOT fire a WPF dialog's real handlers** (checkbox visually toggles but OK never enables/dispatches). Use UIA only to *locate* an element (`BoundingRectangle` center), then click with a real synthesized event — `user32!SetCursorPos` + `mouse_event(LEFTDOWN|LEFTUP)` — which fires the genuine handler.
+- Win11 mstsc blocks headless RDP connects with two modal dialogs before any TCP: the "Opening Remote Desktop Connection" RDP-file warning (its checkbox persists per-user once accepted) and the "Unknown publisher / allow local resources" prompt (per-launch; tick **Drives** to get drive redirection). Suppress the drive prompt via `HKCU\Software\Microsoft\Terminal Server Client\LocalDevices\<server-ip>` = device-mask DWORD (writable into a live user's `HKEY_USERS\<SID>` from an admin session).
+- To see another session's actual blocking dialog: run a `System.Drawing.Graphics.CopyFromScreen` capture as an Interactive-principal scheduled task in that session, pull the PNG, and read it — beats guessing which prompt is up.
+
+## Python Dynamic Module Loading
+
+- `importlib.util.module_from_spec()` + `spec.loader.exec_module()` does **not** register the module in `sys.modules`, but the deprecated `loader.load_module()` did. Any library that resolves a class by name lookup — e.g. impacket's `rpcrt.py` doing `__import__(request.__module__); sys.modules[request.__module__]` to find the NDRCALL `...Response` class — raises `ModuleNotFoundError` under the modern API. Per the Python docs, assign `sys.modules[name] = module` *before* `exec_module()`.
+- `loader.load_module()` reuses an existing `sys.modules[name]` entry and executes new code **into that same module object**. Loading N files under one shared name (e.g. `spec_from_file_location("Plugin", path)`) leaves every earlier reference mutated to the last-loaded file's contents — a silent cross-plugin clobber that only shows when references are held across loads.
+- A package directory shadows a sibling module of the same name: with both `proto/smb/` and `proto/smb.py`, `import proto.smb` resolves to the **package**. A dependency smoke-test using plain imports can therefore pass while code that loads `smb.py` *by path* fails on a missing dep. Verify by exercising the real loader, not an import.
+
+## pydantic-settings + Docker Compose
+
