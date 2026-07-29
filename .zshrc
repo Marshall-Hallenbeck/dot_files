@@ -46,8 +46,17 @@ export LANG=en_US.UTF-8
 # nvm - lazy-loaded to avoid ~1.2s shell startup penalty
 export NVM_DIR="$HOME/.nvm"
 nvm() {
-  unfunction nvm node npm npx
-  [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+  # Re-derive NVM_DIR: shells that inherit these functions without the export
+  # above (non-interactive tool shells) otherwise fail the guard below.
+  : "${NVM_DIR:=$HOME/.nvm}"
+  # Verify before unfunction — removing the stubs first turns a missing nvm.sh
+  # into "command not found: nvm" noise on every later node/npm/npx call.
+  if [ ! -s "$NVM_DIR/nvm.sh" ]; then
+    print -u2 "nvm: $NVM_DIR/nvm.sh not found"
+    return 1
+  fi
+  unfunction nvm node npm npx 2>/dev/null
+  . "$NVM_DIR/nvm.sh"
   nvm "$@"
 }
 node() { nvm use default >/dev/null; command node "$@"; }
@@ -86,5 +95,3 @@ autoload -Uz compinit && compinit -C
 
 # sentry
 fpath=("$HOME/.local/share/zsh/site-functions" $fpath)
-
-. "$HOME/.local/bin/env"
