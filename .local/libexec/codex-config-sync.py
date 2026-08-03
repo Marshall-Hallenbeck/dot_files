@@ -175,6 +175,21 @@ def sync_plugins() -> list[str]:
     return changed
 
 
+def sync_global_features(path: pathlib.Path) -> list[str]:
+    """Apply global Codex feature settings managed by this dotfiles repository."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    doc = tomlkit.parse(path.read_text()) if path.is_file() else tomlkit.document()
+    features = doc.get("features")
+    if features is None:
+        features = tomlkit.table()
+        doc["features"] = features
+    if features.get("default_mode_request_user_input") is True:
+        return []
+    features["default_mode_request_user_input"] = True
+    path.write_text(tomlkit.dumps(doc))
+    return ["default_mode_request_user_input:true"]
+
+
 def sync_hook_scripts() -> list[str]:
     target_root = HOME / ".codex/hooks"
     target_root.mkdir(parents=True, exist_ok=True)
@@ -210,10 +225,12 @@ def main() -> int:
             state = load_json(state_file)
             hook_changes = sync_hook_scripts()
             skills, skill_changes = sync_skills(set(state.get("skillNames", [])))
+            feature_changes = sync_global_features(HOME / ".codex/config.toml")
             plugin_changes = sync_plugins()
             result = {
                 "status": "ok",
                 "skills": skill_changes,
+                "features": feature_changes,
                 "plugins": plugin_changes,
                 "hooks": hook_changes,
             }
@@ -235,7 +252,8 @@ def main() -> int:
         state = load_json(state_file)
         fingerprint = source_fingerprint(root)
         hook_changes = sync_hook_scripts()
-        if not args.force and state.get("fingerprint") == fingerprint and not hook_changes:
+        feature_changes = sync_global_features(HOME / ".codex/config.toml")
+        if not args.force and state.get("fingerprint") == fingerprint and not hook_changes and not feature_changes:
             if not args.quiet:
                 print(json.dumps({"status": "unchanged", "root": str(root)}))
             return 0
@@ -245,7 +263,7 @@ def main() -> int:
         project_changes = sync_toml_mcp(root / ".codex/config.toml", project_mcp, set(state.get("projectMcpNames", [])))
         skills, skill_changes = sync_skills(set(state.get("skillNames", [])))
         plugin_changes = sync_plugins()
-        result = {"status": "ok", "root": str(root), "instructions": instructions, "globalMcp": global_changes, "projectMcp": project_changes, "skills": skill_changes, "plugins": plugin_changes, "hooks": hook_changes}
+        result = {"status": "ok", "root": str(root), "instructions": instructions, "globalMcp": global_changes, "projectMcp": project_changes, "skills": skill_changes, "features": feature_changes, "plugins": plugin_changes, "hooks": hook_changes}
         state_file.write_text(json.dumps({"fingerprint": source_fingerprint(root), "globalMcpNames": sorted(global_mcp), "projectMcpNames": sorted(project_mcp), "skillNames": skills, "updatedAt": int(time.time()), "lastResult": result}, indent=2) + "\n")
         if not args.quiet:
             print(json.dumps(result, indent=2))
