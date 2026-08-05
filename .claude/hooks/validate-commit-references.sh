@@ -23,6 +23,13 @@ else
     CONTEXT_EXPLICIT=false
 fi
 
+# Per-repository opt-out: `git config hooks.referenceGuard.disabled true`
+# disables commit-reference enforcement for that repository only. Covers all
+# modes (agent PreToolUse, installed git hooks, and --install).
+if [ "$(git -C "$WORKDIR" config --bool --get hooks.referenceGuard.disabled 2>/dev/null || true)" = "true" ]; then
+    exit 0
+fi
+
 run_preserved_hook() {
     local hook_name preserved_hook
 
