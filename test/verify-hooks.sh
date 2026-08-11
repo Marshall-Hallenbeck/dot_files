@@ -1167,6 +1167,17 @@ else
 fi
 check "create-pr discovers, applies, and verifies labels" "present" "$res"
 
+create_issue_skill="$dotfiles_root/.claude/skills/create-github-issue/SKILL.md"
+if [ -f "$create_issue_skill" ] &&
+    grep -Fq 'gh label list --limit 200 --json name,description' "$create_issue_skill" &&
+    grep -Fq -- '--label "<label>"' "$create_issue_skill" &&
+    grep -Fq 'gh issue view <ISSUE-NUMBER> --json labels' "$create_issue_skill"; then
+    res=present
+else
+    res=missing
+fi
+check "create-github-issue discovers, applies, and verifies labels" "present" "$res"
+
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
 if [ "$FAIL" -gt 0 ]; then
