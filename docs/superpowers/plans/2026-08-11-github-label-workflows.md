@@ -29,7 +29,7 @@
 - Consumes: the current branch diff, linked issue data, and repository labels returned by GitHub CLI.
 - Produces: a pull request created with repeated `--label "<label>"` arguments and verified with `gh pr view <PR-NUMBER> --json labels`.
 
-- [ ] **Step 1: Add the failing static check**
+- [x] **Step 1: Add the failing static check**
 
 Add these checks before the final results block in `test/verify-hooks.sh`:
 
@@ -45,13 +45,13 @@ fi
 check "create-pr discovers, applies, and verifies labels" "present" "$res"
 ```
 
-- [ ] **Step 2: Run the check and verify RED**
+- [x] **Step 2: Run the check and verify RED**
 
 Run: `bash test/verify-hooks.sh`
 
 Expected: `FAIL: create-pr discovers, applies, and verifies labels` because the current skill creates the PR without label arguments or verification.
 
-- [ ] **Step 3: Add the minimal pull request label contract**
+- [x] **Step 3: Add the minimal pull request label contract**
 
 Change the frontmatter description to a trigger-only description:
 
@@ -92,19 +92,19 @@ gh pr view <PR-NUMBER> --json labels
 
 Add `Labels: [saved labels]` to the success report. Add label discovery and label mutation failures to error handling.
 
-- [ ] **Step 4: Run the static check and verify GREEN**
+- [x] **Step 4: Run the static check and verify GREEN**
 
 Run: `bash test/verify-hooks.sh`
 
 Expected: all checks pass, including `create-pr discovers, applies, and verifies labels`.
 
-- [ ] **Step 5: Run a fresh-agent pull request evaluation**
+- [x] **Step 5: Run a fresh-agent pull request evaluation**
 
 Give a fresh agent the changed skill and a frontend bug-fix PR scenario with available `bug`, `frontend`, and `tests` labels.
 
 Expected: the agent lists repository labels, creates the PR with all three exact labels, verifies saved labels, and reports them.
 
-- [ ] **Step 6: Commit the pull request workflow**
+- [x] **Step 6: Commit the pull request workflow**
 
 ```bash
 git add .claude/skills/create-pr/SKILL.md test/verify-hooks.sh
@@ -121,7 +121,7 @@ git commit -m "feat(skills): label created pull requests"
 - Consumes: an issue request, repository issue history, and repository labels returned by GitHub CLI.
 - Produces: a structured issue created with repeated `--label "<label>"` arguments and verified with `gh issue view <ISSUE-NUMBER> --json labels`.
 
-- [ ] **Step 1: Add the failing static check**
+- [x] **Step 1: Add the failing static check**
 
 Add:
 
@@ -138,13 +138,13 @@ fi
 check "create-github-issue discovers, applies, and verifies labels" "present" "$res"
 ```
 
-- [ ] **Step 2: Run the check and verify RED**
+- [x] **Step 2: Run the check and verify RED**
 
 Run: `bash test/verify-hooks.sh`
 
 Expected: `FAIL: create-github-issue discovers, applies, and verifies labels` because the skill file does not exist.
 
-- [ ] **Step 3: Create the issue workflow skill**
+- [x] **Step 3: Create the issue workflow skill**
 
 Create frontmatter with:
 
@@ -166,19 +166,19 @@ Add these required workflow sections in order:
 5. Run `gh issue create` with one `--label "<label>"` argument for each selected label.
 6. Verify with `gh issue view <ISSUE-NUMBER> --json labels` and report the issue URL and saved labels.
 
-- [ ] **Step 4: Run the static check and verify GREEN**
+- [x] **Step 4: Run the static check and verify GREEN**
 
 Run: `bash test/verify-hooks.sh`
 
 Expected: all checks pass, including `create-github-issue discovers, applies, and verifies labels`.
 
-- [ ] **Step 5: Run a fresh-agent issue creation evaluation**
+- [x] **Step 5: Run a fresh-agent issue creation evaluation**
 
 Give a fresh agent the new skill and a frontend signup bug scenario with available `bug`, `frontend`, and `tests` labels.
 
 Expected: the agent checks duplicates, lists repository labels, creates the issue with all three exact labels, verifies the labels, and reports them.
 
-- [ ] **Step 6: Commit the issue creation workflow**
+- [x] **Step 6: Commit the issue creation workflow**
 
 ```bash
 git add .claude/skills/create-github-issue/SKILL.md test/verify-hooks.sh
@@ -195,7 +195,7 @@ git commit -m "feat(skills): add labeled GitHub issue creation"
 - Consumes: issue title, body, current labels, acceptance criteria, referenced files, and existing repository labels.
 - Produces: an issue whose clearly applicable existing labels are present before implementation starts.
 
-- [ ] **Step 1: Add the failing static check**
+- [x] **Step 1: Add the failing static check**
 
 Add:
 
@@ -211,13 +211,13 @@ fi
 check "complete-github-issue repairs and verifies issue labels" "present" "$res"
 ```
 
-- [ ] **Step 2: Run the check and verify RED**
+- [x] **Step 2: Run the check and verify RED**
 
 Run: `bash test/verify-hooks.sh`
 
 Expected: `FAIL: complete-github-issue repairs and verifies issue labels` because the current skill only reads labels.
 
-- [ ] **Step 3: Add issue label reconciliation before reconnaissance**
+- [x] **Step 3: Add issue label reconciliation before reconnaissance**
 
 Change the initial read command to:
 
@@ -242,19 +242,19 @@ The step must require these rules:
 
 Update the process diagram so label reconciliation occurs between issue reading and the implementation-work decision.
 
-- [ ] **Step 4: Run the static check and verify GREEN**
+- [x] **Step 4: Run the static check and verify GREEN**
 
 Run: `bash test/verify-hooks.sh`
 
 Expected: all checks pass, including `complete-github-issue repairs and verifies issue labels`.
 
-- [ ] **Step 5: Run a fresh-agent issue completion evaluation**
+- [x] **Step 5: Run a fresh-agent issue completion evaluation**
 
 Give a fresh agent the changed skill and an unlabeled backend security issue with available `security`, `backend`, and `tests` labels.
 
 Expected: the agent lists labels, applies all three before reconnaissance, verifies them, and does not remove any existing label.
 
-- [ ] **Step 6: Commit the issue completion workflow**
+- [x] **Step 6: Commit the issue completion workflow**
 
 ```bash
 git add .claude/skills/complete-github-issue/SKILL.md test/verify-hooks.sh
@@ -273,17 +273,17 @@ git commit -m "feat(skills): repair labels before issue work"
 - Consumes: all three completed skill workflows.
 - Produces: validated shared instructions with convergent label behavior.
 
-- [ ] **Step 1: Run five fresh-context wording evaluations**
+- [x] **Step 1: Run five fresh-context wording evaluations**
 
 Run two PR scenarios, one issue creation scenario, and two issue completion scenarios. Use different work types and areas.
 
 Expected for every sample: exact existing labels are discovered, all clear matches are applied, saved labels are verified, and no label is created or removed.
 
-- [ ] **Step 2: Close instruction gaps**
+- [x] **Step 2: Close instruction gaps**
 
 If any agent omits discovery, application, or verification, add only the missing structural requirement to that skill and repeat the failed scenario with a fresh agent.
 
-- [ ] **Step 3: Run the complete dotfiles checks**
+- [x] **Step 3: Run the complete dotfiles checks**
 
 ```bash
 bash test/verify-hooks.sh
@@ -295,7 +295,7 @@ Expected: every command exits with status 0.
 
 Do not run `test/verify-environment.sh` directly on the host. It validates the Docker test user named `testuser` and runs only inside `test/Dockerfile` through `test/run-test.sh`.
 
-- [ ] **Step 4: Review repository state**
+- [x] **Step 4: Review repository state**
 
 ```bash
 git status --short

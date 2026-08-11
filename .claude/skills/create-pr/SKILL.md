@@ -96,6 +96,8 @@ Then verify:
 gh pr view <PR-NUMBER> --json labels
 ```
 
+Compare the saved label names with the selected label names. Verification must show every selected label. If the result omits a selected label, treat verification as failed and abort.
+
 ### 7. Report Success
 
 ```
@@ -112,4 +114,4 @@ Labels: [saved labels]
 - **Uncommitted changes** → Warn, suggest `/safe-commit`
 - **Already on main** → Abort, suggest creating a branch
 - **Label discovery failure** → Abort, report the failure
-- **Label application or verification failure** → Abort, report the failure
+- **Label application or verification failure, including a result that omits a selected label** → Abort, report the failure

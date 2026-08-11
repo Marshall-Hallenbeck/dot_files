@@ -87,29 +87,38 @@ gh label list --limit 200 --json name,description
 
 Compare the issue title, body, referenced files, and current labels with the existing repository labels.
 Record the original label names from the issue response before label reconciliation.
+Determine the applicable existing labels and the missing applicable labels. The missing applicable labels are the applicable labels that are not in the original label names.
 
-- If the issue has no labels, add all clearly applicable existing work-type and affected-area labels before implementation.
-- If labels exist, preserve them and add only clearly missing applicable labels.
+- Select all clearly applicable existing work-type and affected-area labels before implementation.
+- Preserve every original label.
 - Never remove, create, rename, or guess a label.
-- If no existing label clearly applies, report that result and continue.
 
-If no labels are selected, skip `gh issue edit`, report that no existing label clearly applies, and continue to reconnaissance.
+Use exactly one of these branches:
 
-If one or more labels are selected, apply only the selected existing labels, then verify the issue labels:
+- If one or more applicable labels are missing, run `gh issue edit` with only the missing labels.
+- If one or more applicable labels exist and every applicable label is already present, skip `gh issue edit` and report that all applicable labels were already present.
+- If no existing repository label applies, skip `gh issue edit` and report that no applicable existing repository label exists.
+
+For the missing-label branch, apply only the missing applicable labels:
 
 ```bash
 gh issue edit <NUMBER> --add-label "<label>" --add-label "<label>"
+```
+
+After every branch, including both branches that skip `gh issue edit`, run:
+
+```bash
 gh issue view <NUMBER> --json labels
 ```
 
-Verification must show every original label and every newly selected label. Continue only after verification succeeds. Do not remove existing labels.
+Compare the saved label names with both the original label names and the applicable label names. Verification must show every original label and every applicable label. Continue to reconnaissance only after verification succeeds. Report the selected branch state accurately.
 
 ## Error Handling
 
 - Issue read fails: abort and report the command failure. Do not infer issue contents or continue.
 - Label discovery fails: abort and report the command failure. Do not guess repository labels.
 - Label application fails: abort and report the command failure. Do not start reconnaissance.
-- Label verification fails or omits a selected label: abort and report the mismatch. Do not start reconnaissance.
+- Label verification fails, omits an original label, or omits an applicable label: abort and report the mismatch. Do not start reconnaissance.
 
 ## Step 2: Reconnaissance (BEFORE Any Implementation)
 

@@ -1160,7 +1160,9 @@ check "empty checkpoint workflow requires the open PR reference" "present" "$res
 create_pr_skill="$dotfiles_root/.claude/skills/create-pr/SKILL.md"
 if grep -Fq 'gh label list --limit 200 --json name,description' "$create_pr_skill" &&
     grep -Fq -- '--label "<label>"' "$create_pr_skill" &&
-    grep -Fq 'gh pr view <PR-NUMBER> --json labels' "$create_pr_skill"; then
+    grep -Fq 'gh pr view <PR-NUMBER> --json labels' "$create_pr_skill" &&
+    grep -Fq 'Verification must show every selected label.' "$create_pr_skill" &&
+    grep -Fq 'omits a selected label' "$create_pr_skill"; then
     res=present
 else
     res=missing
@@ -1176,7 +1178,9 @@ if [ -f "$create_issue_skill" ] &&
     grep -Fq 'Duplicate search fails' "$create_issue_skill" &&
     grep -Fq 'Label discovery fails' "$create_issue_skill" &&
     grep -Fq 'Issue creation fails' "$create_issue_skill" &&
-    grep -Fq 'Label verification fails' "$create_issue_skill"; then
+    grep -Fq 'Label verification fails' "$create_issue_skill" &&
+    grep -Fq 'Verification must show every selected label.' "$create_issue_skill" &&
+    grep -Fq 'omits a selected label' "$create_issue_skill"; then
     res=present
 else
     res=missing
@@ -1187,14 +1191,31 @@ complete_issue_skill="$dotfiles_root/.claude/skills/complete-github-issue/SKILL.
 if grep -Fq 'gh label list --limit 200 --json name,description' "$complete_issue_skill" &&
     grep -Fq 'gh issue edit <NUMBER> --add-label "<label>"' "$complete_issue_skill" &&
     grep -Fq 'gh issue view <NUMBER> --json labels' "$complete_issue_skill" &&
-    grep -Fq 'If no labels are selected, skip `gh issue edit`, report that no existing label clearly applies, and continue to reconnaissance.' "$complete_issue_skill" &&
     grep -Fq 'Record the original label names from the issue response before label reconciliation.' "$complete_issue_skill" &&
-    grep -Fq 'Verification must show every original label and every newly selected label.' "$complete_issue_skill"; then
+    grep -Fq 'Determine the applicable existing labels and the missing applicable labels.' "$complete_issue_skill"; then
     res=present
 else
     res=missing
 fi
 check "complete-github-issue repairs and verifies issue labels" "present" "$res"
+
+if grep -Fq 'If one or more applicable labels are missing, run `gh issue edit` with only the missing labels.' "$complete_issue_skill" &&
+    grep -Fq 'If one or more applicable labels exist and every applicable label is already present, skip `gh issue edit` and report that all applicable labels were already present.' "$complete_issue_skill" &&
+    grep -Fq 'If no existing repository label applies, skip `gh issue edit` and report that no applicable existing repository label exists.' "$complete_issue_skill"; then
+    res=present
+else
+    res=missing
+fi
+check "complete-github-issue distinguishes label reconciliation states" "present" "$res"
+
+if grep -Fq 'After every branch, including both branches that skip `gh issue edit`, run:' "$complete_issue_skill" &&
+    grep -Fq 'Compare the saved label names with both the original label names and the applicable label names.' "$complete_issue_skill" &&
+    grep -Fq 'Verification must show every original label and every applicable label.' "$complete_issue_skill"; then
+    res=present
+else
+    res=missing
+fi
+check "complete-github-issue verifies saved labels after every branch" "present" "$res"
 
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
