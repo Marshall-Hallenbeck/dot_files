@@ -13,6 +13,7 @@ from unittest import mock
 
 REPO = pathlib.Path(__file__).resolve().parents[1]
 AGENT_SYNC = REPO / ".local/bin/agent-sync"
+CODEX_CONFIG_SYNC = REPO / ".local/libexec/codex-config-sync.py"
 
 
 def load_agent_sync():
@@ -25,7 +26,32 @@ def load_agent_sync():
     return module
 
 
+def load_codex_config_sync():
+    loader = importlib.machinery.SourceFileLoader("codex_config_sync", str(CODEX_CONFIG_SYNC))
+    spec = importlib.util.spec_from_loader(loader.name, loader)
+    if spec is None:
+        raise RuntimeError("could not create module spec for codex-config-sync")
+    module = importlib.util.module_from_spec(spec)
+    loader.exec_module(module)
+    return module
+
+
 class AgentSyncPortabilityTests(unittest.TestCase):
+    def test_codex_config_sync_enables_default_user_input_requests(self) -> None:
+        codex_config_sync = load_codex_config_sync()
+        with tempfile.TemporaryDirectory() as temporary:
+            config = pathlib.Path(temporary) / "config.toml"
+            config.write_text('[features]\nmemories = true\n\n[tui]\nstatus_line = ["model-name"]\n')
+
+            self.assertEqual(
+                codex_config_sync.sync_global_features(config),
+                ["default_mode_request_user_input:true"],
+            )
+            rendered = config.read_text()
+            self.assertIn("default_mode_request_user_input = true", rendered)
+            self.assertIn('status_line = ["model-name"]', rendered)
+            self.assertEqual(codex_config_sync.sync_global_features(config), [])
+
     def test_aggregate_return_code_preserves_failures_and_signals(self) -> None:
         agent_sync = load_agent_sync()
         self.assertEqual(agent_sync.aggregate_return_code(0, 3), 3)
