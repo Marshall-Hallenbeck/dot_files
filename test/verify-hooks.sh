@@ -1157,6 +1157,16 @@ else
 fi
 check "empty checkpoint workflow requires the open PR reference" "present" "$res"
 
+create_pr_skill="$dotfiles_root/.claude/skills/create-pr/SKILL.md"
+if grep -Fq 'gh label list --limit 200 --json name,description' "$create_pr_skill" &&
+    grep -Fq -- '--label "<label>"' "$create_pr_skill" &&
+    grep -Fq 'gh pr view <PR-NUMBER> --json labels' "$create_pr_skill"; then
+    res=present
+else
+    res=missing
+fi
+check "create-pr discovers, applies, and verifies labels" "present" "$res"
+
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
 if [ "$FAIL" -gt 0 ]; then

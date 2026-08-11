@@ -1,6 +1,6 @@
 ---
 name: create-pr
-description: "Creates a pull request with proper formatting, running tests first and including a structured description."
+description: Use when asked to create, open, publish, or submit a pull request from the current branch
 argument-hint: "[title]"
 disable-model-invocation: true
 ---
@@ -45,7 +45,23 @@ git diff main --stat
 git diff main --name-only
 ```
 
-### 4. Generate PR Description
+### 4. Select Labels (REQUIRED)
+
+List labels that exist in the repository:
+
+```bash
+gh label list --limit 200 --json name,description
+```
+
+Select all clearly applicable labels from the PR title, body, linked issue, and changed files.
+
+- Prefer an existing work-type label such as `bug`, `enhancement`, `documentation`, `refactor`, `security`, or `tests` when it accurately describes the change.
+- Add existing affected-area labels when the changed files clearly identify the area.
+- Use exact names from the command output. Never create, rename, or guess a label.
+- Keep labels already present on a linked issue only when they also describe the PR.
+- If no existing label clearly applies, create the PR without a label and report that no match exists.
+
+### 5. Generate PR Description
 
 ```markdown
 ## Summary
@@ -66,20 +82,28 @@ git diff main --name-only
 Closes #[issue-number]
 ```
 
-### 5. Create the PR
+### 6. Create the PR
 
 ```bash
 git push -u origin HEAD 2>/dev/null || git push
-gh pr create --title "[title]" --body "[description]" --base main
+gh pr create --title "[title]" --body "[description]" --base main \
+  --label "<label>" --label "<label>"
 ```
 
-### 6. Report Success
+Then verify:
+
+```bash
+gh pr view <PR-NUMBER> --json labels
+```
+
+### 7. Report Success
 
 ```
 PR Created
 Title: [PR title]
 URL: [PR URL]
 Branch: [branch] → main
+Labels: [saved labels]
 ```
 
 ## Error Handling
@@ -87,3 +111,5 @@ Branch: [branch] → main
 - **Tests failing** → Abort, report failures
 - **Uncommitted changes** → Warn, suggest `/safe-commit`
 - **Already on main** → Abort, suggest creating a branch
+- **Label discovery failure** → Abort, report the failure
+- **Label application or verification failure** → Abort, report the failure
