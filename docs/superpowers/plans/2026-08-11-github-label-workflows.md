@@ -61,7 +61,6 @@ description: Use when asked to create, open, publish, or submit a pull request f
 
 After PR context collection, add:
 
-```markdown
 ### 4. Select Labels (REQUIRED)
 
 List labels that exist in the repository:
@@ -77,7 +76,6 @@ Select all clearly applicable labels from the PR title, body, linked issue, and 
 - Use exact names from the command output. Never create, rename, or guess a label.
 - Keep labels already present on a linked issue only when they also describe the PR.
 - If no existing label clearly applies, create the PR without a label and report that no match exists.
-```
 
 Create the PR with one argument for each selected label:
 
@@ -90,7 +88,6 @@ Then verify:
 
 ```bash
 gh pr view <PR-NUMBER> --json labels
-```
 ```
 
 Add `Labels: [saved labels]` to the success report. Add label discovery and label mutation failures to error handling.
