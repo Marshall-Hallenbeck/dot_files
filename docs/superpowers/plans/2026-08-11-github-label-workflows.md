@@ -287,12 +287,13 @@ If any agent omits discovery, application, or verification, add only the missing
 
 ```bash
 bash test/verify-hooks.sh
-python3 -m unittest test/test_agent_sync_portability.py
-bash test/verify-environment.sh
+python3 test/test_agent_sync_portability.py
 git diff --check
 ```
 
 Expected: every command exits with status 0.
+
+Do not run `test/verify-environment.sh` directly on the host. It validates the Docker test user named `testuser` and runs only inside `test/Dockerfile` through `test/run-test.sh`.
 
 - [ ] **Step 4: Review repository state**
 
