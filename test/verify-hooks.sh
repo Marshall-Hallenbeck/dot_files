@@ -1183,6 +1183,16 @@ else
 fi
 check "create-github-issue discovers, applies, and verifies labels" "present" "$res"
 
+complete_issue_skill="$dotfiles_root/.claude/skills/complete-github-issue/SKILL.md"
+if grep -Fq 'gh label list --limit 200 --json name,description' "$complete_issue_skill" &&
+    grep -Fq 'gh issue edit <NUMBER> --add-label "<label>"' "$complete_issue_skill" &&
+    grep -Fq 'gh issue view <NUMBER> --json labels' "$complete_issue_skill"; then
+    res=present
+else
+    res=missing
+fi
+check "complete-github-issue repairs and verifies issue labels" "present" "$res"
+
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
 if [ "$FAIL" -gt 0 ]; then

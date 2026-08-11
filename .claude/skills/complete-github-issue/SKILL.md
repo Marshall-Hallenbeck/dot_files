@@ -31,6 +31,7 @@ digraph complete_issue {
     rankdir=TB;
 
     "Read issue contents via gh" [shape=box];
+    "Reconcile issue labels" [shape=box];
     "Issue has implementation work?" [shape=diamond];
     "No code needed — respond/comment" [shape=box style=filled fillcolor=lightyellow];
     "Check for linked PRs and branches" [shape=box];
@@ -45,7 +46,8 @@ digraph complete_issue {
     "Implement all acceptance criteria" [shape=box style=filled fillcolor=lightblue];
     "Verify/create test coverage" [shape=box style=filled fillcolor=lightyellow];
 
-    "Read issue contents via gh" -> "Issue has implementation work?";
+    "Read issue contents via gh" -> "Reconcile issue labels";
+    "Reconcile issue labels" -> "Issue has implementation work?";
     "Issue has implementation work?" -> "No code needed — respond/comment" [label="no"];
     "Issue has implementation work?" -> "Check for linked PRs and branches" [label="yes"];
     "Check for linked PRs and branches" -> "Check git log for related commits";
@@ -65,7 +67,7 @@ digraph complete_issue {
 ## Step 1: Read the Issue
 
 ```bash
-gh issue view <NUMBER>
+gh issue view <NUMBER> --json number,title,body,state,labels,assignees,url
 ```
 
 Extract from the issue:
@@ -74,6 +76,37 @@ Extract from the issue:
 - **Labels and state** (open/closed, assigned, linked PRs)
 
 If the issue lacks clear acceptance criteria, derive them from the description. List them explicitly before proceeding.
+
+### 1a. Reconcile Issue Labels (Required Before Reconnaissance)
+
+List the existing repository labels before implementation reconnaissance:
+
+```bash
+gh label list --limit 200 --json name,description
+```
+
+Compare the issue title, body, referenced files, and current labels with the existing repository labels.
+
+- If the issue has no labels, add all clearly applicable existing work-type and affected-area labels before implementation.
+- If labels exist, preserve them and add only clearly missing applicable labels.
+- Never remove, create, rename, or guess a label.
+- If no existing label clearly applies, report that result and continue.
+
+Apply only the selected existing labels, then verify the issue labels:
+
+```bash
+gh issue edit <NUMBER> --add-label "<label>" --add-label "<label>"
+gh issue view <NUMBER> --json labels
+```
+
+Continue only after verification shows every selected label. Do not remove existing labels.
+
+## Error Handling
+
+- Issue read fails: abort and report the command failure. Do not infer issue contents or continue.
+- Label discovery fails: abort and report the command failure. Do not guess repository labels.
+- Label application fails: abort and report the command failure. Do not start reconnaissance.
+- Label verification fails or omits a selected label: abort and report the mismatch. Do not start reconnaissance.
 
 ## Step 2: Reconnaissance (BEFORE Any Implementation)
 
