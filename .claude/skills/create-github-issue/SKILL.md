@@ -73,3 +73,10 @@ gh issue view <ISSUE-NUMBER> --json labels
 ```
 
 Report the issue URL and saved labels.
+
+## Error Handling
+
+- **Duplicate search fails** → Abort and report the failure. Do not create an issue.
+- **Label discovery fails** → Abort and report the failure. Do not create an issue.
+- **Issue creation fails** → Abort and report the failure.
+- **Label verification fails** → Abort and report the failure. Do not report labels as verified.

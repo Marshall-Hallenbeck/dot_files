@@ -1171,7 +1171,12 @@ create_issue_skill="$dotfiles_root/.claude/skills/create-github-issue/SKILL.md"
 if [ -f "$create_issue_skill" ] &&
     grep -Fq 'gh label list --limit 200 --json name,description' "$create_issue_skill" &&
     grep -Fq -- '--label "<label>"' "$create_issue_skill" &&
-    grep -Fq 'gh issue view <ISSUE-NUMBER> --json labels' "$create_issue_skill"; then
+    grep -Fq 'gh issue view <ISSUE-NUMBER> --json labels' "$create_issue_skill" &&
+    grep -Fq '## Error Handling' "$create_issue_skill" &&
+    grep -Fq 'Duplicate search fails' "$create_issue_skill" &&
+    grep -Fq 'Label discovery fails' "$create_issue_skill" &&
+    grep -Fq 'Issue creation fails' "$create_issue_skill" &&
+    grep -Fq 'Label verification fails' "$create_issue_skill"; then
     res=present
 else
     res=missing
