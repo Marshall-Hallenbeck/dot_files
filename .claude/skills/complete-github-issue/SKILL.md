@@ -86,20 +86,23 @@ gh label list --limit 200 --json name,description
 ```
 
 Compare the issue title, body, referenced files, and current labels with the existing repository labels.
+Record the original label names from the issue response before label reconciliation.
 
 - If the issue has no labels, add all clearly applicable existing work-type and affected-area labels before implementation.
 - If labels exist, preserve them and add only clearly missing applicable labels.
 - Never remove, create, rename, or guess a label.
 - If no existing label clearly applies, report that result and continue.
 
-Apply only the selected existing labels, then verify the issue labels:
+If no labels are selected, skip `gh issue edit`, report that no existing label clearly applies, and continue to reconnaissance.
+
+If one or more labels are selected, apply only the selected existing labels, then verify the issue labels:
 
 ```bash
 gh issue edit <NUMBER> --add-label "<label>" --add-label "<label>"
 gh issue view <NUMBER> --json labels
 ```
 
-Continue only after verification shows every selected label. Do not remove existing labels.
+Verification must show every original label and every newly selected label. Continue only after verification succeeds. Do not remove existing labels.
 
 ## Error Handling
 

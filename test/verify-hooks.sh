@@ -1186,7 +1186,10 @@ check "create-github-issue discovers, applies, and verifies labels" "present" "$
 complete_issue_skill="$dotfiles_root/.claude/skills/complete-github-issue/SKILL.md"
 if grep -Fq 'gh label list --limit 200 --json name,description' "$complete_issue_skill" &&
     grep -Fq 'gh issue edit <NUMBER> --add-label "<label>"' "$complete_issue_skill" &&
-    grep -Fq 'gh issue view <NUMBER> --json labels' "$complete_issue_skill"; then
+    grep -Fq 'gh issue view <NUMBER> --json labels' "$complete_issue_skill" &&
+    grep -Fq 'If no labels are selected, skip `gh issue edit`, report that no existing label clearly applies, and continue to reconnaissance.' "$complete_issue_skill" &&
+    grep -Fq 'Record the original label names from the issue response before label reconciliation.' "$complete_issue_skill" &&
+    grep -Fq 'Verification must show every original label and every newly selected label.' "$complete_issue_skill"; then
     res=present
 else
     res=missing
