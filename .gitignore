@@ -1,5 +1,7 @@
 # Per-host override files (created locally, never committed)
 *.local
+__pycache__/
+*.py[cod]
 
 # Machine-specific Claude local settings (ends in .json, so *.local misses it)
 .claude/settings.local.json
