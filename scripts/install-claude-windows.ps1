@@ -177,7 +177,9 @@ $settings | ConvertTo-Json -Depth 100 | Set-Content "$ClaudeDest\settings.json" 
 Write-Host "  wrote settings.json (merged)"
 
 # ── settings.local.json (preserve host-specific keys, union perms) ─
-$repoLocal = Get-Content "$ClaudeSrc\settings.local.json" -Raw | ConvertFrom-Json
+$repoLocal = if (Test-Path "$ClaudeSrc\settings.local.json") {
+    Get-Content "$ClaudeSrc\settings.local.json" -Raw | ConvertFrom-Json
+} else { [pscustomobject]@{} }
 $local = if (Test-Path "$ClaudeDest\settings.local.json") {
     Get-Content "$ClaudeDest\settings.local.json" -Raw | ConvertFrom-Json
 } else { [pscustomobject]@{} }
