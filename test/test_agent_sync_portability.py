@@ -87,6 +87,23 @@ class AgentSyncPortabilityTests(unittest.TestCase):
             self.assertIn("--skip-compat", command)
             self.assertIn("--no-restart", command)
 
+    def test_all_sync_runs_global_compat_when_no_projects_are_registered(self) -> None:
+        agent_sync = load_agent_sync()
+        compat_calls: list[tuple[list[str], bool]] = []
+
+        def fake_checked(command: list[str], quiet: bool) -> None:
+            compat_calls.append((command, quiet))
+
+        with (
+            mock.patch.object(agent_sync, "discover_roots", return_value=[]),
+            mock.patch.object(agent_sync, "run_checked", side_effect=fake_checked),
+            mock.patch.object(agent_sync.sys, "argv", ["agent-sync", "--all", "--no-restart", "--quiet"]),
+        ):
+            self.assertEqual(agent_sync.main(), 0)
+
+        self.assertEqual(len(compat_calls), 1)
+        self.assertIn("--compat-only", compat_calls[0][0])
+
     def test_discover_roots_only_returns_unique_ruler_projects(self) -> None:
         agent_sync = load_agent_sync()
         with tempfile.TemporaryDirectory() as temporary:
@@ -171,13 +188,64 @@ class AgentSyncPortabilityTests(unittest.TestCase):
                     violations.append(f"{path.relative_to(REPO)} contains {value}")
         self.assertEqual(violations, [])
 
+    def test_installers_keep_mutable_runtime_files_outside_git_checkout(self) -> None:
+        installer = (REPO / "install_environment.sh").read_text()
+        self.assertNotIn('link_file "$DOTFILES_DIR/.zshrc" ~/.zshrc', installer)
+        self.assertNotIn('link_file "$DOTFILES_DIR/.gitconfig" ~/.gitconfig', installer)
+        self.assertNotIn(
+            'link_file "$DOTFILES_DIR/.claude/global-learned-insights.md" ~/.claude/global-learned-insights.md',
+            installer,
+        )
+        self.assertIn("install_shell_wrapper", installer)
+        self.assertIn("install_git_wrapper", installer)
+        self.assertIn("seed_runtime_file", installer)
+
+        windows = (REPO / "scripts/install-claude-windows.ps1").read_text()
+        self.assertNotIn(
+            'Copy-File "$ClaudeSrc\\global-learned-insights.md" "$ClaudeDest\\global-learned-insights.md"',
+            windows,
+        )
+        self.assertIn("Seed-File", windows)
+
+    def test_windows_updater_is_fail_closed_and_runs_agent_sync(self) -> None:
+        updater = (REPO / "scripts/dotfiles-update-windows.ps1").read_text()
+        sync = (REPO / "scripts/sync-agent-config-windows.ps1").read_text()
+        self.assertIn("merge-base --is-ancestor", updater)
+        self.assertIn("upstream changes overlap host-local changes", updater)
+        self.assertIn("merge --ff-only", updater)
+        self.assertIn("sync-agent-config-windows.ps1", updater)
+        self.assertIn("install-claude-windows.ps1", sync)
+        self.assertIn("ruler apply", sync)
+        self.assertIn("codex-config-sync.py", sync)
+        self.assertIn(".agents\\skills", sync)
+        self.assertNotIn("Restart", sync)
+
+        installer = (REPO / "scripts/install-agent-sync-windows.ps1").read_text()
+        self.assertIn("DotfilesAgentSync", installer)
+        self.assertIn("New-TimeSpan -Minutes 5", installer)
+        self.assertIn("StartWhenAvailable", installer)
+
     def test_systemd_sync_entrypoints_discover_registered_projects(self) -> None:
         agent_service = (REPO / ".config/systemd/user/agent-sync.service").read_text()
         codex_service = (REPO / ".config/systemd/user/codex-app-server.service").read_text()
+        updater_service = (REPO / ".config/systemd/user/dotfiles-update.service").read_text()
+        updater_timer = (REPO / ".config/systemd/user/dotfiles-update.timer").read_text()
         self.assertNotIn("WorkingDirectory=", agent_service)
         self.assertIn("agent-sync --all --no-restart --quiet", agent_service)
         self.assertIn("codex-config-sync --compat-only --quiet", codex_service)
         self.assertNotIn("agent-sync --all", codex_service)
+        self.assertIn("%h/.local/bin/dotfiles-update", updater_service)
+        self.assertIn("OnBootSec=2min", updater_timer)
+        self.assertIn("OnUnitActiveSec=5min", updater_timer)
+
+    def test_remote_control_feature_manages_dotfiles_updater_assets(self) -> None:
+        deployer = (REPO / "scripts/dotfiles").read_text()
+        for path in (
+            ".config/systemd/user/dotfiles-update.service",
+            ".config/systemd/user/dotfiles-update.timer",
+            ".local/bin/dotfiles-update",
+        ):
+            self.assertIn(path, deployer)
 
     def test_feature_enable_provisions_pinned_codex_sync_dependency(self) -> None:
         deployer = (REPO / "scripts/dotfiles").read_text()
@@ -291,6 +359,120 @@ class AgentSyncPortabilityTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(log.read_text().strip(), f"status --root {registered_root}")
 
+    def test_dotfiles_update_fast_forwards_and_preserves_non_overlapping_changes(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            remote = root / "remote.git"
+            source = root / "source"
+            home = root / "home"
+            checkout = home / ".dot_files"
+            subprocess.run(["git", "init", "--bare", "-q", str(remote)], check=True)
+            subprocess.run(["git", "clone", "-q", str(remote), str(source)], check=True)
+            subprocess.run(["git", "-C", str(source), "config", "user.name", "Test"], check=True)
+            subprocess.run(["git", "-C", str(source), "config", "user.email", "test@example.com"], check=True)
+            (source / "shared.txt").write_text("one\n")
+            (source / "local.txt").write_text("base\n")
+            subprocess.run(["git", "-C", str(source), "add", "."], check=True)
+            subprocess.run(["git", "-C", str(source), "commit", "-qm", "initial"], check=True)
+            subprocess.run(["git", "-C", str(source), "push", "-qu", "origin", "HEAD:main"], check=True)
+            subprocess.run(["git", "--git-dir", str(remote), "symbolic-ref", "HEAD", "refs/heads/main"], check=True)
+            subprocess.run(["git", "clone", "-q", str(remote), str(checkout)], check=True)
+            (checkout / "local.txt").write_text("host-only\n")
+            (source / "shared.txt").write_text("two\n")
+            subprocess.run(["git", "-C", str(source), "commit", "-qam", "update shared"], check=True)
+            subprocess.run(["git", "-C", str(source), "push", "-q"], check=True)
+
+            result = subprocess.run(
+                [str(REPO / ".local/bin/dotfiles-update")],
+                env=os.environ | {"HOME": str(home), "DOTFILES_DIR": str(checkout)},
+                capture_output=True,
+                text=True,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual((checkout / "shared.txt").read_text(), "two\n")
+            self.assertEqual((checkout / "local.txt").read_text(), "host-only\n")
+            self.assertIn("local.txt", subprocess.check_output(["git", "-C", str(checkout), "status", "--short"], text=True))
+
+    def test_dotfiles_update_refuses_overlapping_dirty_change(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            remote = root / "remote.git"
+            source = root / "source"
+            home = root / "home"
+            checkout = home / ".dot_files"
+            subprocess.run(["git", "init", "--bare", "-q", str(remote)], check=True)
+            subprocess.run(["git", "clone", "-q", str(remote), str(source)], check=True)
+            subprocess.run(["git", "-C", str(source), "config", "user.name", "Test"], check=True)
+            subprocess.run(["git", "-C", str(source), "config", "user.email", "test@example.com"], check=True)
+            (source / "shared.txt").write_text("base\n")
+            subprocess.run(["git", "-C", str(source), "add", "."], check=True)
+            subprocess.run(["git", "-C", str(source), "commit", "-qm", "initial"], check=True)
+            subprocess.run(["git", "-C", str(source), "push", "-qu", "origin", "HEAD:main"], check=True)
+            subprocess.run(["git", "--git-dir", str(remote), "symbolic-ref", "HEAD", "refs/heads/main"], check=True)
+            subprocess.run(["git", "clone", "-q", str(remote), str(checkout)], check=True)
+            old_head = subprocess.check_output(["git", "-C", str(checkout), "rev-parse", "HEAD"], text=True).strip()
+            (checkout / "shared.txt").write_text("host-only\n")
+            (source / "shared.txt").write_text("upstream\n")
+            subprocess.run(["git", "-C", str(source), "commit", "-qam", "update shared"], check=True)
+            subprocess.run(["git", "-C", str(source), "push", "-q"], check=True)
+
+            result = subprocess.run(
+                [str(REPO / ".local/bin/dotfiles-update")],
+                env=os.environ | {"HOME": str(home), "DOTFILES_DIR": str(checkout)},
+                capture_output=True,
+                text=True,
+            )
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual((checkout / "shared.txt").read_text(), "host-only\n")
+            self.assertEqual(
+                subprocess.check_output(["git", "-C", str(checkout), "rev-parse", "HEAD"], text=True).strip(),
+                old_head,
+            )
+
+    def test_dotfiles_update_refuses_divergent_local_commits(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            remote = root / "remote.git"
+            source = root / "source"
+            home = root / "home"
+            checkout = home / ".dot_files"
+            subprocess.run(["git", "init", "--bare", "-q", str(remote)], check=True)
+            subprocess.run(["git", "clone", "-q", str(remote), str(source)], check=True)
+            for repository in (source,):
+                subprocess.run(["git", "-C", str(repository), "config", "user.name", "Test"], check=True)
+                subprocess.run(["git", "-C", str(repository), "config", "user.email", "test@example.com"], check=True)
+            (source / "shared.txt").write_text("base\n")
+            subprocess.run(["git", "-C", str(source), "add", "."], check=True)
+            subprocess.run(["git", "-C", str(source), "commit", "-qm", "initial"], check=True)
+            subprocess.run(["git", "-C", str(source), "push", "-qu", "origin", "HEAD:main"], check=True)
+            subprocess.run(["git", "--git-dir", str(remote), "symbolic-ref", "HEAD", "refs/heads/main"], check=True)
+            subprocess.run(["git", "clone", "-q", str(remote), str(checkout)], check=True)
+            subprocess.run(["git", "-C", str(checkout), "config", "user.name", "Test"], check=True)
+            subprocess.run(["git", "-C", str(checkout), "config", "user.email", "test@example.com"], check=True)
+            (checkout / "local-commit.txt").write_text("local\n")
+            subprocess.run(["git", "-C", str(checkout), "add", "."], check=True)
+            subprocess.run(["git", "-C", str(checkout), "commit", "-qm", "local"], check=True)
+            (source / "upstream.txt").write_text("upstream\n")
+            subprocess.run(["git", "-C", str(source), "add", "."], check=True)
+            subprocess.run(["git", "-C", str(source), "commit", "-qm", "upstream"], check=True)
+            subprocess.run(["git", "-C", str(source), "push", "-q"], check=True)
+            old_head = subprocess.check_output(["git", "-C", str(checkout), "rev-parse", "HEAD"], text=True).strip()
+
+            result = subprocess.run(
+                [str(REPO / ".local/bin/dotfiles-update")],
+                env=os.environ | {"HOME": str(home), "DOTFILES_DIR": str(checkout)},
+                capture_output=True,
+                text=True,
+            )
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual(
+                subprocess.check_output(["git", "-C", str(checkout), "rev-parse", "HEAD"], text=True).strip(),
+                old_head,
+            )
+
     def test_dotfiles_status_only_requires_opted_in_remote_control_assets(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             home = pathlib.Path(temporary)
@@ -310,7 +492,7 @@ class AgentSyncPortabilityTests(unittest.TestCase):
                 check=True,
             )
             self.assertNotIn(str(home / ".local/bin/agent-sync"), without_feature.stdout)
-            self.assertIn("Status: 0 linked, 0 issues, 1 missing", without_feature.stdout)
+            self.assertIn("Status: 0 linked, 0 issues, 0 missing", without_feature.stdout)
 
             marker = home / ".config/dotfiles/features/ai-remote-control"
             marker.parent.mkdir(parents=True)
@@ -323,7 +505,7 @@ class AgentSyncPortabilityTests(unittest.TestCase):
                 check=True,
             )
             self.assertIn(str(home / ".local/bin/agent-sync"), with_feature.stdout)
-            self.assertIn("Status: 0 linked, 0 issues, 2 missing", with_feature.stdout)
+            self.assertIn("Status: 0 linked, 0 issues, 1 missing", with_feature.stdout)
 
     def test_feature_enable_links_and_reloads_without_restarting_services(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -391,10 +573,14 @@ class AgentSyncPortabilityTests(unittest.TestCase):
             self.assertEqual(directory_backups[0].read_text(), "legacy directory\n")
             self.assertEqual(
                 systemctl_log.read_text().splitlines(),
-                ["--user daemon-reload", "--user daemon-reload"],
+                [
+                    "--user daemon-reload",
+                    "--user enable --now agent-sync.timer dotfiles-update.timer",
+                    "--user daemon-reload",
+                    "--user enable --now agent-sync.timer dotfiles-update.timer",
+                ],
             )
             self.assertNotIn("restart", systemctl_log.read_text())
-            self.assertNotIn("enable", systemctl_log.read_text())
 
     def test_feature_enable_validates_managed_python_before_changes(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

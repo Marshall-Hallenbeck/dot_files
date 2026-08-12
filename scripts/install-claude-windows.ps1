@@ -67,6 +67,15 @@ function Copy-File([string]$Src, [string]$Dest) {
     Copy-Item -LiteralPath $Src -Destination $Dest -Force
 }
 
+function Seed-File([string]$Src, [string]$Dest) {
+    if (-not (Test-Path $Src)) { Write-Warning "seed not found: $Src"; return }
+    if (-not (Test-Path $Dest)) {
+        New-Item -ItemType Directory -Force -Path (Split-Path -Parent $Dest) | Out-Null
+        Copy-Item -LiteralPath $Src -Destination $Dest
+        Write-Host "  seeded: $Dest"
+    }
+}
+
 Write-Host "Deploying Claude config: $ClaudeSrc -> $ClaudeDest"
 New-Item -ItemType Directory -Force -Path $ClaudeDest, "$ClaudeDest\rules", "$ClaudeDest\agents", "$ClaudeDest\hooks", "$ClaudeDest\skills" | Out-Null
 
@@ -92,7 +101,7 @@ if (-not $jqInBash) {
 
 # ── File-based config (straight copy) ────────────────────────────
 Copy-File "$ClaudeSrc\global-CLAUDE.md"           "$ClaudeDest\CLAUDE.md"
-Copy-File "$ClaudeSrc\global-learned-insights.md" "$ClaudeDest\global-learned-insights.md"
+Seed-File "$ClaudeSrc\global-learned-insights.md" "$ClaudeDest\global-learned-insights.md"
 Copy-File "$ClaudeSrc\statusline.sh"              "$ClaudeDest\statusline.sh"
 Copy-File "$ClaudeSrc\hooks.json"                 "$ClaudeDest\hooks.json"
 

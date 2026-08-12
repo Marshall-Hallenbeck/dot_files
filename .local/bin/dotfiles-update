@@ -1,0 +1,60 @@
+#!/bin/bash
+set -euo pipefail
+
+DOTFILES_DIR="${DOTFILES_DIR:-$HOME/.dot_files}"
+REMOTE="${DOTFILES_REMOTE:-origin}"
+BRANCH="${DOTFILES_BRANCH:-main}"
+UPSTREAM="$REMOTE/$BRANCH"
+LOCK_DIR="${XDG_RUNTIME_DIR:-$HOME/.cache}"
+LOCK_FILE="$LOCK_DIR/dotfiles-update.lock"
+
+fail() {
+    printf 'dotfiles-update: %s\n' "$*" >&2
+    exit 1
+}
+
+[ -d "$DOTFILES_DIR/.git" ] || fail "$DOTFILES_DIR is not a Git checkout"
+mkdir -p "$LOCK_DIR"
+exec 9>"$LOCK_FILE"
+flock -n 9 || exit 0
+
+git -C "$DOTFILES_DIR" fetch --quiet "$REMOTE" "$BRANCH"
+head=$(git -C "$DOTFILES_DIR" rev-parse HEAD)
+upstream=$(git -C "$DOTFILES_DIR" rev-parse "$UPSTREAM")
+
+if [ "$head" = "$upstream" ]; then
+    exit 0
+fi
+
+if ! git -C "$DOTFILES_DIR" merge-base --is-ancestor "$head" "$upstream"; then
+    fail "local HEAD is not a fast-forward ancestor of $UPSTREAM; manual reconciliation required"
+fi
+
+temporary=$(mktemp -d "${TMPDIR:-/tmp}/dotfiles-update.XXXXXXXX")
+trap 'rm -rf "$temporary"' EXIT
+
+git -C "$DOTFILES_DIR" diff --name-only "$head" "$upstream" | sort -u >"$temporary/upstream"
+{
+    git -C "$DOTFILES_DIR" diff --name-only
+    git -C "$DOTFILES_DIR" diff --cached --name-only
+    git -C "$DOTFILES_DIR" ls-files --others --exclude-standard
+} | sort -u >"$temporary/local"
+
+if comm -12 "$temporary/upstream" "$temporary/local" | grep -q .; then
+    printf 'dotfiles-update: upstream changes overlap host-local changes:\n' >&2
+    comm -12 "$temporary/upstream" "$temporary/local" | sed 's/^/  /' >&2
+    exit 1
+fi
+
+git -C "$DOTFILES_DIR" merge --ff-only --quiet "$UPSTREAM"
+
+if [ -x "$DOTFILES_DIR/scripts/migrate-local-state" ]; then
+    "$DOTFILES_DIR/scripts/migrate-local-state" >/dev/null
+fi
+
+if [ -e "$HOME/.config/dotfiles/features/ai-remote-control" ]; then
+    "$DOTFILES_DIR/scripts/dotfiles" feature-enable ai-remote-control >/dev/null
+    "$HOME/.local/bin/agent-sync" --all --no-restart --quiet
+fi
+
+printf 'dotfiles-update: fast-forwarded %s to %s\n' "$BRANCH" "$(git -C "$DOTFILES_DIR" rev-parse --short HEAD)"

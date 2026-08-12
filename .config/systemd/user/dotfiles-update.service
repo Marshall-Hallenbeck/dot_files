@@ -1,0 +1,8 @@
+[Unit]
+Description=Fast-forward shared dotfiles and reconcile agent configuration
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/dotfiles-update

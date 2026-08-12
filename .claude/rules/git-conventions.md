@@ -13,6 +13,15 @@ Follow Conventional Commits: `<type>(scope): description`. Focus on "why" not "w
 - If no pull request exists, use the related GitHub issue in the subject. Never invent a reference.
 - Agent commit commands must not use `--no-verify` or `git commit -n`.
 
+## Pull Requests
+
+Before creating a PR with `gh pr create`, check for a PR template in the target repository:
+- `.github/PULL_REQUEST_TEMPLATE.md`
+- `.github/pull_request_template.md`
+- `PULL_REQUEST_TEMPLATE.md`
+
+If a template exists, use its exact structure. Fill every applicable section and checkbox. Do not invent a different format.
+
 ## Branch Naming
 
 Format: `<type>/<description>` or `<type>/<ticket>-<description>`

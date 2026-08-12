@@ -1,0 +1,12 @@
+[Unit]
+Description=Periodically fast-forward shared dotfiles
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=5min
+AccuracySec=30s
+Persistent=true
+Unit=dotfiles-update.service
+
+[Install]
+WantedBy=timers.target

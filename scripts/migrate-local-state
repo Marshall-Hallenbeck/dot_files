@@ -1,0 +1,50 @@
+#!/bin/bash
+set -euo pipefail
+
+DOTFILES_DIR="${DOTFILES_DIR:-$HOME/.dot_files}"
+BACKUP_DIR="${DOTFILES_MIGRATION_BACKUP:-$HOME/.dotfiles-backup/$(date +%Y%m%d-%H%M%S)-local-state}"
+
+backup() {
+    local path="$1" name="$2"
+    [ -e "$path" ] || [ -L "$path" ] || return 0
+    mkdir -p "$BACKUP_DIR"
+    cp -aL "$path" "$BACKUP_DIR/$name"
+}
+
+# Preserve the runtime-written learned knowledge as a real host-local file.
+insights="$HOME/.claude/global-learned-insights.md"
+seed="$DOTFILES_DIR/.claude/global-learned-insights.md"
+if [ -L "$insights" ]; then
+    temporary=$(mktemp "${insights}.XXXXXXXX")
+    cp -L "$insights" "$temporary"
+    rm "$insights"
+    mv "$temporary" "$insights"
+elif [ ! -e "$insights" ] && [ -f "$seed" ]; then
+    mkdir -p "$(dirname "$insights")"
+    cp "$seed" "$insights"
+fi
+
+# Replace tracked-config symlinks with small local wrappers. The tracked files
+# already include the matching *.local override at their end.
+if [ -L "$HOME/.zshrc" ] && [ "$(readlink -f "$HOME/.zshrc")" = "$(readlink -f "$DOTFILES_DIR/.zshrc")" ]; then
+    rm "$HOME/.zshrc"
+fi
+if [ ! -e "$HOME/.zshrc" ]; then
+    # Keep a literal HOME reference so it expands for each new shell.
+    # shellcheck disable=SC2016
+    printf '%s\n' 'source "$HOME/.dot_files/.zshrc"' > "$HOME/.zshrc"
+fi
+
+if [ -L "$HOME/.gitconfig" ] && [ "$(readlink -f "$HOME/.gitconfig")" = "$(readlink -f "$DOTFILES_DIR/.gitconfig")" ]; then
+    rm "$HOME/.gitconfig"
+fi
+if [ ! -e "$HOME/.gitconfig" ]; then
+    cat > "$HOME/.gitconfig" <<EOF
+[include]
+    path = $DOTFILES_DIR/.gitconfig
+EOF
+fi
+
+if [ -d "$BACKUP_DIR" ]; then
+    printf 'migrate-local-state: backups: %s\n' "$BACKUP_DIR"
+fi

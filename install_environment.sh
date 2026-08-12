@@ -41,6 +41,56 @@ link_file() {
     ln -s "$src" "$dest"
 }
 
+# Install a shell wrapper that sources the tracked configuration. Tool installers
+# can safely append host-specific entries to ~/.zshrc.local.
+install_shell_wrapper() {
+    local dest="$HOME/.zshrc" local_file="$HOME/.zshrc.local"
+    if [ -L "$dest" ] && [ "$(readlink -f "$dest")" = "$(readlink -f "$DOTFILES_DIR/.zshrc")" ]; then
+        rm "$dest"
+    elif [ -f "$dest" ] && ! grep -Fq '.dot_files/.zshrc' "$dest"; then
+        mkdir -p "$BACKUP_DIR"
+        cp "$dest" "$BACKUP_DIR/zshrc-pre-wrapper"
+        [ -e "$local_file" ] || cp "$dest" "$local_file"
+        rm "$dest"
+    fi
+    cat > "$dest" <<'EOF'
+source "$HOME/.dot_files/.zshrc"
+EOF
+}
+
+# Install a local Git wrapper. Shared defaults stay tracked. Credentials,
+# safe.directory entries, and other host-only state stay in ~/.gitconfig.local.
+install_git_wrapper() {
+    local dest="$HOME/.gitconfig" local_file="$HOME/.gitconfig.local"
+    if [ -L "$dest" ] && [ "$(readlink -f "$dest")" = "$(readlink -f "$DOTFILES_DIR/.gitconfig")" ]; then
+        rm "$dest"
+    elif [ -f "$dest" ] && ! grep -Fq '.dot_files/.gitconfig' "$dest"; then
+        mkdir -p "$BACKUP_DIR"
+        cp "$dest" "$BACKUP_DIR/gitconfig-pre-wrapper"
+        [ -e "$local_file" ] || cp "$dest" "$local_file"
+        rm "$dest"
+    fi
+    cat > "$dest" <<EOF
+[include]
+    path = $DOTFILES_DIR/.gitconfig
+EOF
+}
+
+# Runtime-written files are seeded once. They must not be symlinks into Git.
+seed_runtime_file() {
+    local seed="$1" dest="$2"
+    if [ -L "$dest" ] && [ "$(readlink -f "$dest")" = "$(readlink -f "$seed")" ]; then
+        local temporary
+        temporary=$(mktemp "${dest}.XXXXXXXX")
+        cp -L "$dest" "$temporary"
+        rm "$dest"
+        mv "$temporary" "$dest"
+    elif [ ! -e "$dest" ]; then
+        mkdir -p "$(dirname "$dest")"
+        cp "$seed" "$dest"
+    fi
+}
+
 # ── Clone or update repo ─────────────────────────────────────────
 if [ -d "$DOTFILES_DIR/.git" ]; then
     echo "Updating dotfiles repo..."
@@ -208,11 +258,11 @@ fi
 
 # ── Shell dotfiles (symlink with backup) ─────────────────────────
 # Installed AFTER tools so our versions are the final word.
-echo "Symlinking shell dotfiles..."
+echo "Deploying shell configuration..."
 link_file "$DOTFILES_DIR/.bash_aliases" ~/.bash_aliases
 link_file "$DOTFILES_DIR/.vimrc" ~/.vimrc
-link_file "$DOTFILES_DIR/.zshrc" ~/.zshrc
-link_file "$DOTFILES_DIR/.gitconfig" ~/.gitconfig
+install_shell_wrapper
+install_git_wrapper
 link_file "$DOTFILES_DIR/.conkyrc" ~/.conkyrc
 mkdir -p ~/.msf4
 link_file "$DOTFILES_DIR/.msf4/config" ~/.msf4/config
@@ -238,7 +288,7 @@ mkdir -p ~/.claude/rules ~/.claude/agents
 link_file "$DOTFILES_DIR/.claude/global-CLAUDE.md" ~/.claude/CLAUDE.md
 link_file "$DOTFILES_DIR/.claude/settings.json" ~/.claude/settings.json
 link_file "$DOTFILES_DIR/.claude/statusline.sh" ~/.claude/statusline.sh
-link_file "$DOTFILES_DIR/.claude/global-learned-insights.md" ~/.claude/global-learned-insights.md
+seed_runtime_file "$DOTFILES_DIR/.claude/global-learned-insights.md" ~/.claude/global-learned-insights.md
 chmod +x ~/.claude/statusline.sh
 
 # Hooks — remove stale directory symlink from older installs

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import argparse
-import fcntl
+import contextlib
 import hashlib
 import json
 import os
@@ -12,9 +12,14 @@ import shutil
 import subprocess
 import sys
 import time
-from typing import Any
+from typing import Any, Iterator
 
 import tomlkit
+
+if os.name == "nt":
+    import msvcrt
+else:
+    import fcntl
 
 HOME = pathlib.Path.home()
 STATE_DIR = HOME / ".cache/codex-config-sync"
@@ -28,10 +33,65 @@ def git_root(path: pathlib.Path) -> pathlib.Path:
 def load_json(path: pathlib.Path) -> dict[str, Any]:
     if not path.is_file():
         return {}
-    value = json.loads(path.read_text())
+    value = json.loads(path.read_text(encoding="utf-8-sig"))
     if not isinstance(value, dict):
         raise RuntimeError(f"expected object in {path}")
     return value
+
+
+@contextlib.contextmanager
+def file_lock(path: pathlib.Path) -> Iterator[None]:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a+b") as handle:
+        if os.name == "nt":
+            if handle.tell() == 0:
+                handle.write(b"0")
+                handle.flush()
+            handle.seek(0)
+            msvcrt.locking(handle.fileno(), msvcrt.LK_LOCK, 1)
+            try:
+                yield
+            finally:
+                handle.seek(0)
+                msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+        else:
+            fcntl.flock(handle, fcntl.LOCK_EX)
+            yield
+
+
+def replace_path_with_link_or_copy(source: pathlib.Path, target: pathlib.Path) -> bool:
+    """Link on POSIX. Copy on Windows, where symlinks often require elevation."""
+    if os.name == "nt":
+        if target.is_dir():
+            if _directory_digest(target) == _directory_digest(source):
+                return False
+            shutil.rmtree(target)
+        elif target.exists() or target.is_symlink():
+            target.unlink()
+        if source.is_dir():
+            shutil.copytree(source, target)
+        else:
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source, target)
+        return True
+    if target.is_symlink() and target.resolve() == source.resolve():
+        return False
+    if target.is_dir() and not target.is_symlink():
+        shutil.rmtree(target)
+    elif target.exists() or target.is_symlink():
+        target.unlink()
+    target.symlink_to(source, target_is_directory=source.is_dir())
+    return True
+
+
+def _directory_digest(path: pathlib.Path) -> str:
+    digest = hashlib.sha256()
+    if not path.is_dir():
+        return ""
+    for child in sorted(item for item in path.rglob("*") if item.is_file()):
+        digest.update(str(child.relative_to(path)).encode())
+        digest.update(child.read_bytes())
+    return digest.hexdigest()
 
 
 def source_fingerprint(root: pathlib.Path) -> str:
@@ -135,20 +195,16 @@ def sync_skills(previous_managed: set[str]) -> tuple[list[str], list[str]]:
     for name in sorted(current):
         source = source_root / name
         target = target_root / name
-        if target.is_symlink() and target.resolve() == source.resolve():
-            continue
-        if target.is_dir() and not target.is_symlink():
-            shutil.rmtree(target)
-        elif target.exists() or target.is_symlink():
-            target.unlink()
-        target.symlink_to(source, target_is_directory=True)
-        changed.append(f"linked:{name}")
+        if replace_path_with_link_or_copy(source, target):
+            changed.append(f"{'copied' if os.name == 'nt' else 'linked'}:{name}")
     return sorted(current), changed
 
 
 def sync_plugins() -> list[str]:
     settings = load_json(HOME / ".claude/settings.json").get("enabledPlugins", {}) or {}
     path = HOME / ".codex/config.toml"
+    if not path.is_file():
+        return []
     doc = tomlkit.parse(path.read_text())
     plugins = doc.get("plugins")
     if plugins is None:
@@ -199,12 +255,8 @@ def sync_hook_scripts() -> list[str]:
         target = target_root / name
         if not source.is_file():
             raise RuntimeError(f"missing Claude hook source: {source}")
-        if target.is_symlink() and target.resolve() == source.resolve():
-            continue
-        if target.exists() or target.is_symlink():
-            target.unlink()
-        target.symlink_to(source)
-        changed.append(f"linked:{name}")
+        if replace_path_with_link_or_copy(source, target):
+            changed.append(f"{'copied' if os.name == 'nt' else 'linked'}:{name}")
     return changed
 
 
@@ -220,8 +272,7 @@ def main() -> int:
 
     if args.compat_only:
         state_file = STATE_DIR / "compat.json"
-        with (STATE_DIR / "compat.lock").open("w") as lock:
-            fcntl.flock(lock, fcntl.LOCK_EX)
+        with file_lock(STATE_DIR / "compat.lock"):
             state = load_json(state_file)
             hook_changes = sync_hook_scripts()
             skills, skill_changes = sync_skills(set(state.get("skillNames", [])))
@@ -247,8 +298,7 @@ def main() -> int:
     root = git_root(pathlib.Path(args.cwd).expanduser().resolve())
     key = hashlib.sha256(str(root).encode()).hexdigest()
     state_file = STATE_DIR / f"{key}.json"
-    with (STATE_DIR / f"{key}.lock").open("w") as lock:
-        fcntl.flock(lock, fcntl.LOCK_EX)
+    with file_lock(STATE_DIR / f"{key}.lock"):
         state = load_json(state_file)
         fingerprint = source_fingerprint(root)
         hook_changes = sync_hook_scripts()

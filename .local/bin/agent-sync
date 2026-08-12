@@ -254,16 +254,16 @@ def main() -> int:
 
     if args.all:
         roots = discover_roots()
-        if not roots:
-            if not args.quiet:
-                print(json.dumps({"status": "no-projects", "roots": []}))
-            return 0
         return_code = 0
         if args.action == "sync":
             compat_command = [str(COMPAT_SYNC), "--compat-only", "--quiet"]
             if args.force:
                 compat_command.append("--force")
             run_checked(compat_command, True)
+        if not roots:
+            if not args.quiet:
+                print(json.dumps({"status": "no-projects", "roots": []}))
+            return return_code
         for root in roots:
             command = [sys.executable, str(pathlib.Path(__file__).resolve()), args.action, "--root", str(root)]
             if args.action == "sync":
