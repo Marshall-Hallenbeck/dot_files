@@ -7,10 +7,11 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $taskName = 'DotfilesAgentSync'
-$powerShell = (Get-Command powershell.exe).Source
-$script = Join-Path $DotfilesDir 'scripts\dotfiles-update-windows.ps1'
-$arguments = "-NoProfile -NonInteractive -ExecutionPolicy Bypass -File `"$script`" -DotfilesDir `"$DotfilesDir`""
-$action = New-ScheduledTaskAction -Execute $powerShell -Argument $arguments
+$wscript = Join-Path $env:SystemRoot 'System32\wscript.exe'
+$launcher = Join-Path $DotfilesDir 'scripts\run-agent-sync-hidden.vbs'
+if (-not (Test-Path $launcher)) { throw "Hidden task launcher is missing: $launcher" }
+$arguments = "//B //NoLogo `"$launcher`""
+$action = New-ScheduledTaskAction -Execute $wscript -Argument $arguments
 $trigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(2) -RepetitionInterval (New-TimeSpan -Minutes 5)
 $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -MultipleInstances IgnoreNew -ExecutionTimeLimit (New-TimeSpan -Minutes 10)
 $currentIdentity = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
