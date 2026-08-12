@@ -226,6 +226,7 @@ class AgentSyncPortabilityTests(unittest.TestCase):
         self.assertNotIn("Restart", sync)
 
         installer = (REPO / "scripts/install-agent-sync-windows.ps1").read_text()
+        self.assertIn("[System.Security.Principal.WindowsIdentity]::GetCurrent().Name", installer)
         self.assertIn("DotfilesAgentSync", installer)
         self.assertIn("New-TimeSpan -Minutes 5", installer)
         self.assertIn("StartWhenAvailable", installer)
