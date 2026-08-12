@@ -18,14 +18,17 @@ function Resolve-NpmCommand([string]$Name) {
 }
 
 function Resolve-ManagedPython {
-    $candidates = @(
-        (Join-Path $env:LOCALAPPDATA 'hermes\hermes-agent\venv\Scripts\python.exe'),
-        (Join-Path $homeDir '.local\share\codex-config-sync-venv\Scripts\python.exe')
-    )
-    foreach ($candidate in $candidates) {
-        if (Test-Path $candidate) { return $candidate }
+    $venvDir = Join-Path $homeDir '.local\share\codex-config-sync-venv'
+    $python = Join-Path $venvDir 'Scripts\python.exe'
+    $uv = Get-Command 'uv' -ErrorAction SilentlyContinue
+    if (-not $uv) { throw 'uv is required to provision the Codex compatibility environment' }
+    if (-not (Test-Path $python)) {
+        & $uv.Source venv $venvDir --python '3.13'
+        if ($LASTEXITCODE -ne 0) { throw 'Codex compatibility virtual environment provisioning failed' }
     }
-    throw 'A managed Python interpreter is required for Codex compatibility sync'
+    & $uv.Source pip install --python $python --quiet 'tomlkit==0.13.3'
+    if ($LASTEXITCODE -ne 0) { throw 'tomlkit provisioning failed' }
+    return $python
 }
 
 # Merge the shared Claude configuration while preserving Windows-only settings.
@@ -64,8 +67,6 @@ foreach ($root in $roots) {
 }
 
 $python = Resolve-ManagedPython
-& $python -m pip install --disable-pip-version-check --quiet 'tomlkit==0.13.3'
-if ($LASTEXITCODE -ne 0) { throw 'tomlkit provisioning failed' }
 & $python (Join-Path $DotfilesDir '.local\libexec\codex-config-sync.py') --compat-only --quiet
 if ($LASTEXITCODE -ne 0) { throw 'Codex compatibility synchronization failed' }
 

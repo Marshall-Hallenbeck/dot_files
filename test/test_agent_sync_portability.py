@@ -219,6 +219,9 @@ class AgentSyncPortabilityTests(unittest.TestCase):
         self.assertIn("install-claude-windows.ps1", sync)
         self.assertIn("ruler apply", sync)
         self.assertIn("codex-config-sync.py", sync)
+        self.assertIn("uv.Source venv", sync)
+        self.assertIn("uv.Source pip install", sync)
+        self.assertNotIn("hermes\\hermes-agent\\venv", sync)
         self.assertIn(".agents\\skills", sync)
         self.assertNotIn("Restart", sync)
 
