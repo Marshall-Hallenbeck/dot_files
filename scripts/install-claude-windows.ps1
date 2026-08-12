@@ -187,15 +187,16 @@ $local = if (Test-Path "$ClaudeDest\settings.local.json") {
 # Union permissions.allow from repo + host
 $allow = @()
 foreach ($o in @($local, $repoLocal)) {
-    if ($o.PSObject.Properties.Name -contains 'permissions' -and $o.permissions.PSObject.Properties.Name -contains 'allow') {
+    if ($null -ne $o.PSObject.Properties['permissions'] -and
+        $null -ne $o.permissions.PSObject.Properties['allow']) {
         $allow += $o.permissions.allow
     }
 }
 $allow = $allow | Select-Object -Unique
-if ($local.PSObject.Properties.Name -notcontains 'permissions') {
+if ($null -eq $local.PSObject.Properties['permissions']) {
     $local | Add-Member -NotePropertyName 'permissions' -NotePropertyValue ([pscustomobject]@{})
 }
-if ($local.permissions.PSObject.Properties.Name -notcontains 'allow') {
+if ($null -eq $local.permissions.PSObject.Properties['allow']) {
     $local.permissions | Add-Member -NotePropertyName 'allow' -NotePropertyValue @()
 }
 $local.permissions.allow = $allow

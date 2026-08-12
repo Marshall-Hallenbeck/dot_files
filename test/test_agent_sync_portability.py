@@ -207,6 +207,7 @@ class AgentSyncPortabilityTests(unittest.TestCase):
         )
         self.assertIn("Seed-File", windows)
         self.assertIn('Test-Path "$ClaudeSrc\\settings.local.json"', windows)
+        self.assertIn("PSObject.Properties['permissions']", windows)
 
     def test_windows_updater_is_fail_closed_and_runs_agent_sync(self) -> None:
         updater = (REPO / "scripts/dotfiles-update-windows.ps1").read_text()
