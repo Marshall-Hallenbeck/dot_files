@@ -120,6 +120,37 @@ Compare the saved label names with both the original label names and the applica
 - Label application fails: abort and report the command failure. Do not start reconnaissance.
 - Label verification fails, omits an original label, or omits an applicable label: abort and report the mismatch. Do not start reconnaissance.
 
+### 1b. Announce the Session (Claim the Issue)
+
+Other agents may be working the same backlog. Before reconnaissance, check for
+and post a claim so parallel agents skip this issue.
+
+If the repository has `scripts/agent-claim-issue.sh` (Turin's Tavern does),
+use it — it posts the session-info comment and manages the `in-progress`
+label:
+
+```bash
+./scripts/agent-claim-issue.sh check <NUMBER>   # exit 3 = already claimed → stop and report
+./scripts/agent-claim-issue.sh claim <NUMBER>
+```
+
+Otherwise post the same information inline:
+
+```bash
+gh issue comment <NUMBER> --body "🤖 Agent session claim — working on this issue.
+Session: \`${CLAUDE_CODE_SESSION_ID:-unknown}\`
+Host: \`$(hostname)\`
+Branch: \`$(git branch --show-current)\`
+Worktree: \`$(git rev-parse --show-toplevel)\`
+Claimed at: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+```
+
+Before claiming, read the issue's recent comments: an existing claim comment
+from another session that has no matching release means the issue is taken —
+stop and report instead of duplicating work. When you finish or abandon the
+issue, release the claim (`agent-claim-issue.sh release <NUMBER> "<reason>"`,
+or a matching comment) so the issue becomes available again.
+
 ## Step 2: Reconnaissance (BEFORE Any Implementation)
 
 Run these checks — all are required before writing any code:
@@ -250,20 +281,27 @@ Grep(pattern: "import.*<changed-module>", glob: "*.test.*")
 - Edge cases mentioned in the issue
 - Regression: existing behavior that should NOT have changed
 
-### 5c. Run the full test suite
+### 5c. Run the affected tests
+
+Select scope by impact — do not run every suite for every change:
 
 ```bash
-# Run unit tests
-npm run jest
-
-# Run typecheck
+# Always: unit/component tests directly related to the changed files + typecheck
+npm run jest -- <affected-test-files>
 npm run typecheck
 
-# Run E2E tests if UI behavior changed
-npm run test:e2e
+# Only when a database/API/service boundary changed: affected integration suite
+# Only when browser-only behavior or a user workflow changed: affected E2E spec(s)
+npm run test:e2e -- <affected-spec>
 ```
 
-**All tests must pass before claiming completion.** Show output with pass/fail counts.
+Run the full E2E suite only for cascading changes (shared auth/session, global
+providers/layout/routing, API or schema contracts consumed by multiple
+workflows, build/runtime/dependency configuration) or when explicitly asked
+for full validation. If the project defines its own dispatcher (e.g.
+`/run-tests` in Turin's Tavern), use it — it encodes these rules.
+
+**All selected tests must pass before claiming completion.** Show output with pass/fail counts.
 
 ## Quick Reference
 
