@@ -88,7 +88,6 @@ cmd_status() {
         .gitignore
         .dockerignore
         .claude/CLAUDE.md
-        .claude/global-learned-insights.md
         .gitconfig
         .zshrc
     )

@@ -130,7 +130,7 @@ Simple behavioral rules (one sentence) go directly in MEMORY.md as inline text â
 
 ## Learned Insights
 
-Cross-project insights are accumulated in `~/.Codex/global-learned-insights.md`. Read this file at the start of each session to benefit from prior observations. Per-project insights are stored in `<project-root>/.Codex/project-learned-insights.md` when present.
+Cross-project insights are accumulated in `~/.codex/global-learned-insights.md`. Read this file at the start of each session to benefit from prior observations. Per-project insights are stored in `<project-root>/.codex/project-learned-insights.md` when present.
 
 ## Dotfiles Management
 

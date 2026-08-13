@@ -192,13 +192,8 @@ class AgentSyncPortabilityTests(unittest.TestCase):
         installer = (REPO / "install_environment.sh").read_text()
         self.assertNotIn('link_file "$DOTFILES_DIR/.zshrc" ~/.zshrc', installer)
         self.assertNotIn('link_file "$DOTFILES_DIR/.gitconfig" ~/.gitconfig', installer)
-        self.assertNotIn(
-            'link_file "$DOTFILES_DIR/.claude/global-learned-insights.md" ~/.claude/global-learned-insights.md',
-            installer,
-        )
         self.assertIn("install_shell_wrapper", installer)
         self.assertIn("install_git_wrapper", installer)
-        self.assertIn("seed_runtime_file", installer)
 
         windows = (REPO / "scripts/install-claude-windows.ps1").read_text()
         self.assertNotIn(
@@ -208,6 +203,20 @@ class AgentSyncPortabilityTests(unittest.TestCase):
         self.assertIn("Seed-File", windows)
         self.assertIn('Test-Path "$ClaudeSrc\\settings.local.json"', windows)
         self.assertIn("PSObject.Properties['permissions']", windows)
+
+    def test_linux_installer_links_shared_learned_insights(self) -> None:
+        installer = (REPO / "install_environment.sh").read_text()
+        source = '$DOTFILES_DIR/.claude/global-learned-insights.md'
+
+        self.assertIn(
+            f'link_file "{source}" ~/.claude/global-learned-insights.md',
+            installer,
+        )
+        self.assertIn(
+            f'link_file "{source}" ~/.codex/global-learned-insights.md',
+            installer,
+        )
+        self.assertNotIn("seed_runtime_file", installer)
 
     def test_windows_updater_is_fail_closed_and_runs_agent_sync(self) -> None:
         updater = (REPO / "scripts/dotfiles-update-windows.ps1").read_text()

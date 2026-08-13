@@ -90,6 +90,14 @@ check_link "CLAUDE.md" ~/.claude/CLAUDE.md
 check_link "statusline.sh" ~/.claude/statusline.sh
 check "statusline.sh executable" test -x ~/.claude/statusline.sh
 check_link "settings.json" ~/.claude/settings.json
+check_link "Claude learned insights" ~/.claude/global-learned-insights.md
+check_link "Codex learned insights" ~/.codex/global-learned-insights.md
+# shellcheck disable=SC2016
+check "learned insights share the tracked file" bash -c '
+    expected=$(readlink -f "$HOME/.dot_files/.claude/global-learned-insights.md") &&
+    [ "$(readlink -f "$HOME/.claude/global-learned-insights.md")" = "$expected" ] &&
+    [ "$(readlink -f "$HOME/.codex/global-learned-insights.md")" = "$expected" ]
+'
 
 echo "── Claude Code rules ──"
 for rule in verification coding-practices git-conventions web-dev error-handling docker; do

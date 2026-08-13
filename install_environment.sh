@@ -76,21 +76,6 @@ install_git_wrapper() {
 EOF
 }
 
-# Runtime-written files are seeded once. They must not be symlinks into Git.
-seed_runtime_file() {
-    local seed="$1" dest="$2"
-    if [ -L "$dest" ] && [ "$(readlink -f "$dest")" = "$(readlink -f "$seed")" ]; then
-        local temporary
-        temporary=$(mktemp "${dest}.XXXXXXXX")
-        cp -L "$dest" "$temporary"
-        rm "$dest"
-        mv "$temporary" "$dest"
-    elif [ ! -e "$dest" ]; then
-        mkdir -p "$(dirname "$dest")"
-        cp "$seed" "$dest"
-    fi
-}
-
 # ── Clone or update repo ─────────────────────────────────────────
 if [ -d "$DOTFILES_DIR/.git" ]; then
     echo "Updating dotfiles repo..."
@@ -230,6 +215,7 @@ fi
 mkdir -p ~/.codex
 link_file "$DOTFILES_DIR/.codex/AGENTS.md" ~/.codex/AGENTS.md
 link_file "$DOTFILES_DIR/.codex/hooks.json" ~/.codex/hooks.json
+link_file "$DOTFILES_DIR/.claude/global-learned-insights.md" ~/.codex/global-learned-insights.md
 
 # ── GitHub Copilot ───────────────────────────────────────────────
 if ! command -v copilot &>/dev/null; then
@@ -288,7 +274,7 @@ mkdir -p ~/.claude/rules ~/.claude/agents
 link_file "$DOTFILES_DIR/.claude/global-CLAUDE.md" ~/.claude/CLAUDE.md
 link_file "$DOTFILES_DIR/.claude/settings.json" ~/.claude/settings.json
 link_file "$DOTFILES_DIR/.claude/statusline.sh" ~/.claude/statusline.sh
-seed_runtime_file "$DOTFILES_DIR/.claude/global-learned-insights.md" ~/.claude/global-learned-insights.md
+link_file "$DOTFILES_DIR/.claude/global-learned-insights.md" ~/.claude/global-learned-insights.md
 chmod +x ~/.claude/statusline.sh
 
 # Hooks — remove stale directory symlink from older installs
