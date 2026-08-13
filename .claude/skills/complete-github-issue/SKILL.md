@@ -123,33 +123,22 @@ Compare the saved label names with both the original label names and the applica
 ### 1b. Announce the Session (Claim the Issue)
 
 Other agents may be working the same backlog. Before reconnaissance, check for
-and post a claim so parallel agents skip this issue.
-
-If the repository has `scripts/agent-claim-issue.sh` (Turin's Tavern does),
-use it — it posts the session-info comment and manages the `in-progress`
-label:
+and post a claim so parallel agents skip this issue. Use the `claim-issue`
+skill (`~/.claude/skills/claim-issue/`); prefer a project-local copy such as
+`scripts/agent-claim-issue.sh` when the repo ships one:
 
 ```bash
-./scripts/agent-claim-issue.sh check <NUMBER>   # exit 3 = already claimed → stop and report
-./scripts/agent-claim-issue.sh claim <NUMBER>
+~/.claude/skills/claim-issue/claim-issue.sh check <NUMBER>   # exit 3 = already claimed → stop and report
+~/.claude/skills/claim-issue/claim-issue.sh claim <NUMBER>
 ```
 
-Otherwise post the same information inline:
+An active claim from another session means the issue is taken — stop and
+report instead of duplicating work. When you finish or abandon the issue,
+release the claim so the issue becomes available again:
 
 ```bash
-gh issue comment <NUMBER> --body "🤖 Agent session claim — working on this issue.
-Session: \`${CLAUDE_CODE_SESSION_ID:-unknown}\`
-Host: \`$(hostname)\`
-Branch: \`$(git branch --show-current)\`
-Worktree: \`$(git rev-parse --show-toplevel)\`
-Claimed at: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+~/.claude/skills/claim-issue/claim-issue.sh release <NUMBER> "<reason>"
 ```
-
-Before claiming, read the issue's recent comments: an existing claim comment
-from another session that has no matching release means the issue is taken —
-stop and report instead of duplicating work. When you finish or abandon the
-issue, release the claim (`agent-claim-issue.sh release <NUMBER> "<reason>"`,
-or a matching comment) so the issue becomes available again.
 
 ## Step 2: Reconnaissance (BEFORE Any Implementation)
 

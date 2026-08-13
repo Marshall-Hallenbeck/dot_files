@@ -98,7 +98,18 @@ gh pr view <PR-NUMBER> --json labels
 
 Compare the saved label names with the selected label names. Verification must show every selected label. If the result omits a selected label, treat verification as failed and abort.
 
-### 7. Report Success
+### 7. Claimed Issue Tie-In
+
+If this branch's work claimed a GitHub issue (see the `claim-issue` skill),
+keep the claim while the PR is open:
+
+- The PR body must carry `Closes #<N>` so the merge closes the issue.
+- After the PR merges, release the claim:
+  `~/.claude/skills/claim-issue/claim-issue.sh release <N> "merged in PR #<PR>"`
+  (or the project-local copy, e.g. `scripts/agent-claim-issue.sh`).
+- If the PR is abandoned or closed unmerged, release with that reason instead.
+
+### 8. Report Success
 
 ```
 PR Created
@@ -106,6 +117,7 @@ Title: [PR title]
 URL: [PR URL]
 Branch: [branch] → main
 Labels: [saved labels]
+Claimed issue: [#N still claimed until merge | none]
 ```
 
 ## Error Handling
