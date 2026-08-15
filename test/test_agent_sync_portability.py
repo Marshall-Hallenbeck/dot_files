@@ -599,6 +599,36 @@ class AgentSyncPortabilityTests(unittest.TestCase):
                 old_head,
             )
 
+    def test_dotfiles_status_ignores_repo_internal_ruler_sources(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            home = pathlib.Path(temporary)
+            dotfiles = home / ".dot_files"
+            (dotfiles / ".ruler").mkdir(parents=True)
+            (dotfiles / ".ai-config").mkdir()
+            (dotfiles / ".codex").mkdir()
+            (dotfiles / ".zshrc").write_text("# shared\n")
+            # Ruler source and generated intermediates feed agent-sync; they are
+            # never deployed to $HOME, so status must not audit them.
+            (dotfiles / ".ruler/AGENTS.md").write_text("# shared\n")
+            (dotfiles / ".ruler/ruler.toml").write_text("[agents.claude]\n")
+            (dotfiles / ".ai-config/agent-sync.toml").write_text("[instructions]\n")
+            (dotfiles / ".ai-config/CLAUDE.shared.md").write_text("# generated\n")
+            (dotfiles / ".codex/verify-hook-trust.py").write_text("# helper\n")
+            subprocess.run(["git", "init", "-q", str(dotfiles)], check=True)
+            subprocess.run(["git", "-C", str(dotfiles), "add", "."], check=True)
+
+            result = subprocess.run(
+                [str(REPO / "scripts/dotfiles"), "status"],
+                env=os.environ | {"HOME": str(home)},
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+
+            self.assertIn("Status: 0 linked, 0 issues, 0 missing", result.stdout)
+            for absent in (".ruler", ".ai-config", "verify-hook-trust.py"):
+                self.assertNotIn(absent, result.stdout)
+
     def test_dotfiles_status_only_requires_opted_in_remote_control_assets(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             home = pathlib.Path(temporary)

@@ -90,6 +90,16 @@ cmd_status() {
         .claude/CLAUDE.md
         .gitconfig
         .zshrc
+        .codex/verify-hook-trust.py
+    )
+
+    # Directories whose contents are repo-internal. The Ruler source and the
+    # generated intermediates are inputs to agent-sync, which publishes the
+    # tracked global files; nothing under them is deployed to $HOME, so a
+    # matching ~/.ruler or ~/.ai-config would be wrong rather than missing.
+    local -a repo_only_prefixes=(
+        .ruler/
+        .ai-config/
     )
 
     # Files deployed to a different name: repo_path -> home_path
@@ -108,6 +118,12 @@ cmd_status() {
         local skip=false
         for excluded in "${repo_only[@]}"; do
             if [ "$rel_path" = "$excluded" ]; then
+                skip=true
+                break
+            fi
+        done
+        for prefix in "${repo_only_prefixes[@]}"; do
+            if [ "${rel_path#"$prefix"}" != "$rel_path" ]; then
                 skip=true
                 break
             fi
