@@ -1,0 +1,18 @@
+# Canonical configuration for the dotfiles repository, which acts as the global
+# Ruler root (docs/plans/2026-08-13-bidirectional-ruler-sync-design.md:52).
+#
+# Ruler writes only the shared half of each instruction file here. agent-sync
+# then appends the matching .ai-config overlay and writes the real global files
+# named in .ai-config/agent-sync.toml. Do not point Ruler straight at those
+# files: the overlay content would be lost on the next apply.
+#
+# Ruler rejects any table it does not recognize, so agent-sync settings live in
+# .ai-config/agent-sync.toml rather than here.
+
+[agents.claude]
+enabled = true
+output_path = ".ai-config/CLAUDE.shared.md"
+
+[agents.codex]
+enabled = true
+output_path = ".ai-config/AGENTS.shared.md"

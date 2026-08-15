@@ -1,0 +1,13 @@
+# Final instruction files for this root.
+#
+# agent-sync appends .ai-config/AGENTS.<tool>.md to the shared file Ruler
+# generated, then writes the result to the path named here. A root without this
+# file keeps the defaults, CLAUDE.md and AGENTS.md.
+#
+# These two paths are the tracked files install_environment.sh links to
+# ~/.claude/CLAUDE.md and ~/.codex/AGENTS.md, so a sync updates the instructions
+# both tools actually load.
+
+[instructions]
+claude = ".claude/global-CLAUDE.md"
+codex = ".codex/AGENTS.md"
