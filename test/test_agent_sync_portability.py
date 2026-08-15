@@ -6,6 +6,7 @@ import importlib.util
 import os
 import pathlib
 import subprocess
+import sys
 import tempfile
 import types
 import unittest
@@ -37,6 +38,37 @@ def load_codex_config_sync():
 
 
 class AgentSyncPortabilityTests(unittest.TestCase):
+    def test_agent_sync_uses_tomlkit_when_stdlib_tomllib_is_unavailable(self) -> None:
+        code = r'''
+import builtins
+import runpy
+import sys
+
+real_import = builtins.__import__
+
+
+def import_without_tomllib(name, *args, **kwargs):
+    if name == "tomllib":
+        raise ModuleNotFoundError("No module named 'tomllib'", name="tomllib")
+    return real_import(name, *args, **kwargs)
+
+
+builtins.__import__ = import_without_tomllib
+module = runpy.run_path(sys.argv[1], run_name="agent_sync_fallback")
+parsed = module["tomllib"].loads('[instructions]\nclaude = ".claude/global-CLAUDE.md"\n')
+assert type(parsed) is dict
+assert parsed == {"instructions": {"claude": ".claude/global-CLAUDE.md"}}
+print("tomlkit_fallback=plain-dict")
+'''
+        result = subprocess.run(
+            [sys.executable, "-c", code, str(AGENT_SYNC)],
+            capture_output=True,
+            text=True,
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("tomlkit_fallback=plain-dict", result.stdout)
+
     def test_codex_config_sync_enables_default_user_input_requests(self) -> None:
         codex_config_sync = load_codex_config_sync()
         with tempfile.TemporaryDirectory() as temporary:
@@ -382,6 +414,10 @@ class AgentSyncPortabilityTests(unittest.TestCase):
         self.assertIn("RandomizedDelaySec=5min", timer)
         self.assertNotIn("OnUnitActiveSec=", timer)
         self.assertIn("Slice=ai-agents.slice", service)
+        self.assertIn(
+            "ExecStart=%h/.local/share/codex-config-sync-venv/bin/python %h/.local/bin/agent-sync --all --no-restart --quiet",
+            service,
+        )
         self.assertIn("CPUQuota=50%", service)
         self.assertIn("MemoryMax=1G", service)
         self.assertIn("TasksMax=64", service)
