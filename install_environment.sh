@@ -2,11 +2,28 @@
 set -euo pipefail
 
 NODE_VERSION=24
+# Pinned: .local/bin/agent-sync refuses to run against any other release
+# (EXPECTED_RULER_VERSION). Change both together.
+RULER_VERSION=0.3.44
 DOTFILES_DIR="$HOME/.dot_files"
 DOTFILES_REPO="https://github.com/Marshall-Hallenbeck/dot_files.git"
 BACKUP_DIR="$HOME/.dotfiles-backup/$(date +%Y%m%d-%H%M%S)"
 
 # ── Helper functions ─────────────────────────────────────────────
+
+# Report whether a command is installed on the Linux side. WSL inherits the
+# Windows PATH, where extensionless npm global shims (codex, ruler) resolve but
+# cannot run — they exec `node`, which exists only as node.exe on that side. A
+# plain `command -v` guard sees those and skips the install, leaving the tool
+# permanently broken, so treat anything under /mnt as absent.
+have_command() {
+    local resolved
+    resolved=$(command -v "$1" 2>/dev/null) || return 1
+    case "$resolved" in
+        /mnt/*) return 1 ;;
+    esac
+    return 0
+}
 
 # Create a symlink from repo file to destination, backing up existing non-link files.
 link_file() {
@@ -93,7 +110,7 @@ for pkg in zsh tmux vim python3-pip python3-venv git git-lfs virtualenvwrapper c
 done
 
 # gh (GitHub CLI) requires its own apt repo
-if ! command -v gh &>/dev/null; then
+if ! have_command gh; then
     echo "Installing GitHub CLI..."
     sudo mkdir -p -m 755 /etc/apt/keyrings
     out=$(mktemp) && wget -nv -O"$out" https://cli.github.com/packages/githubcli-archive-keyring.gpg
@@ -106,7 +123,7 @@ if ! command -v gh &>/dev/null; then
 fi
 
 # ── Docker ───────────────────────────────────────────────────────
-if ! command -v docker &>/dev/null; then
+if ! have_command docker; then
     echo "Installing Docker..."
     sudo install -m 0755 -d /etc/apt/keyrings
 
@@ -187,6 +204,14 @@ if ! nvm ls "$NODE_VERSION" &>/dev/null; then
 fi
 nvm alias default "$NODE_VERSION"
 
+# Every npm-installed CLI below uses a `#!/usr/bin/env node` shebang, but nvm
+# only puts node on PATH in interactive shells. Expose the default node
+# system-wide so those CLIs also run from systemd user units (agent-sync.service
+# has PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin) and
+# from non-login shells. Without this every /usr/local/bin npm shim fails with
+# "env: 'node': No such file or directory".
+sudo ln -sf "$(nvm which default)" /usr/local/bin/node
+
 if [ ! -f "$HOME/.atuin/bin/env" ]; then
     echo "Installing atuin..."
     # atuin's installer declares #!/bin/sh but uses bashisms — it exits 2 under
@@ -195,49 +220,73 @@ if [ ! -f "$HOME/.atuin/bin/env" ]; then
 fi
 
 # curlconverter
-if ! command -v curlconverter &>/dev/null; then
+if ! have_command curlconverter; then
     echo "Installing curlconverter..."
     npm install --global curlconverter
 fi
 
 # ── Claude Code (native installer, auto-updates) ────────────────
-if ! command -v claude &>/dev/null; then
+if ! have_command claude; then
     echo "Installing Claude Code..."
     curl -fsSL https://claude.ai/install.sh | bash
 fi
 
 # ── OpenAI Codex ─────────────────────────────────────────────────
-if ! command -v codex &>/dev/null; then
+# Guard on the package, not the command: once Remote Control is enabled,
+# ~/.local/bin/codex is a dotfiles wrapper that delegates to the real binary, so
+# a command-name check would report Codex present and skip installing it.
+if [ ! -d "$(npm prefix -g)/lib/node_modules/@openai/codex" ]; then
     echo "Installing OpenAI Codex..."
     npm install -g @openai/codex
     sudo ln -sf "$(npm prefix -g)/bin/codex" /usr/local/bin/codex
 fi
-mkdir -p ~/.codex
+# The Remote Control wrapper (.local/bin/codex) and codex-app-server.service both
+# run ~/.codex/packages/standalone/current/codex. npm installs the native binary
+# under a per-platform vendor directory instead, so publish it at the path they
+# expect. Point at the native binary, not the npm shim: the shim spawns a child
+# node process, which would sit between systemd and the long-lived app server.
+codex_vendor_bin=$(find "$(npm prefix -g)/lib/node_modules/@openai/codex/node_modules/@openai" \
+    -type d -path '*/vendor/*/bin' -print -quit)
+mkdir -p ~/.codex/packages/standalone
+ln -sfn "$codex_vendor_bin" ~/.codex/packages/standalone/current
+
 link_file "$DOTFILES_DIR/.codex/AGENTS.md" ~/.codex/AGENTS.md
 link_file "$DOTFILES_DIR/.codex/hooks.json" ~/.codex/hooks.json
 link_file "$DOTFILES_DIR/.claude/global-learned-insights.md" ~/.codex/global-learned-insights.md
 
 # ── GitHub Copilot ───────────────────────────────────────────────
-if ! command -v copilot &>/dev/null; then
+if ! have_command copilot; then
     echo "Installing GitHub Copilot..."
     npm install -g @github/copilot
     sudo ln -sf "$(npm prefix -g)/bin/copilot" /usr/local/bin/copilot
 fi
 
 # ── Google Gemini CLI ────────────────────────────────────────────
-if ! command -v gemini &>/dev/null; then
+if ! have_command gemini; then
     echo "Installing Gemini CLI..."
     npm install -g @google/gemini-cli
     sudo ln -sf "$(npm prefix -g)/bin/gemini" /usr/local/bin/gemini
 fi
 
+# ── Ruler (canonical agent configuration) ────────────────────────
+# agent-sync calls ~/.local/bin/ruler by absolute path and verifies the version,
+# so link both that path and /usr/local/bin (which precedes the Windows npm
+# directory inherited into WSL PATH, where a same-named shim would win).
+if [ "$("$(npm prefix -g)/bin/ruler" --version 2>/dev/null)" != "$RULER_VERSION" ]; then
+    echo "Installing Ruler $RULER_VERSION..."
+    npm install -g "@intellectronica/ruler@$RULER_VERSION"
+fi
+sudo ln -sf "$(npm prefix -g)/bin/ruler" /usr/local/bin/ruler
+mkdir -p "$HOME/.local/bin"
+ln -sfn "$(npm prefix -g)/bin/ruler" "$HOME/.local/bin/ruler"
+
 # ── Claude Code LSP servers ─────────────────────────────────────
 echo "Installing Claude Code LSP servers..."
-if ! command -v typescript-language-server &>/dev/null; then
+if ! have_command typescript-language-server; then
     npm install -g typescript-language-server typescript
     sudo ln -sf "$(npm prefix -g)/bin/typescript-language-server" /usr/local/bin/typescript-language-server
 fi
-if ! command -v pyright-langserver &>/dev/null; then
+if ! have_command pyright-langserver; then
     npm install -g pyright
     sudo ln -sf "$(npm prefix -g)/bin/pyright-langserver" /usr/local/bin/pyright-langserver
 fi
