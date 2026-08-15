@@ -54,6 +54,9 @@ Accumulated knowledge from working across projects. Auto-maintained by Claude.
 
 ## Claude Code Hooks
 
+- A git-command guard that matches verbs with `\b` false-positives on hyphenated plumbing: `\bmerge\b` matches inside `merge-base` because `-` is a word boundary, so read-only `git merge-base --is-ancestor` is denied as a mutation. Same trap for `commit-tree`/`commit-graph`. Use `(?!-)` after the verb, and reject a preceding `$`/`{` so a variable named `$commit` does not trigger it.
+- In POSIX ERE (no lookaround) the same fix needs care: if the pattern already consumed `git` plus its delimiter, adding a required "preceding non-word char" class before the verb leaves nothing to match and silently stops detecting real mutations. Make that boundary optional instead: `git([^[:alnum:]_]|$)(.*[^[:alnum:]_$])?(commit|merge|...)([^[:alnum:]_-]|$)`.
+- Codex `[hooks.state]` `trusted_hash` entries in `~/.codex/config.toml` are keyed by `<hooks.json path>:<event>:<index>:<index>` and hash the **hooks.json entry**, not the hook script's contents. Editing the referenced `.sh` does not invalidate hook trust; editing `hooks.json` does.
 - Hook input is delivered via **stdin**, not environment variables. The format is `{"tool_name":"...","tool_input":{...},"session_id":"...","cwd":"...","hook_event_name":"..."}`. Access the command with `jq -r '.tool_input.command'`. `CLAUDE_TOOL_INPUT` env var does not exist.
 - `set -u` (nounset) in hook scripts will crash on any env var that isn't set by Claude Code. Use `${VAR:-}` syntax or avoid referencing env vars you haven't verified exist.
 - Hooks under the same `matcher` entry in settings.json share a single stdin pipe. The first hook to read (via `cat`, `jq`, etc.) consumes it — subsequent hooks get empty stdin. Design hooks to be self-contained or place each in its own matcher entry if they all need the input.
