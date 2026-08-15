@@ -1110,6 +1110,14 @@ else
 fi
 check "installer repairs the community skill link" "present" "$res"
 
+if grep -Fq -- '--skill windows-protocols --agent claude-code -y -g' \
+    "$dotfiles_root/install_environment.sh"; then
+    res=pinned
+else
+    res=missing
+fi
+check "installer pins the community skill agent" "pinned" "$res"
+
 if git -C "$dotfiles_root" check-ignore -q .claude/skills/windows-protocols; then
     res=ignored
 else

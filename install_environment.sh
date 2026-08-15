@@ -401,18 +401,24 @@ link_file "$DOTFILES_DIR/scripts/dotfiles" "$HOME/.local/bin/dotfiles"
 # ── Community skills (windows-protocols is too large for git, lives in ~/.agents/) ──
 echo "Installing community skills..."
 
-if [ ! -d ~/.agents/skills/windows-protocols ]; then
-    npx skills add awakecoding/openspecs --skill windows-protocols -y -g
+# --agent is required. Left to auto-detect, the tool aborts the whole install
+# when any detected agent rejects a global install ("PromptScript does not
+# support global skill installation") and the skill is silently never added.
+# The skill lands in ~/.agents/skills or ~/.claude/skills depending on the
+# release, so accept either as already-installed.
+if [ ! -d ~/.agents/skills/windows-protocols ] && [ ! -d ~/.claude/skills/windows-protocols ]; then
+    npx skills add awakecoding/openspecs --skill windows-protocols --agent claude-code -y -g
 else
     echo "  windows-protocols already installed"
 fi
 
-# `skills add -g` links the skill into ~/.claude/skills with a relative path.
-# That directory is itself a symlink into this repo, so the path resolves
-# against the repo root instead of the home directory and the link dangles.
-# Relink it absolutely. This runs unconditionally: the guard above is satisfied
-# once the skill exists, so a repair would never happen inside it.
-ln -sfn "$HOME/.agents/skills/windows-protocols" ~/.claude/skills/windows-protocols
+# Some releases link the skill into ~/.claude/skills with a relative path. That
+# directory is itself a symlink into this repo, so the path resolves against the
+# repo root instead of the home directory and the link dangles. Repair only that
+# case: a working link, or content installed directly, is already correct.
+if [ -L ~/.claude/skills/windows-protocols ] && [ ! -e ~/.claude/skills/windows-protocols ]; then
+    ln -sfn "$HOME/.agents/skills/windows-protocols" ~/.claude/skills/windows-protocols
+fi
 
 # ── Summary ──────────────────────────────────────────────────────
 if [ -d "$BACKUP_DIR" ]; then
