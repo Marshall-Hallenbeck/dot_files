@@ -1,0 +1,9 @@
+[Unit]
+Description=Bounded AI agent workloads
+
+[Slice]
+CPUWeight=25
+IOWeight=25
+MemoryHigh=25%
+MemoryMax=35%
+TasksMax=1536

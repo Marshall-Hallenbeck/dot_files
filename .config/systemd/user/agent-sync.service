@@ -4,3 +4,14 @@ Description=Synchronize canonical Ruler configuration to Claude Code and Codex
 [Service]
 Type=oneshot
 ExecStart=%h/.local/bin/agent-sync --all --no-restart --quiet
+Slice=ai-agents.slice
+Nice=10
+CPUQuota=50%
+CPUWeight=10
+IOWeight=10
+IOSchedulingClass=idle
+MemoryHigh=512M
+MemoryMax=1G
+TasksMax=64
+TimeoutStartSec=10min
+KillMode=control-group

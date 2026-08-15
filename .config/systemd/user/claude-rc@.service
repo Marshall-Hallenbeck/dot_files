@@ -10,6 +10,12 @@ Environment=PATH=%h/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin
 ExecStart=%h/.local/bin/claude remote-control --name %i --permission-mode bypassPermissions --spawn same-dir
 Restart=always
 RestartSec=10
+Slice=ai-agents.slice
+CPUWeight=100
+IOWeight=50
+TasksMax=768
+KillMode=control-group
+OOMPolicy=stop
 
 [Install]
 WantedBy=default.target

@@ -13,16 +13,10 @@ file_path=$(echo "$input" | jq -r '.tool_input.file_path // empty')
 
 case "$file_path" in
   *.ts|*.tsx)
-    command -v npx >/dev/null 2>&1 || exit 0
-    # Walk up from the file to the nearest tsconfig.json (handles monorepos).
-    d=$(cd "$(dirname "$file_path")" 2>/dev/null && pwd) || exit 0
-    tsconfig=""
-    while [ -n "$d" ] && [ "$d" != "/" ]; do
-      if [ -f "$d/tsconfig.json" ]; then tsconfig="$d/tsconfig.json"; break; fi
-      d=$(dirname "$d")
-    done
-    [ -n "$tsconfig" ] || exit 0
-    ( cd "$(dirname "$tsconfig")" && npx --no-install tsc --noEmit --pretty 2>&1 | head -20 )
+    # A TypeScript check is a whole-program operation. Running it after every
+    # edit multiplied CPU use and left orphan workers when a hook was stopped.
+    # Projects must batch type checks at a turn or delivery boundary instead.
+    exit 0
     ;;
   *.py)
     command -v ruff >/dev/null 2>&1 || exit 0
