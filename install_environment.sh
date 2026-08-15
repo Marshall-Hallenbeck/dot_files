@@ -407,6 +407,13 @@ else
     echo "  windows-protocols already installed"
 fi
 
+# `skills add -g` links the skill into ~/.claude/skills with a relative path.
+# That directory is itself a symlink into this repo, so the path resolves
+# against the repo root instead of the home directory and the link dangles.
+# Relink it absolutely. This runs unconditionally: the guard above is satisfied
+# once the skill exists, so a repair would never happen inside it.
+ln -sfn "$HOME/.agents/skills/windows-protocols" ~/.claude/skills/windows-protocols
+
 # ── Summary ──────────────────────────────────────────────────────
 if [ -d "$BACKUP_DIR" ]; then
     echo ""

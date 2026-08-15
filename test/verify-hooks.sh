@@ -1084,6 +1084,39 @@ else
 fi
 check "installer links Codex global instructions" "linked" "$res"
 
+# Regression: `skills add -g` links a community skill into ~/.claude/skills with
+# a relative path. That directory is a symlink into the dotfiles repo, so the
+# relative path resolves against the repo root and the link dangles.
+skills_home=$(mktemp -d "$commit_tmp/skills-home.XXXXXX")
+mkdir -p "$skills_home/.dot_files/.claude/skills" \
+    "$skills_home/.agents/skills/windows-protocols" \
+    "$skills_home/.claude"
+ln -s "$skills_home/.dot_files/.claude/skills" "$skills_home/.claude/skills"
+ln -s "../../.agents/skills/windows-protocols" \
+    "$skills_home/.claude/skills/windows-protocols"
+if [ -e "$skills_home/.claude/skills/windows-protocols" ]; then res=resolves; else res=dangling; fi
+check "relative community skill link dangles through the symlinked directory" "dangling" "$res"
+
+HOME="$skills_home" bash -c \
+    'ln -sfn "$HOME/.agents/skills/windows-protocols" ~/.claude/skills/windows-protocols'
+if [ -e "$skills_home/.claude/skills/windows-protocols" ]; then res=resolves; else res=dangling; fi
+check "installer relinks the community skill absolutely" "resolves" "$res"
+
+installer_pattern='ln -sfn "$HOME/.agents/skills/windows-protocols" ~/.claude/skills/windows-protocols'
+if grep -Fq "$installer_pattern" "$dotfiles_root/install_environment.sh"; then
+    res=present
+else
+    res=missing
+fi
+check "installer repairs the community skill link" "present" "$res"
+
+if git -C "$dotfiles_root" check-ignore -q .claude/skills/windows-protocols; then
+    res=ignored
+else
+    res=tracked
+fi
+check "community skill is not vendored into Git" "ignored" "$res"
+
 trust_checker="$dotfiles_root/.codex/verify-hook-trust.py"
 fake_codex_dir=$(mktemp -d "$commit_tmp/fake-codex.XXXXXX")
 cat >"$fake_codex_dir/codex" <<'EOF'
