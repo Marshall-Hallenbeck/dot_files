@@ -13,6 +13,22 @@ git config --global user.name "Test"
 git init
 git add -A
 git commit -m "test commit"
+
+# The installer must fail closed when Codex hooks are not trusted. This
+# noninteractive test cannot approve hooks through /hooks, so trust only the two
+# hook entries copied from this test commit. A hooks.json change must update these
+# hashes after review or the integration test will stop at the trust gate.
+mkdir -p "$HOME/.codex"
+cat > "$HOME/.codex/config.toml" <<EOF
+[hooks.state]
+
+[hooks.state."$HOME/.codex/hooks.json:pre_tool_use:0:0"]
+trusted_hash = "sha256:09adc401b761208447da5049dc1372aa2063c63b758b0319389e04b3148096be"
+
+[hooks.state."$HOME/.codex/hooks.json:session_start:0:0"]
+trusted_hash = "sha256:9c5076fb7df34c41d6c50a42f5eca7cdca7800af79d01c958aeaeea80010a487"
+EOF
+
 cd /home/testuser
 
 if [ "$MODE" = "environment" ]; then

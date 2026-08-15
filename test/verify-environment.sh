@@ -40,6 +40,20 @@ check_link() {
     fi
 }
 
+check_regular() {
+    local desc="$1" target="$2"
+    if [ -f "$target" ] && [ ! -L "$target" ]; then
+        echo "  PASS: $desc (regular file)"
+        PASS=$((PASS + 1))
+    elif [ -L "$target" ]; then
+        echo "  FAIL: $desc (is a symlink)"
+        FAIL=$((FAIL + 1))
+    else
+        echo "  FAIL: $desc (missing)"
+        FAIL=$((FAIL + 1))
+    fi
+}
+
 echo "── System packages ──"
 for pkg in zsh tmux vim python3-pip git virtualenvwrapper curl wget jq bc xclip net-tools; do
     check "package: $pkg" dpkg -s "$pkg"
@@ -48,18 +62,20 @@ done
 echo "── Shell dotfiles ──"
 check_link ".bash_aliases" ~/.bash_aliases
 check_link ".vimrc" ~/.vimrc
-check_link ".zshrc" ~/.zshrc
-check_link ".gitconfig" ~/.gitconfig
+check_regular ".zshrc wrapper" ~/.zshrc
+check_regular ".gitconfig wrapper" ~/.gitconfig
 check_link ".conkyrc" ~/.conkyrc
 check_link ".tmux.conf" ~/.tmux.conf
 check_link ".msf4/config" ~/.msf4/config
 
 echo "── Dotfile content (not clobbered by tool installers) ──"
-check ".zshrc has our custom prompt" grep -q 'git_prompt_info' ~/.zshrc
-check ".zshrc has our plugins" grep -qF 'plugins=(virtualenv)' ~/.zshrc
-check ".zshrc NOT oh-my-zsh template" bash -c '! grep -q "ZSH_THEME=\"robbyrussell\"" ~/.zshrc'
-check ".zshrc does NOT have hardcoded node path" bash -c '! grep -q "v24.0.0" ~/.zshrc'
-check ".zshrc sources .zshrc.local" grep -q 'zshrc.local' ~/.zshrc
+check ".zshrc wrapper sources tracked config" grep -Fq "source \"\$HOME/.dot_files/.zshrc\"" ~/.zshrc
+check ".gitconfig wrapper includes tracked config" grep -Fq "path = $HOME/.dot_files/.gitconfig" ~/.gitconfig
+check ".zshrc has our custom prompt" grep -q 'git_prompt_info' ~/.dot_files/.zshrc
+check ".zshrc has our plugins" grep -qF 'plugins=(virtualenv)' ~/.dot_files/.zshrc
+check ".zshrc NOT oh-my-zsh template" bash -c '! grep -q "ZSH_THEME=\"robbyrussell\"" ~/.dot_files/.zshrc'
+check ".zshrc does NOT have hardcoded node path" bash -c '! grep -q "v24.0.0" ~/.dot_files/.zshrc'
+check ".zshrc sources .zshrc.local" grep -q 'zshrc.local' ~/.dot_files/.zshrc
 check ".bash_aliases sources .bash_aliases.local" grep -q 'bash_aliases.local' ~/.bash_aliases
 
 echo "── tmux ──"
