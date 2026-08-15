@@ -16,6 +16,9 @@ __pycache__/
 .claude/agents/bb*
 .claude/skills/bb*
 
+# dont include docs
+docs/
+
 # Community skills are installed, not vendored. They land in this directory
 # because ~/.claude/skills symlinks here, but the content lives in ~/.agents.
 .claude/skills/windows-protocols
