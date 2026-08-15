@@ -52,7 +52,7 @@
     ],
     "defaultMode": "auto"
   },
-  "model": "claude-opus-4-6[1m]",
+  "model": "claude-opus-5[1m]",
   "hooks": {
     "SessionStart": [
       {
@@ -145,6 +145,7 @@
   "tui": "fullscreen",
   "showThinkingSummaries": true,
   "skipDangerousModePermissionPrompt": true,
+  "theme": "dark",
   "editorMode": "normal",
   "verbose": false,
   "teammateMode": "tmux",
