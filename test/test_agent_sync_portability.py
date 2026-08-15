@@ -124,6 +124,78 @@ class AgentSyncPortabilityTests(unittest.TestCase):
 
             self.assertEqual(agent_sync.discover_roots(projects), [ruler_project.resolve()])
 
+    def test_instruction_paths_default_to_ruler_outputs_without_a_sync_config(self) -> None:
+        agent_sync = load_agent_sync()
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            (root / ".ruler").mkdir()
+            (root / ".ruler/ruler.toml").write_text(
+                '[agents.codex]\noutput_path = ".ai-config/AGENTS.shared.md"\n'
+            )
+
+            paths = agent_sync.instruction_paths(root)
+
+            # Claude has no override, so Ruler writes its final file directly.
+            self.assertEqual(paths["claude"]["shared"], root / "CLAUDE.md")
+            self.assertEqual(paths["claude"]["output"], root / "CLAUDE.md")
+            # Codex keeps the shared/final split the overlay composition needs.
+            self.assertEqual(paths["codex"]["shared"], root / ".ai-config/AGENTS.shared.md")
+            self.assertEqual(paths["codex"]["output"], root / "AGENTS.md")
+
+    def test_instruction_paths_publish_into_the_files_named_by_the_sync_config(self) -> None:
+        agent_sync = load_agent_sync()
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            (root / ".ruler").mkdir()
+            (root / ".ruler/ruler.toml").write_text(
+                '[agents.claude]\noutput_path = ".ai-config/CLAUDE.shared.md"\n'
+                '[agents.codex]\noutput_path = ".ai-config/AGENTS.shared.md"\n'
+            )
+            (root / ".ai-config").mkdir()
+            (root / ".ai-config/agent-sync.toml").write_text(
+                '[instructions]\nclaude = ".claude/global-CLAUDE.md"\n'
+                'codex = ".codex/AGENTS.md"\n'
+            )
+
+            paths = agent_sync.instruction_paths(root)
+
+            self.assertEqual(paths["claude"]["shared"], root / ".ai-config/CLAUDE.shared.md")
+            self.assertEqual(paths["claude"]["output"], root / ".claude/global-CLAUDE.md")
+            self.assertEqual(paths["codex"]["shared"], root / ".ai-config/AGENTS.shared.md")
+            self.assertEqual(paths["codex"]["output"], root / ".codex/AGENTS.md")
+            self.assertEqual(
+                agent_sync.output_paths(root)["claude-instructions"],
+                root / ".claude/global-CLAUDE.md",
+            )
+
+    def test_build_instructions_composes_every_tool_that_has_an_overlay(self) -> None:
+        agent_sync = load_agent_sync()
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            (root / ".ruler").mkdir()
+            (root / ".ruler/ruler.toml").write_text(
+                '[agents.claude]\noutput_path = ".ai-config/CLAUDE.shared.md"\n'
+                '[agents.codex]\noutput_path = ".ai-config/AGENTS.shared.md"\n'
+            )
+            (root / ".ai-config").mkdir()
+            (root / ".ai-config/CLAUDE.shared.md").write_text("shared text\n")
+            (root / ".ai-config/AGENTS.shared.md").write_text("shared text\n")
+            (root / ".ai-config/AGENTS.claude.md").write_text("claude only\n")
+            (root / ".ai-config/agent-sync.toml").write_text(
+                '[instructions]\nclaude = ".claude/global-CLAUDE.md"\n'
+                'codex = ".codex/AGENTS.md"\n'
+            )
+
+            agent_sync.build_instructions(root)
+
+            claude_output = (root / ".claude/global-CLAUDE.md").read_text()
+            self.assertIn("shared text", claude_output)
+            self.assertIn("claude only", claude_output)
+            self.assertIn("<!-- Claude-specific overlay -->", claude_output)
+            # Codex has no overlay here, so Ruler's output stands unmodified and
+            # no empty final file is invented.
+            self.assertFalse((root / ".codex/AGENTS.md").exists())
+
     def test_claude_units_for_root_matches_all_project_aliases_without_fixed_names(self) -> None:
         agent_sync = load_agent_sync()
         with tempfile.TemporaryDirectory() as temporary:

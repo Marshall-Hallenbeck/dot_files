@@ -13,6 +13,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import tomllib
 
 HOME = pathlib.Path.home()
 STATE_DIR = HOME / ".cache/agent-sync"
@@ -91,10 +92,41 @@ def digest_paths(paths: dict[str, pathlib.Path]) -> str:
     return digest.hexdigest()
 
 
+# Ruler's own default output path per agent, used when ruler.toml does not
+# override it. Ruler writes the shared half of the instructions there.
+RULER_DEFAULT_OUTPUT = {"claude": "CLAUDE.md", "codex": "AGENTS.md"}
+
+
+def instruction_paths(root: pathlib.Path) -> dict[str, dict[str, pathlib.Path]]:
+    """Return the shared, overlay, and final instruction path for each tool.
+
+    The shared path comes from ruler.toml, because that is where Ruler writes.
+    The final path comes from .ai-config/agent-sync.toml, which lets the dotfiles
+    root publish into the tracked global files instead of the repository root.
+    """
+    ruler_agents = tomllib.loads((root / ".ruler/ruler.toml").read_text()).get("agents", {})
+    sync_config = root / ".ai-config/agent-sync.toml"
+    finals = {}
+    if sync_config.is_file():
+        finals = tomllib.loads(sync_config.read_text()).get("instructions", {})
+
+    paths = {}
+    for tool, ruler_default in RULER_DEFAULT_OUTPUT.items():
+        shared = ruler_agents.get(tool, {}).get("output_path", ruler_default)
+        paths[tool] = {
+            "shared": root / shared,
+            "overlay": root / f".ai-config/AGENTS.{tool}.md",
+            "output": root / finals.get(tool, ruler_default),
+        }
+    return paths
+
+
 def source_paths(root: pathlib.Path) -> dict[str, pathlib.Path]:
     return {
         "ruler": root / ".ruler",
+        "claude-overlay": root / ".ai-config/AGENTS.claude.md",
         "codex-overlay": root / ".ai-config/AGENTS.codex.md",
+        "agent-sync-config": root / ".ai-config/agent-sync.toml",
         "claude-settings": HOME / ".claude/settings.json",
         "claude-global-skills": HOME / ".claude/skills",
         "claude-compact-hook": HOME / ".claude/hooks/reinject-on-compact.sh",
@@ -103,10 +135,12 @@ def source_paths(root: pathlib.Path) -> dict[str, pathlib.Path]:
 
 
 def output_paths(root: pathlib.Path) -> dict[str, pathlib.Path]:
+    instructions = instruction_paths(root)
     return {
-        "claude-instructions": root / "CLAUDE.md",
-        "codex-instructions": root / "AGENTS.md",
-        "codex-shared-instructions": root / ".ai-config/AGENTS.shared.md",
+        "claude-instructions": instructions["claude"]["output"],
+        "claude-shared-instructions": instructions["claude"]["shared"],
+        "codex-instructions": instructions["codex"]["output"],
+        "codex-shared-instructions": instructions["codex"]["shared"],
         "claude-project-mcp": root / ".mcp.json",
         "codex-project-config": root / ".codex/config.toml",
         "codex-global-config": HOME / ".codex/config.toml",
@@ -140,13 +174,21 @@ def atomic_write(path: pathlib.Path, content: str) -> None:
     temporary.replace(path)
 
 
-def build_codex_instructions(root: pathlib.Path) -> None:
-    shared = (root / ".ai-config/AGENTS.shared.md").read_text().rstrip()
-    overlay = (root / ".ai-config/AGENTS.codex.md").read_text().strip()
-    atomic_write(
-        root / "AGENTS.md",
-        f"{shared}\n\n<!-- Codex-specific overlay -->\n\n{overlay}\n",
-    )
+def build_instructions(root: pathlib.Path) -> None:
+    """Append each tool's overlay to the shared file Ruler generated.
+
+    A tool without an overlay needs no composition: Ruler already wrote its
+    final instruction file, so the shared path and the output path are the same.
+    """
+    for tool, paths in instruction_paths(root).items():
+        if not paths["overlay"].is_file():
+            continue
+        shared = paths["shared"].read_text().rstrip()
+        overlay = paths["overlay"].read_text().strip()
+        atomic_write(
+            paths["output"],
+            f"{shared}\n\n<!-- {tool.capitalize()}-specific overlay -->\n\n{overlay}\n",
+        )
 
 
 def run_checked(command: list[str], quiet: bool) -> None:
@@ -207,7 +249,11 @@ def restart_services(root: pathlib.Path, changed: list[str], quiet: bool) -> Non
         "codex-global-skills",
         "codex-hooks",
     }
-    claude_relevant = {"claude-instructions", "claude-project-mcp"}
+    claude_relevant = {
+        "claude-instructions",
+        "claude-shared-instructions",
+        "claude-project-mcp",
+    }
 
     if codex_relevant.intersection(changed) and service_active("codex-app-server.service"):
         if not quiet:
@@ -342,7 +388,7 @@ def main() -> int:
             ],
             args.quiet,
         )
-        build_codex_instructions(root)
+        build_instructions(root)
         if not args.skip_compat:
             compat_command = [str(COMPAT_SYNC), "--cwd", str(root), "--compat-only", "--quiet"]
             if args.force:
