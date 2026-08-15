@@ -182,9 +182,25 @@ def sync_skills(previous_managed: set[str]) -> tuple[list[str], list[str]]:
     source_root = HOME / ".claude/skills"
     target_root = HOME / ".agents/skills"
     target_root.mkdir(parents=True, exist_ok=True)
-    current = {p.name for p in source_root.iterdir() if p.is_dir()} if source_root.is_dir() else set()
+    # A community skill is installed under ~/.agents/skills and linked into
+    # ~/.claude/skills so Claude can load it. Mirroring such a skill back would
+    # replace the real directory with a link to itself, which deletes the
+    # content and leaves an unresolvable loop. Leave those where they are, and
+    # keep them out of the removal pass too: a self-referential skill dropping
+    # out of the mirrored set must never delete the installed copy.
+    resolved_target = target_root.resolve()
+    current: set[str] = set()
+    self_referential: set[str] = set()
+    if source_root.is_dir():
+        for path in source_root.iterdir():
+            if not path.is_dir():
+                continue
+            if resolved_target in path.resolve().parents:
+                self_referential.add(path.name)
+            else:
+                current.add(path.name)
     changed: list[str] = []
-    for name in sorted(previous_managed - current):
+    for name in sorted(previous_managed - current - self_referential):
         target = target_root / name
         if target.is_symlink() or target.exists():
             if target.is_dir() and not target.is_symlink():

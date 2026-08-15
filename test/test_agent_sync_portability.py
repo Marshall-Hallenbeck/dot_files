@@ -124,6 +124,38 @@ class AgentSyncPortabilityTests(unittest.TestCase):
 
             self.assertEqual(agent_sync.discover_roots(projects), [ruler_project.resolve()])
 
+    def test_sync_skills_never_mirrors_a_community_skill_onto_itself(self) -> None:
+        codex_config_sync = load_codex_config_sync()
+        with tempfile.TemporaryDirectory() as temporary:
+            home = pathlib.Path(temporary)
+            claude_skills = home / ".claude/skills"
+            agents_skills = home / ".agents/skills"
+            claude_skills.mkdir(parents=True)
+            agents_skills.mkdir(parents=True)
+
+            # A community skill: real content under ~/.agents/skills, linked
+            # into ~/.claude/skills so Claude can load it.
+            community = agents_skills / "windows-protocols"
+            community.mkdir()
+            (community / "SKILL.md").write_text("# community skill\n")
+            (claude_skills / "windows-protocols").symlink_to(community, target_is_directory=True)
+
+            # An ordinary dotfiles skill, which must still be mirrored.
+            (claude_skills / "commit").mkdir()
+            (claude_skills / "commit/SKILL.md").write_text("# commit\n")
+
+            with mock.patch.object(codex_config_sync, "HOME", home):
+                # "windows-protocols" is in previous_managed, so the removal
+                # pass would delete the installed copy if it were not excluded.
+                names, changed = codex_config_sync.sync_skills({"windows-protocols"})
+
+            self.assertEqual(names, ["commit"])
+            self.assertNotIn("removed:windows-protocols", changed)
+            self.assertTrue(community.is_dir())
+            self.assertFalse(community.is_symlink())
+            self.assertEqual((community / "SKILL.md").read_text(), "# community skill\n")
+            self.assertTrue((claude_skills / "windows-protocols/SKILL.md").is_file())
+
     def test_instruction_paths_default_to_ruler_outputs_without_a_sync_config(self) -> None:
         agent_sync = load_agent_sync()
         with tempfile.TemporaryDirectory() as temporary:
