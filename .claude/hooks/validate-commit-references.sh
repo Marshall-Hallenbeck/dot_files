@@ -687,8 +687,8 @@ scope_unsafe = {0: False}
 mutations = {"commit", "merge", "cherry-pick", "revert", "am", "rebase", "pull"}
 assignment = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
 git_mutation = re.compile(
-    r"(?<![A-Za-z0-9_])git(?:[^A-Za-z0-9_]|$).*?\b"
-    r"(?:commit|merge|cherry-pick|revert|am|rebase|pull)\b"
+    r"(?<![A-Za-z0-9_])git(?:[^A-Za-z0-9_]|$).*?(?<![\w$?{@!])"
+    r"(?:commit|merge|cherry-pick|revert|am|rebase|pull)(?![\w-])"
     r"|prepare-merge-ready-pr\.sh",
     re.DOTALL,
 )
@@ -1034,7 +1034,7 @@ contains_nested_git_mutation() {
     local command_text="$1"
 
     grep -zEq \
-        'git([^[:alnum:]_]|$).*(commit|merge|cherry-pick|revert|am|rebase|pull)([^[:alnum:]_]|$)|prepare-merge-ready-pr\.sh' \
+        'git([^[:alnum:]_]|$)(.*[^[:alnum:]_$])?(commit|merge|cherry-pick|revert|am|rebase|pull)([^[:alnum:]_-]|$)|prepare-merge-ready-pr\.sh' \
         <<<"$command_text"
 }
 
