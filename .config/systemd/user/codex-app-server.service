@@ -13,6 +13,12 @@ ExecStopPost=%h/.local/libexec/codex-rc-cleanup
 Restart=on-failure
 RestartSec=10
 TimeoutStartSec=300
+Slice=ai-agents.slice
+CPUWeight=100
+IOWeight=50
+TasksMax=1024
+KillMode=control-group
+OOMPolicy=stop
 
 [Install]
 WantedBy=default.target

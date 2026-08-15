@@ -5,6 +5,7 @@ DOTFILES_DIR="$HOME/.dot_files"
 AI_REMOTE_CONTROL_FEATURE="ai-remote-control"
 AI_REMOTE_CONTROL_MARKER="$HOME/.config/dotfiles/features/$AI_REMOTE_CONTROL_FEATURE"
 AI_REMOTE_CONTROL_PATHS=(
+    .config/systemd/user/ai-agents.slice
     .config/systemd/user/agent-sync.service
     .config/systemd/user/agent-sync.timer
     .config/systemd/user/claude-rc@.service

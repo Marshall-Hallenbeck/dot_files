@@ -42,6 +42,15 @@ echo $X
 BADSH
 if echo "{\"tool_input\":{\"file_path\":\"$tmpdir/t.sh\"}}" | bash "$HOOKS_DIR/post-edit-lint.sh" | grep -q SC2086; then res=ran; else res=silent; fi
 check "shell file -> shellcheck runs" "ran" "$res"
+mkdir -p "$tmpdir/typescript" "$tmpdir/bin"
+printf '{}\n' >"$tmpdir/typescript/tsconfig.json"
+printf 'const value: number = 1;\n' >"$tmpdir/typescript/example.ts"
+printf '#!/bin/bash\nprintf invoked >"$NPM_MARKER"\n' >"$tmpdir/bin/npx"
+chmod +x "$tmpdir/bin/npx"
+NPM_MARKER="$tmpdir/npx-invoked" PATH="$tmpdir/bin:$PATH" \
+    bash "$HOOKS_DIR/post-edit-lint.sh" <<<"{\"tool_input\":{\"file_path\":\"$tmpdir/typescript/example.ts\"}}" >/dev/null
+if [ -e "$tmpdir/npx-invoked" ]; then res=ran; else res=skipped; fi
+check "TypeScript edit -> defer whole-project typecheck" "skipped" "$res"
 out=$(echo "{\"tool_input\":{\"file_path\":\"$tmpdir/note.md\"}}" | bash "$HOOKS_DIR/post-edit-lint.sh")
 check "non-code file -> skip (silent)" "" "$out"
 rm -rf "$tmpdir"

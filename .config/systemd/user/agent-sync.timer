@@ -2,10 +2,10 @@
 Description=Periodically synchronize Claude Code and Codex configuration
 
 [Timer]
-OnBootSec=1min
-OnUnitActiveSec=2min
-AccuracySec=15s
-Persistent=true
+OnBootSec=5min
+OnUnitInactiveSec=30min
+RandomizedDelaySec=5min
+AccuracySec=1min
 Unit=agent-sync.service
 
 [Install]

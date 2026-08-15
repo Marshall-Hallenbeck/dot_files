@@ -267,6 +267,7 @@ class AgentSyncPortabilityTests(unittest.TestCase):
             REPO / ".local/bin/codex-config-sync",
             REPO / ".local/libexec/codex-config-sync.py",
             REPO / ".local/libexec/codex-rc-cleanup",
+            REPO / ".config/systemd/user/ai-agents.slice",
             REPO / ".config/systemd/user/agent-sync.service",
             REPO / ".config/systemd/user/agent-sync.timer",
             REPO / ".config/systemd/user/claude-rc@.service",
@@ -372,6 +373,37 @@ class AgentSyncPortabilityTests(unittest.TestCase):
             ".local/bin/dotfiles-update",
         ):
             self.assertIn(path, deployer)
+
+    def test_agent_sync_uses_completion_based_timer_and_resource_limits(self) -> None:
+        timer = (REPO / ".config/systemd/user/agent-sync.timer").read_text()
+        service = (REPO / ".config/systemd/user/agent-sync.service").read_text()
+
+        self.assertIn("OnUnitInactiveSec=30min", timer)
+        self.assertIn("RandomizedDelaySec=5min", timer)
+        self.assertNotIn("OnUnitActiveSec=", timer)
+        self.assertIn("Slice=ai-agents.slice", service)
+        self.assertIn("CPUQuota=50%", service)
+        self.assertIn("MemoryMax=1G", service)
+        self.assertIn("TasksMax=64", service)
+        self.assertIn("IOSchedulingClass=idle", service)
+
+    def test_agent_services_share_a_bounded_slice(self) -> None:
+        slice_unit = (REPO / ".config/systemd/user/ai-agents.slice").read_text()
+        for unit_name in ("codex-app-server.service", "claude-rc@.service"):
+            service = (REPO / ".config/systemd/user" / unit_name).read_text()
+            self.assertIn("Slice=ai-agents.slice", service)
+            self.assertIn("KillMode=control-group", service)
+
+        self.assertIn("CPUWeight=25", slice_unit)
+        self.assertIn("IOWeight=25", slice_unit)
+        self.assertIn("MemoryHigh=25%", slice_unit)
+        self.assertIn("MemoryMax=35%", slice_unit)
+        self.assertIn("TasksMax=1536", slice_unit)
+        self.assertNotIn("Persistent=true", (REPO / ".config/systemd/user/agent-sync.timer").read_text())
+
+    def test_claude_tool_concurrency_is_bounded(self) -> None:
+        settings = (REPO / ".claude/settings.json").read_text()
+        self.assertIn('"CLAUDE_CODE_MAX_TOOL_USE_CONCURRENCY": "4"', settings)
 
     def test_feature_enable_provisions_pinned_codex_sync_dependency(self) -> None:
         deployer = (REPO / "scripts/dotfiles").read_text()
@@ -669,10 +701,12 @@ class AgentSyncPortabilityTests(unittest.TestCase):
             dotfiles = home / ".dot_files"
             source_script = dotfiles / ".local/bin/agent-sync"
             source_unit = dotfiles / ".config/systemd/user/agent-sync.service"
+            source_slice = dotfiles / ".config/systemd/user/ai-agents.slice"
             source_script.parent.mkdir(parents=True)
             source_unit.parent.mkdir(parents=True)
             source_script.write_text("#!/usr/bin/env python3\n")
             source_unit.write_text("[Service]\nType=oneshot\n")
+            source_slice.write_text("[Slice]\nTasksMax=1536\n")
 
             target_unit = home / ".config/systemd/user/agent-sync.service"
             target_unit.parent.mkdir(parents=True)
@@ -715,6 +749,9 @@ class AgentSyncPortabilityTests(unittest.TestCase):
             self.assertEqual(second_result.returncode, 0, second_result.stderr)
 
             self.assertTrue((home / ".local/bin/agent-sync").is_symlink())
+            target_slice = home / ".config/systemd/user/ai-agents.slice"
+            self.assertTrue(target_slice.is_symlink())
+            self.assertEqual(target_slice.resolve(), source_slice.resolve())
             self.assertTrue(target_unit.is_symlink())
             self.assertEqual(target_unit.resolve(), source_unit.resolve())
             self.assertTrue((home / ".config/dotfiles/features/ai-remote-control").is_file())
