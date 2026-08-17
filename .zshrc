@@ -2,11 +2,11 @@
 alias q='exit'
 export ZSH=$HOME/.oh-my-zsh/
 # If you come from bash you might have to change your $PATH.
-# PATH setup — include OpenCode, Go-installed security tools, and nvm wrappers below.
+# PATH setup — include Go-installed security tools and nvm wrappers below.
 # $HOME/.local/bin must precede the inherited $PATH: under WSL that inherits the
 # Windows directories, and a Windows npm shim of the same name (ruler, claude)
 # would otherwise win and fail with "exec: node: not found".
-export PATH=$HOME/.opencode/bin:$HOME/bin:$HOME/go/bin:$HOME/.local/bin:/usr/local/bin:$HOME/.dot_files/scripts:$PATH:$HOME/.dotnet/
+export PATH=$HOME/bin:$HOME/go/bin:$HOME/.local/bin:/usr/local/bin:$HOME/.dot_files/scripts:$PATH:$HOME/.dotnet/
 
 # Path to your oh-my-zsh installation.
 # Path depends on my username on the box. I can probably make this dynamic but whatever

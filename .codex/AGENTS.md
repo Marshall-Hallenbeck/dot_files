@@ -40,7 +40,7 @@ These principles apply to ALL projects. Project-specific instruction files (CLAU
 
 ### Shell and project preflight
 
-- Use `zsh -lc '...'` for commands that depend on the user's PATH, including `node`, `nvm`, `claude`, `codex`, `opencode`, and review tools. A Bash login shell does not represent the user's interactive PATH.
+- Use `zsh -lc '...'` for commands that depend on the user's PATH, including `node`, `nvm`, `claude`, `codex`, and review tools. A Bash login shell does not represent the user's interactive PATH.
 - If a project defines a preflight skill or command, every main session and subagent must run it before investigation or work. Any failure blocks work.
 
 ### Merge conflicts and review scope
