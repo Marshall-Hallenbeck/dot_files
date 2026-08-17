@@ -45,6 +45,7 @@ check "shell file -> shellcheck runs" "ran" "$res"
 mkdir -p "$tmpdir/typescript" "$tmpdir/bin"
 printf '{}\n' >"$tmpdir/typescript/tsconfig.json"
 printf 'const value: number = 1;\n' >"$tmpdir/typescript/example.ts"
+# shellcheck disable=SC2016  # $NPM_MARKER must stay literal in the generated script
 printf '#!/bin/bash\nprintf invoked >"$NPM_MARKER"\n' >"$tmpdir/bin/npx"
 chmod +x "$tmpdir/bin/npx"
 NPM_MARKER="$tmpdir/npx-invoked" PATH="$tmpdir/bin:$PATH" \
@@ -1111,6 +1112,7 @@ HOME="$skills_home" bash -c \
 if [ -e "$skills_home/.claude/skills/windows-protocols" ]; then res=resolves; else res=dangling; fi
 check "installer relinks the community skill absolutely" "resolves" "$res"
 
+# shellcheck disable=SC2016  # literal source text to match in the installer
 installer_pattern='ln -sfn "$HOME/.agents/skills/windows-protocols" ~/.claude/skills/windows-protocols'
 if grep -Fq "$installer_pattern" "$dotfiles_root/install_environment.sh"; then
     res=present
@@ -1249,6 +1251,7 @@ else
 fi
 check "complete-github-issue repairs and verifies issue labels" "present" "$res"
 
+# shellcheck disable=SC2016  # backticks are Markdown in the skill text, not substitution
 if grep -Fq 'If one or more applicable labels are missing, run `gh issue edit` with only the missing labels.' "$complete_issue_skill" &&
     grep -Fq 'If one or more applicable labels exist and every applicable label is already present, skip `gh issue edit` and report that all applicable labels were already present.' "$complete_issue_skill" &&
     grep -Fq 'If no existing repository label applies, skip `gh issue edit` and report that no applicable existing repository label exists.' "$complete_issue_skill"; then
@@ -1258,6 +1261,7 @@ else
 fi
 check "complete-github-issue distinguishes label reconciliation states" "present" "$res"
 
+# shellcheck disable=SC2016  # backticks are Markdown in the skill text, not substitution
 if grep -Fq 'After every branch, including both branches that skip `gh issue edit`, run:' "$complete_issue_skill" &&
     grep -Fq 'Compare the saved label names with both the original label names and the applicable label names.' "$complete_issue_skill" &&
     grep -Fq 'Verification must show every original label and every applicable label.' "$complete_issue_skill"; then
