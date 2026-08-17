@@ -98,6 +98,12 @@ echo "── Claude Code ──"
 # shellcheck disable=SC2016
 check "claude CLI installed" bash -c 'export PATH="$HOME/.local/bin:$PATH"; export NVM_DIR="$HOME/.nvm" && [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh" && command -v claude'
 
+echo "── Codex ──"
+# The Remote Control wrapper and codex-app-server.service run this path. A
+# wildcard match on any vendor bin directory once linked it to the vendored
+# zsh, which holds no codex binary.
+check "codex binary published at packages/standalone/current" test -x ~/.codex/packages/standalone/current/codex
+
 echo "── Default shell ──"
 check "zsh is default shell" grep -q "testuser.*/zsh" /etc/passwd
 

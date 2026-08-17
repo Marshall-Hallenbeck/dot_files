@@ -1206,6 +1206,32 @@ else
 fi
 check "Codex trust gate runs after every symlink is deployed" "after" "$res"
 
+# The Codex npm package ships a vendored zsh under codex-resources/zsh/bin. A
+# wildcard search for any bin directory below vendor/ matched that directory
+# first and published it as packages/standalone/current, so the Remote Control
+# wrapper and codex-app-server.service ran a path with no codex binary.
+codex_publish_home=$(mktemp -d "$commit_tmp/codex-publish.XXXXXX")
+codex_fake_prefix="$codex_publish_home/prefix"
+codex_fake_vendor="$codex_fake_prefix/lib/node_modules/@openai/codex/node_modules/@openai/codex-linux-x64/vendor/x86_64-unknown-linux-musl"
+mkdir -p "$codex_fake_vendor/bin" "$codex_fake_vendor/codex-resources/zsh/bin" "$codex_publish_home/bin"
+printf '#!/bin/bash\nprintf codex-cli\n' >"$codex_fake_vendor/bin/codex"
+printf '#!/bin/bash\nprintf zsh\n' >"$codex_fake_vendor/codex-resources/zsh/bin/zsh"
+chmod +x "$codex_fake_vendor/bin/codex" "$codex_fake_vendor/codex-resources/zsh/bin/zsh"
+# shellcheck disable=SC2016  # $FAKE_NPM_PREFIX must stay literal in the generated script
+printf '#!/bin/bash\nprintf "%%s\\n" "$FAKE_NPM_PREFIX"\n' >"$codex_publish_home/bin/npm"
+chmod +x "$codex_publish_home/bin/npm"
+{
+    echo 'set -euo pipefail'
+    sed -n '/^# ── OpenAI Codex/,/standalone\/current$/p' "$dotfiles_root/install_environment.sh"
+} | HOME="$codex_publish_home" FAKE_NPM_PREFIX="$codex_fake_prefix" \
+    PATH="$codex_publish_home/bin:$PATH" bash >/dev/null 2>&1
+if [ -x "$codex_publish_home/.codex/packages/standalone/current/codex" ]; then
+    res=published
+else
+    res=broken
+fi
+check "installer publishes the Codex binary, not the vendored zsh" "published" "$res"
+
 # The tracked instruction files are Ruler output: shared half, overlay marker,
 # then the per-agent overlay. If a hand edit lands in the output instead of the
 # source, the next agent-sync silently reverts it.
