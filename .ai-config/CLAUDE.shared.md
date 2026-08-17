@@ -22,9 +22,35 @@ These principles apply to ALL projects. Project-specific instruction files (CLAU
 - Primary use cases: security tooling, full-stack web development, infrastructure automation
 - Shell scripts: bash (`#!/bin/bash` with `set -euo pipefail`)
 
-## Git Operations
+## Mandatory Operating Rules
 
-When resolving merge conflicts, ALWAYS preserve upstream/remote changes unless explicitly told otherwise. Never silently drop incoming changes.
+### Investigation and editing
+
+- Before any investigation, state internally in one sentence what the user asks and which system, binary, or file the request concerns.
+- If the request names a tool or command, run `zsh -lc 'which <tool>'` and read the resolved source or `<tool> --help` before you propose a cause. Do not guess.
+- Read every file before you edit it. This rule is strict for test files.
+- Diagnose an error from the actual response body, response headers, command output, logs, and current configuration. Do not assert a root cause without that evidence. Do not blame quota after the user says quota is available unless current provider evidence proves a quota error.
+
+### Error handling and removals
+
+- Hard-fail on every error. Do not add silent fallback paths, catches that swallow errors, success defaults, placeholder values, or “continue anyway” behavior.
+- If a required file, key, binary, service, or configuration is missing, throw or exit nonzero with a clear message that names the exact item.
+- When the user says to remove code or a TODO, delete it. Do not replace it with a pointer, explanatory comment, compatibility stub, or dead wrapper.
+
+### Shell and project preflight
+
+- Use `zsh -lc '...'` for commands that depend on the user's PATH, including `node`, `nvm`, `claude`, `codex`, and review tools. A Bash login shell does not represent the user's interactive PATH.
+- If a project defines a preflight skill or command, every main session and subagent must run it before investigation or work. Any failure blocks work.
+
+### Merge conflicts and review scope
+
+- Never discard upstream or remote changes when you resolve a merge conflict. Integrate the intent of both sides.
+- Before a conflict-resolution commit, show the user the final resolution for every conflicted hunk and explain how each side was preserved.
+- When the user asks to fix review findings, fix every finding, including warnings. Do not declare a finding out of scope. Ask before you defer an item.
+
+### Direct infrastructure access
+
+- When SSH or API access exists for Home Assistant, homelab servers, Plex, Sonarr, Radarr, or GitLab, use that access to make and verify the requested change. Do not defer to manual UI steps.
 
 ## Debugging
 

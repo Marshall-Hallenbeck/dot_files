@@ -1206,6 +1206,41 @@ else
 fi
 check "Codex trust gate runs after every symlink is deployed" "after" "$res"
 
+# The tracked instruction files are Ruler output: shared half, overlay marker,
+# then the per-agent overlay. If a hand edit lands in the output instead of the
+# source, the next agent-sync silently reverts it.
+ruler_regen_matches() {
+    local shared="$1" marker="$2" overlay="$3" generated="$4" regen
+    regen="$(mktemp)"
+    {
+        cat "$dotfiles_root/$shared"
+        printf '\n%s\n\n' "$marker"
+        cat "$dotfiles_root/$overlay"
+    } >"$regen"
+    if diff -q "$regen" "$dotfiles_root/$generated" >/dev/null 2>&1; then
+        rm -f "$regen"
+        return 0
+    fi
+    rm -f "$regen"
+    return 1
+}
+
+if ruler_regen_matches .ai-config/CLAUDE.shared.md '<!-- Claude-specific overlay -->' \
+    .ai-config/AGENTS.claude.md .claude/global-CLAUDE.md; then
+    res=matches
+else
+    res=drifted
+fi
+check "Ruler sources regenerate global-CLAUDE.md exactly" "matches" "$res"
+
+if ruler_regen_matches .ai-config/AGENTS.shared.md '<!-- Codex-specific overlay -->' \
+    .ai-config/AGENTS.codex.md .codex/AGENTS.md; then
+    res=matches
+else
+    res=drifted
+fi
+check "Ruler sources regenerate Codex AGENTS.md exactly" "matches" "$res"
+
 if grep -Fq 'Refs #<PR>' "$dotfiles_root/.claude/skills/fix-tests/SKILL.md" &&
     grep -Fq 'Sentry-Issue: <SENTRY-ID>' "$dotfiles_root/.claude/skills/fix-tests/SKILL.md"; then
     res=present
