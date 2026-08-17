@@ -121,24 +121,6 @@
             "command": "$HOME/.claude/hooks/save-insights-reminder.sh"
           }
         ]
-      },
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "$HOME/.claude/hooks/cleanup-stale-mcp.sh"
-          }
-        ]
-      },
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "$HOME/.claude/hooks/cleanup-merged-worktrees.sh"
-          }
-        ]
       }
     ]
   },
