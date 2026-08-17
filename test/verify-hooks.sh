@@ -1193,6 +1193,19 @@ else
 fi
 check "installer stops for Codex hook trust review" "verified" "$res"
 
+# The gate exits nonzero when Codex has not trusted the hooks. Every symlink must
+# already be deployed by then, or an abort leaves a half-configured machine.
+gate_line=$(grep -n 'codex_trust_checker=' "$dotfiles_root/install_environment.sh" |
+    head -1 | cut -d: -f1)
+last_link_line=$(grep -n '^[[:space:]]*link_file ' "$dotfiles_root/install_environment.sh" |
+    tail -1 | cut -d: -f1)
+if [ -n "$gate_line" ] && [ -n "$last_link_line" ] && [ "$gate_line" -gt "$last_link_line" ]; then
+    res=after
+else
+    res=before
+fi
+check "Codex trust gate runs after every symlink is deployed" "after" "$res"
+
 if grep -Fq 'Refs #<PR>' "$dotfiles_root/.claude/skills/fix-tests/SKILL.md" &&
     grep -Fq 'Sentry-Issue: <SENTRY-ID>' "$dotfiles_root/.claude/skills/fix-tests/SKILL.md"; then
     res=present

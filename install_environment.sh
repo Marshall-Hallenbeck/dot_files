@@ -336,24 +336,6 @@ for hook_file in "$DOTFILES_DIR"/.claude/hooks/*; do
     link_file "$hook_file" ~/.claude/hooks/"$(basename "$hook_file")"
 done
 
-commit_reference_hook="$HOME/.claude/hooks/validate-commit-references.sh"
-bash "$commit_reference_hook" --install "$DOTFILES_DIR"
-codex_trust_checker="$DOTFILES_DIR/.codex/verify-hook-trust.py"
-if ! python3 "$codex_trust_checker" "$DOTFILES_DIR"; then
-    echo "Codex must trust the commit-reference hooks before setup can continue."
-    echo "Trust both hooks in /hooks. Then run /exit."
-    if [ -t 0 ] && [ -t 1 ]; then
-        codex --no-alt-screen -C "$DOTFILES_DIR"
-    else
-        echo "Run Codex, use /hooks, and run this installer again." >&2
-        exit 1
-    fi
-    if ! python3 "$codex_trust_checker" "$DOTFILES_DIR"; then
-        echo "Codex commit-reference hooks are not trusted. Setup stopped." >&2
-        exit 1
-    fi
-fi
-
 # Remove dangling symlinks left behind by hooks/settings deleted from the repo
 find ~/.claude/hooks -maxdepth 1 -xtype l -delete || true
 if [ -L ~/.claude/settings.local.json ] && [ ! -e ~/.claude/settings.local.json ]; then
@@ -397,6 +379,28 @@ done
 # ── dotfiles helper on PATH ──────────────────────────────────────
 mkdir -p "$HOME/.local/bin"
 link_file "$DOTFILES_DIR/scripts/dotfiles" "$HOME/.local/bin/dotfiles"
+
+# ── Commit-reference hooks and Codex trust gate ──────────────────
+# This gate exits nonzero when Codex has not trusted the hooks, so it runs after
+# every symlink above. An aborted run then leaves a fully configured machine
+# rather than the half-deployed state that ordering it earlier produced.
+commit_reference_hook="$HOME/.claude/hooks/validate-commit-references.sh"
+bash "$commit_reference_hook" --install "$DOTFILES_DIR"
+codex_trust_checker="$DOTFILES_DIR/.codex/verify-hook-trust.py"
+if ! python3 "$codex_trust_checker" "$DOTFILES_DIR"; then
+    echo "Codex must trust the commit-reference hooks before setup can continue."
+    echo "Trust both hooks in /hooks. Then run /exit."
+    if [ -t 0 ] && [ -t 1 ]; then
+        codex --no-alt-screen -C "$DOTFILES_DIR"
+    else
+        echo "Run Codex, use /hooks, and run this installer again." >&2
+        exit 1
+    fi
+    if ! python3 "$codex_trust_checker" "$DOTFILES_DIR"; then
+        echo "Codex commit-reference hooks are not trusted. Setup stopped." >&2
+        exit 1
+    fi
+fi
 
 # ── Community skills (windows-protocols is too large for git, lives in ~/.agents/) ──
 echo "Installing community skills..."
