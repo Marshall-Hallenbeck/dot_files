@@ -3,10 +3,12 @@
 	name = Marshall Hallenbeck
 [init]
 	defaultBranch = main
-[include]
-	path = ~/.gitconfig.local
 [filter "lfs"]
 	clean = git-lfs clean -- %f
 	smudge = git-lfs smudge -- %f
 	process = git-lfs filter-process
 	required = true
+# Host-only state (credentials, safe.directory, work identities) lives here.
+# Last include wins, so anything in ~/.gitconfig.local overrides the defaults above.
+[include]
+	path = ~/.gitconfig.local
