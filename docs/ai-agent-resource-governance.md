@@ -35,9 +35,27 @@ Portable limits in the shared dotfiles are:
 | I/O weight | 25 |
 | Memory high threshold | 25% of host RAM |
 | Memory hard limit | 35% of host RAM |
-| Aggregate task limit | 1536 |
+| Aggregate task limit | 32768 |
 
 The low CPU and I/O weights keep normal interactive and system work responsive during contention. The memory limit reserves at least 65% of host RAM for the OS, the desktop, SSH, Docker, and other services.
+
+Task limits were raised from 1536 aggregate and 768 per Claude instance on 2026-08-19. At
+768, nuclei aborted about six seconds after loading templates with `runtime/cgo:
+pthread_create failed: Resource temporarily unavailable` and SIGABRT. `pids.peak` sat exactly
+at the ceiling and the kernel logged `cgroup: fork rejected by pids controller`. The scan
+that hosted it reported the crash as a clean zero-finding result, so the limit was diagnosed
+as a tool bug for two full scan cycles. A tool spawning many threads, in particular nuclei
+with `headless: true` driving Chrome through go-rod, needs far more than 1536 tasks.
+
+The memory reservation is deliberately unchanged. Kernel counters showed the throttle never
+fired: `memory.peak` reached 6.0 GiB against an 11.75 GiB high threshold, with `memory.events`
+reporting `high 0` and `oom 0`. Tasks are cheap — 32768 of them is roughly 500 MiB of kernel
+stack worst case, and MemoryMax still bounds the slice — so raising the task ceiling does not
+erode the 65% reserved for the rest of the host.
+
+Diagnosing this class of failure: `systemctl --user show <unit> -p TasksMax`, the cgroup's
+`pids.peak`, and `dmesg -T | grep "fork rejected by pids controller"`, which names the exact
+slice. System-wide limits look fine and mislead — `ulimit -u` reported 191732 throughout.
 
 A host-specific drop-in adds a hard CPU quota. On `ubuntu22`, `/etc/systemd/system/user-1000.slice.d/20-development-host.conf` limits all processes for UID 1000 to 600% CPU, a 24 GiB memory high threshold, a 32 GiB hard memory limit, and 2048 tasks. This includes interactive Claude sessions that do not use a managed service and leaves four logical CPUs for Docker and system services.
 
@@ -52,7 +70,7 @@ Individual service limits are:
 | Service | Task limit | Other limits |
 |---|---:|---|
 | Codex app server | 1024 | Full process-group cleanup on stop |
-| Claude Remote Control instance | 768 | Full process-group cleanup on stop |
+| Claude Remote Control instance | 16384 | 65536 open files, `~/go/bin` on PATH, full process-group cleanup on stop |
 | Agent configuration sync | 64 | 50% of one CPU, 512 MiB high, 1 GiB hard |
 
 A service stop or restart must use `KillMode=control-group`. A child process must not survive its service.
@@ -143,7 +161,7 @@ Use these thresholds on `ubuntu22`:
 
 - Investigate when the AI slice uses more than 600% CPU for five minutes.
 - Investigate when the slice crosses the 25% memory high threshold.
-- Reject new work when the slice reaches 1300 tasks. The hard limit is 1536.
+- Reject new work when the slice reaches 28000 tasks. The hard limit is 32768.
 - Investigate any Jest worker, TypeScript watcher, or dev server whose parent is PID 1.
 - Investigate any process whose current working directory contains `(deleted)`.
 - Investigate any synchronization run that lasts longer than ten minutes.
