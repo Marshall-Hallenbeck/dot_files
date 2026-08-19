@@ -89,6 +89,7 @@ cmd_status() {
         .gitignore
         .dockerignore
         .claude/CLAUDE.md
+        .claude/project-learned-insights.md
         .gitconfig
         .zshrc
         .codex/verify-hook-trust.py
