@@ -32,6 +32,23 @@ common_dir=$(git -C "$cwd" rev-parse --path-format=absolute --git-common-dir 2>/
 branch=$(git -C "$cwd" branch --show-current 2>/dev/null)
 [ -n "$branch" ] || exit 0
 
+# A worktree somebody else is actively working in is not abandoned work. A
+# subagent gets its own checkout and the main session can land in it just by
+# inspecting it, so without this the gate blocks one session for another
+# session's in-flight branch. A live process with its cwd inside the tree is
+# the ownership signal; EnterWorktree does not take a git worktree lock, so
+# there is nothing else to read.
+self_pid=$$
+for cwd_link in /proc/[0-9]*/cwd; do
+    pid=${cwd_link#/proc/}
+    pid=${pid%/cwd}
+    [ "$pid" = "$self_pid" ] && continue
+    target=$(readlink "$cwd_link" 2>/dev/null) || continue
+    case "$target" in
+        "$cwd" | "$cwd"/*) exit 0 ;;
+    esac
+done
+
 dirty=$(git -C "$cwd" status --porcelain 2>/dev/null)
 
 base=""
