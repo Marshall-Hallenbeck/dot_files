@@ -118,6 +118,10 @@
           {
             "type": "command",
             "command": "$HOME/.claude/hooks/save-insights-reminder.sh"
+          },
+          {
+            "type": "command",
+            "command": "$HOME/.claude/hooks/publish-gate.sh"
           }
         ]
       }
@@ -156,25 +160,25 @@
       "### Org-wide",
       "**Organization**: None configured",
       "**Cloud provider(s)**: None configured",
-      "**Repository visibility**: PUBLIC — Marshall-Hallenbeck/dot_files (github.com) — any push here is publishing",
-      "**Internal sharing / snippet hosting**: None configured — treat public paste/gist services as outside the trust boundary",
+      "**Repository visibility**: PUBLIC \u2014 Marshall-Hallenbeck/dot_files (github.com) \u2014 any push here is publishing",
+      "**Internal sharing / snippet hosting**: None configured \u2014 treat public paste/gist services as outside the trust boundary",
       "**Secrets management**: None configured",
       "**Default / protected branches**: Default branch `main`; no classic protections or rulesets listed (gh-verified)",
       "**CI/CD deploy targets**: None configured",
       "**Network posture**: None configured",
-      "**Source control**: The trusted repo (Marshall-Hallenbeck/dot_files) and its origin remote only — no additional orgs configured",
+      "**Source control**: The trusted repo (Marshall-Hallenbeck/dot_files) and its origin remote only \u2014 no additional orgs configured",
       "**Trusted internal domains**: None configured",
       "**Trusted cloud buckets**: None configured",
       "**Key internal services**: None configured",
       "**Internal package registry**: None configured",
-      "**Sensitive data locations & audiences**: any file or store holding personal data, confidential business data, credentials, regulated data, or similarly sensitive material; preserve exact handles when known and share only with audiences cleared at the [named+specifics] bar. Note: this is a PUBLIC repo — do not commit or push secrets, credentials, or personal data here regardless of local .gitignore patterns for `*.key`, `.env*`, `*.token`, `.secrets/`",
+      "**Sensitive data locations & audiences**: any file or store holding personal data, confidential business data, credentials, regulated data, or similarly sensitive material; preserve exact handles when known and share only with audiences cleared at the [named+specifics] bar. Note: this is a PUBLIC repo \u2014 do not commit or push secrets, credentials, or personal data here regardless of local .gitignore patterns for `*.key`, `.env*`, `*.token`, `.secrets/`",
       "**Data retention / declassification**: None configured",
       "**Sensitive remote targets**: any namespace, host, or container whose name carries `prod` or `production` as a whole word or name segment",
-      "**Protected deployment namespaces / environments**: None configured — fall back to the Sensitive remote targets heuristic",
+      "**Protected deployment namespaces / environments**: None configured \u2014 fall back to the Sensitive remote targets heuristic",
       "**Protected IaC scopes**: IAM, RBAC, networking, quota, and node-pool resources; anything whose name or tag carries `prod` or `production` as a whole word or name segment",
       "### User-specific",
       "**Primary use of Claude Code**: security tooling, full-stack web development, infrastructure automation, and dotfiles/environment management (per ~/.claude/CLAUDE.md)",
-      "**Trusted repo**: /home/isao-vm/.dot_files (origin: github.com/Marshall-Hallenbeck/dot_files) — PUBLIC repo, so only this repo's own work belongs here; content ported or first read from elsewhere is not cleared for commit/push here; secrets and personal/sensitive data are never cleared into it regardless of visibility",
+      "**Trusted repo**: /home/isao-vm/.dot_files (origin: github.com/Marshall-Hallenbeck/dot_files) \u2014 PUBLIC repo, so only this repo's own work belongs here; content ported or first read from elsewhere is not cleared for commit/push here; secrets and personal/sensitive data are never cleared into it regardless of visibility",
       "**Org-specific CLIs**: None configured",
       "routine under /home/isao-vm/.dot_files/ prefix: dotfiles install/promote scripts, Makefile test targets (test-all, test-clean, test-debian, test-hooks, test-kali, test-security-kali, test-ubuntu), security-tooling CLIs (nxc, ldapsearch, smbclientng, smbcrawler, ntlmrelayx.py, nuclei, bloodhound-cli/bhcli, searchsploit) observed in shell history are routine personal usage, not org-specific"
     ]
