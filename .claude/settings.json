@@ -39,7 +39,10 @@
       "mcp__plugin_playwright_playwright__browser_take_screenshot",
       "mcp__plugin_playwright_playwright__browser_wait_for",
       "Edit(**/*learned-insights.md)",
-      "Bash(uv run:*)"
+      "Bash(uv run:*)",
+      "Read(/tmp/**)",
+      "Write(/tmp/**)",
+      "Edit(/tmp/**)"
     ],
     "ask": [
       "Bash(git push --force*)",
@@ -47,8 +50,7 @@
       "Bash(git push -f*)",
       "Bash(git push * -f)",
       "Bash(git push * -f *)",
-      "Bash(git checkout:*)",
-      "Bash(rm:*)"
+      "Bash(git checkout:*)"
     ],
     "defaultMode": "auto"
   },
@@ -87,6 +89,15 @@
           {
             "type": "command",
             "command": "$HOME/.claude/hooks/validate-commit-references.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$HOME/.claude/hooks/guard-rm-outside-tmp.py"
           }
         ]
       },

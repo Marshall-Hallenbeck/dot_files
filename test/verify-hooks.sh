@@ -1037,7 +1037,63 @@ out=$(printf '%s\n' '{"tool_input":{"cmd":"npm test"}}' |
     COMMIT_REFERENCE_PR=203 COMMIT_REFERENCE_SENTRY=TOTAL_TAVERN-H bash "$commit_hook")
 check "non-Git command stays silent" "" "$out"
 
+echo "── guard-rm-outside-tmp.py ──"
+rm_hook="$HOOKS_DIR/guard-rm-outside-tmp.py"
+run_rm_hook() {
+    local payload="$1" output
+
+    if ! output=$(printf '%s\n' "$payload" | python3 "$rm_hook"); then
+        printf 'hook-error\n'
+        return
+    fi
+    printf '%s' "$output"
+}
+
+rm_decision() {
+    run_rm_hook "$1" | decision
+}
+
+out=$(rm_decision '{"cwd":"/tmp","tool_input":{"command":"rm -f result.txt"}}')
+check "relative rm target below /tmp -> allow" "allow" "$out"
+out=$(rm_decision '{"cwd":"/home/test","tool_input":{"command":"rm -rf /tmp/job-1"}}')
+check "absolute rm target below /tmp -> allow" "allow" "$out"
+out=$(rm_decision '{"cwd":"/home/test","tool_input":{"command":"rm -f project.txt"}}')
+check "relative rm target outside /tmp -> ask" "ask" "$out"
+out=$(rm_decision '{"cwd":"/home/test","tool_input":{"command":"rm -f /tmp/job-1 && touch outside"}}')
+check "compound rm command -> ask" "ask" "$out"
+out=$(run_rm_hook '{"cwd":"/home/test","tool_input":{"command":"git status"}}')
+check "non-rm command stays silent" "" "$out"
+if printf '%s\n' '{"cwd":"/tmp","tool_input":{}}' |
+    python3 "$rm_hook" >/dev/null 2>&1; then
+    res=allowed
+else
+    res=failed
+fi
+check "malformed required hook input hard-fails" "failed" "$res"
+if [ -x "$rm_hook" ]; then res=executable; else res=missing; fi
+check "rm guard hook is executable" "executable" "$res"
+
 dotfiles_root="$(cd "$(dirname "$0")/.." && pwd)"
+tmp_file_permissions=$(jq -r '
+    .permissions as $permissions
+    | ["Read(/tmp/**)", "Write(/tmp/**)", "Edit(/tmp/**)"]
+    | all(. as $rule | $permissions.allow | index($rule))
+' "$dotfiles_root/.claude/settings.json")
+check "Claude allows file tools below /tmp" "true" "$tmp_file_permissions"
+rm_ask_rule=$(jq -r '
+    .permissions.ask | index("Bash(rm:*)") == null
+' "$dotfiles_root/.claude/settings.json")
+check "Claude removes the broad rm ask rule" "true" "$rm_ask_rule"
+claude_rm_hook=$(jq -r '
+    .hooks.PreToolUse[]
+    | select(.matcher == "Bash" and (.hooks | length) == 1)
+    | .hooks[]
+    | select(.command | contains("guard-rm-outside-tmp.py"))
+    | .command
+' "$dotfiles_root/.claude/settings.json")
+expected_rm_hook="\$HOME/.claude/hooks/guard-rm-outside-tmp.py"
+check "Claude loads the rm guard in its own Bash entry" \
+    "$expected_rm_hook" "$claude_rm_hook"
 claude_hook=$(jq -r '
     .hooks.PreToolUse[]
     | select(.matcher == "Bash")
