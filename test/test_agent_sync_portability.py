@@ -64,6 +64,7 @@ print("tomlkit_fallback=plain-dict")
             [sys.executable, "-c", code, str(AGENT_SYNC)],
             capture_output=True,
             text=True,
+            check=False,
         )
 
         self.assertEqual(result.returncode, 0, result.stderr)
@@ -90,6 +91,70 @@ print("tomlkit_fallback=plain-dict")
             self.assertIn('status_line = ["model-name"]', rendered)
             self.assertEqual(rendered.count('"/tmp"'), 1)
             self.assertEqual(codex_config_sync.sync_global_settings(config), [])
+
+    def test_codex_config_sync_preserves_writable_root_array_comments(self) -> None:
+        codex_config_sync = load_codex_config_sync()
+        with tempfile.TemporaryDirectory() as temporary:
+            config = pathlib.Path(temporary) / "config.toml"
+            config.write_text(
+                '[features]\ndefault_mode_request_user_input = true\n\n'
+                '[sandbox_workspace_write]\n'
+                'writable_roots = [\n'
+                '    "/var/tmp/existing", # keep this root\n'
+                ']\n'
+            )
+
+            self.assertEqual(
+                codex_config_sync.sync_global_settings(config),
+                ["writable_root:/tmp"],
+            )
+
+            rendered = config.read_text()
+            self.assertIn('# keep this root', rendered)
+            self.assertIn('    "/var/tmp/existing",', rendered)
+            self.assertIn('    "/tmp",', rendered)
+
+    def test_codex_config_sync_rejects_scalar_writable_roots(self) -> None:
+        codex_config_sync = load_codex_config_sync()
+        with tempfile.TemporaryDirectory() as temporary:
+            config = pathlib.Path(temporary) / "config.toml"
+            config.write_text(
+                '[sandbox_workspace_write]\nwritable_roots = "/var/tmp/existing"\n'
+            )
+
+            with self.assertRaisesRegex(
+                RuntimeError,
+                r"sandbox_workspace_write\.writable_roots must be an array of strings",
+            ):
+                codex_config_sync.sync_global_settings(config)
+
+    def test_codex_config_sync_rejects_non_string_writable_root(self) -> None:
+        codex_config_sync = load_codex_config_sync()
+        with tempfile.TemporaryDirectory() as temporary:
+            config = pathlib.Path(temporary) / "config.toml"
+            config.write_text(
+                '[sandbox_workspace_write]\nwritable_roots = ["/tmp", 42]\n'
+            )
+
+            with self.assertRaisesRegex(
+                RuntimeError,
+                r"sandbox_workspace_write\.writable_roots must be an array of strings",
+            ):
+                codex_config_sync.sync_global_settings(config)
+
+    def test_codex_config_sync_creates_writable_roots_on_first_run(self) -> None:
+        codex_config_sync = load_codex_config_sync()
+        with tempfile.TemporaryDirectory() as temporary:
+            config = pathlib.Path(temporary) / "config.toml"
+
+            self.assertEqual(
+                codex_config_sync.sync_global_settings(config),
+                ["default_mode_request_user_input:true", "writable_root:/tmp"],
+            )
+            self.assertIn(
+                '[sandbox_workspace_write]\nwritable_roots = ["/tmp"]',
+                config.read_text(),
+            )
 
     def test_aggregate_return_code_preserves_failures_and_signals(self) -> None:
         agent_sync = load_agent_sync()
@@ -475,6 +540,7 @@ print("tomlkit_fallback=plain-dict")
                 env=env,
                 capture_output=True,
                 text=True,
+                check=False,
             )
 
             self.assertEqual(result.returncode, 0, result.stderr)
@@ -503,6 +569,7 @@ print("tomlkit_fallback=plain-dict")
                 env=env,
                 capture_output=True,
                 text=True,
+                check=False,
             )
 
             self.assertEqual(result.returncode, 0, result.stderr)
@@ -525,6 +592,7 @@ print("tomlkit_fallback=plain-dict")
                 env=env,
                 capture_output=True,
                 text=True,
+                check=False,
             )
 
             self.assertEqual(result.returncode, 0, result.stderr)
@@ -555,6 +623,7 @@ print("tomlkit_fallback=plain-dict")
                 env=env,
                 capture_output=True,
                 text=True,
+                check=False,
             )
 
             self.assertEqual(result.returncode, 0, result.stderr)
@@ -588,6 +657,7 @@ print("tomlkit_fallback=plain-dict")
                 env=os.environ | {"HOME": str(home), "DOTFILES_DIR": str(checkout)},
                 capture_output=True,
                 text=True,
+                check=False,
             )
 
             self.assertEqual(result.returncode, 0, result.stderr)
@@ -623,6 +693,7 @@ print("tomlkit_fallback=plain-dict")
                 env=os.environ | {"HOME": str(home), "DOTFILES_DIR": str(checkout)},
                 capture_output=True,
                 text=True,
+                check=False,
             )
 
             self.assertNotEqual(result.returncode, 0)
@@ -666,6 +737,7 @@ print("tomlkit_fallback=plain-dict")
                 env=os.environ | {"HOME": str(home), "DOTFILES_DIR": str(checkout)},
                 capture_output=True,
                 text=True,
+                check=False,
             )
 
             self.assertNotEqual(result.returncode, 0)
@@ -778,6 +850,7 @@ print("tomlkit_fallback=plain-dict")
                 env=env,
                 capture_output=True,
                 text=True,
+                check=False,
             )
 
             self.assertEqual(result.returncode, 0, result.stderr)
@@ -788,6 +861,7 @@ print("tomlkit_fallback=plain-dict")
                 env=env,
                 capture_output=True,
                 text=True,
+                check=False,
             )
             self.assertEqual(second_result.returncode, 0, second_result.stderr)
 
@@ -840,6 +914,7 @@ print("tomlkit_fallback=plain-dict")
                 env=env,
                 capture_output=True,
                 text=True,
+                check=False,
             )
 
             self.assertNotEqual(result.returncode, 0)
@@ -866,6 +941,7 @@ print("tomlkit_fallback=plain-dict")
                 env=env,
                 capture_output=True,
                 text=True,
+                check=False,
             )
 
             self.assertEqual(result.returncode, 0, result.stderr)
@@ -898,6 +974,7 @@ print("tomlkit_fallback=plain-dict")
                 env=env,
                 capture_output=True,
                 text=True,
+                check=False,
             )
 
             self.assertEqual(result.returncode, 0, result.stderr)

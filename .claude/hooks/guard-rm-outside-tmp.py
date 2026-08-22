@@ -36,16 +36,8 @@ def main() -> int:
     if not tokens:
         return 0
 
-    rm_indexes = [
-        index for index, token in enumerate(tokens)
-        if pathlib.Path(token).name == "rm"
-    ]
-    if not rm_indexes:
-        return 0
-    if rm_indexes != [0]:
-        return ask("The rm command is not a direct command.")
     if tokens[0] not in ALLOWED_RM_EXECUTABLES:
-        return ask("The rm executable is not allowed.")
+        return 0
     if "\n" in command or "\r" in command:
         return ask("The rm command contains a newline.")
     if any(token and set(token) <= SHELL_OPERATOR_CHARS for token in tokens):
@@ -67,7 +59,10 @@ def main() -> int:
 
     cwd = pathlib.Path(payload["cwd"]).resolve(strict=False)
     for target in targets:
-        expanded = pathlib.Path(os.path.expanduser(target))
+        expanded_target = os.path.expanduser(target)
+        if expanded_target.startswith("~"):
+            return ask("An rm target contains unresolved tilde syntax.")
+        expanded = pathlib.Path(expanded_target)
         if ".." in expanded.parts:
             return ask("An rm target contains a parent-directory component.")
         candidate = expanded if expanded.is_absolute() else cwd / expanded

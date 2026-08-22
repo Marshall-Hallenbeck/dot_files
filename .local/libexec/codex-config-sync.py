@@ -12,7 +12,8 @@ import shutil
 import subprocess
 import sys
 import time
-from typing import Any, Iterator
+from collections.abc import Iterator
+from typing import Any
 
 import tomlkit
 
@@ -35,7 +36,7 @@ def load_json(path: pathlib.Path) -> dict[str, Any]:
         return {}
     value = json.loads(path.read_text(encoding="utf-8-sig"))
     if not isinstance(value, dict):
-        raise RuntimeError(f"expected object in {path}")
+        raise TypeError(f"expected object in {path}")
     return value
 
 
@@ -152,7 +153,7 @@ def sync_toml_mcp(path: pathlib.Path, servers: dict[str, Any], previous_managed:
             changed.append(f"removed:{name}")
     for name, source in sorted(servers.items()):
         if not isinstance(source, dict):
-            raise RuntimeError(f"invalid MCP definition: {name}")
+            raise TypeError(f"invalid MCP definition: {name}")
         old = existing.get(name)
         table = tomlkit.table()
         if old is not None:
@@ -264,10 +265,18 @@ def sync_global_settings(path: pathlib.Path) -> list[str]:
     if sandbox is None:
         sandbox = tomlkit.table()
         doc["sandbox_workspace_write"] = sandbox
-    writable_roots = [str(root) for root in sandbox.get("writable_roots", [])]
+    writable_roots = sandbox.get("writable_roots")
+    if writable_roots is None:
+        writable_roots = tomlkit.array()
+        sandbox["writable_roots"] = writable_roots
+    elif not isinstance(writable_roots, tomlkit.items.Array) or any(
+        not isinstance(root, str) for root in writable_roots
+    ):
+        raise RuntimeError(
+            "sandbox_workspace_write.writable_roots must be an array of strings"
+        )
     if "/tmp" not in writable_roots:
         writable_roots.append("/tmp")
-        sandbox["writable_roots"] = writable_roots
         changed.append("writable_root:/tmp")
 
     if changed:
@@ -349,7 +358,10 @@ def main() -> int:
     # Never restart while holding the project lock: ExecStartPre runs this
     # synchronizer and would otherwise wait on the lock held by this process.
     if args.restart_daemon_on_change:
-        active = subprocess.run(["systemctl", "--user", "is-active", "--quiet", "codex-app-server.service"]).returncode == 0
+        active = subprocess.run(
+            ["systemctl", "--user", "is-active", "--quiet", "codex-app-server.service"],
+            check=False,
+        ).returncode == 0
         if active:
             if not args.quiet:
                 print("Configuration changed; restarting Codex App Server (graceful MCP shutdown can take about 30 seconds)...", file=sys.stderr, flush=True)

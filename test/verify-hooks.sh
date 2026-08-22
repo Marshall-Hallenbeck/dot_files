@@ -1072,14 +1072,33 @@ out=$(rm_decision '{"cwd":"/tmp","tool_input":{"command":"rm -rf /tmp/{safe,../.
 check "brace expansion in rm target -> ask" "ask" "$out"
 out=$(rm_decision '{"cwd":"/tmp","tool_input":{"command":"/usr/bin/rm -f /tmp/a"}}')
 check "exact /usr/bin/rm executable -> allow" "allow" "$out"
-out=$(rm_decision '{"cwd":"/tmp","tool_input":{"command":"/tmp/rm /tmp/a"}}')
-check "alternate rm executable -> ask" "ask" "$out"
+out=$(run_rm_hook '{"cwd":"/tmp","tool_input":{"command":"/tmp/rm /tmp/a"}}')
+check "alternate rm executable stays silent" "" "$out"
+out=$(run_rm_hook '{"cwd":"/tmp","tool_input":{"command":"printf rm"}}')
+check "rm argument to another command stays silent" "" "$out"
+out=$(rm_decision '{"cwd":"/tmp","tool_input":{"command":"rm -f /tmp/rm"}}')
+check "rm target named rm -> allow" "allow" "$out"
+out=$(rm_decision '{"cwd":"/tmp","tool_input":{"command":"rm -f ~-/victim"}}')
+check "previous-directory tilde target -> ask" "ask" "$out"
+out=$(rm_decision '{"cwd":"/tmp","tool_input":{"command":"rm -f ~+/victim"}}')
+check "current-directory tilde target -> ask" "ask" "$out"
+out=$(rm_decision '{"cwd":"/tmp","tool_input":{"command":"rm -f ~1/victim"}}')
+check "directory-stack tilde target -> ask" "ask" "$out"
+out=$(rm_decision '{"cwd":"/tmp","tool_input":{"command":"rm -f /tmp/a /home/test/project"}}')
+check "mixed safe and outside rm targets -> ask" "ask" "$out"
+out=$(rm_decision '{"cwd":"/tmp","tool_input":{"command":"rm -rf /tmp"}}')
+check "rm target is /tmp itself -> ask" "ask" "$out"
 ln -s /home/test "$commit_tmp/rm-link"
 dotdot_rm_input=$(jq -nc \
     --arg command "rm -f $commit_tmp/rm-link/../victim" \
     '{cwd: "/tmp", tool_input: {command: $command}}')
 out=$(rm_decision "$dotdot_rm_input")
 check "dot-dot target after symlink -> ask" "ask" "$out"
+direct_link_rm_input=$(jq -nc \
+    --arg command "rm -f $commit_tmp/rm-link/victim" \
+    '{cwd: "/tmp", tool_input: {command: $command}}')
+out=$(rm_decision "$direct_link_rm_input")
+check "direct symlink parent outside /tmp -> ask" "ask" "$out"
 out=$(run_rm_hook '{"cwd":"/home/test","tool_input":{"command":"git status"}}')
 check "non-rm command stays silent" "" "$out"
 if printf '%s\n' '{"cwd":"/tmp","tool_input":{}}' |
