@@ -37,6 +37,7 @@ These principles apply to ALL projects. Project-specific instruction files (CLAU
 - Hard-fail on every error. Do not add silent fallback paths, catches that swallow errors, success defaults, placeholder values, or “continue anyway” behavior.
 - If a required file, key, binary, service, or configuration is missing, throw or exit nonzero with a clear message that names the exact item.
 - When the user says to remove code or a TODO, delete it. Do not replace it with a pointer, explanatory comment, compatibility stub, or dead wrapper.
+- Never explain why something was removed in comments, if it's gone, it's gone.
 
 ### Shell and project preflight
 
@@ -63,13 +64,15 @@ When your own tooling breaks — e.g., the Bash tool returns exit code 1 or 2 wi
 
 ## Execution Style
 
-Always execute commands directly. Never provide manual steps for the user to run unless the command is destructive, requires credentials you don't have, or affects systems outside the current machine. Defer to the user only for irreversible actions (e.g., `git push --force`). Do the work — don't describe the work.
+Always execute commands directly. Never provide manual steps for the user to run unless the command is destructive, requires credentials you don't have, or affects systems outside the current machine. Defer to the user only for irreversible actions (e.g., `git push --force`). Do the work, don't describe the work.
 
 Never ask "want me to fix it?" or "should I fix this?" — if there's a bug, error, warning, or test failure, fix it immediately. The answer is always yes. This applies to everything: code bugs, lint errors, type errors, test failures, compilation warnings. Just fix them.
 
 ## Asking Questions
 
 Ask a clarifying question only when unresolved ambiguity would materially change the result and cannot be resolved from the repository, issue, prior user choices, or established project conventions. An explicit request to implement, build, fix, or change something authorizes in-scope execution; do not ask the user to approve that same work again.
+
+After an explicit implementation request, if a workflow offers multiple execution methods and marks one as recommended, select the recommended method and continue. Do not ask the user to choose an execution method unless no safe recommendation exists or the choice changes the authorized scope.
 
 - Ambiguous requirements or feature scope
 - Unclear implementation approach (multiple reasonable options)
@@ -102,23 +105,26 @@ When continuing a multi-phase plan from a prior session, resume execution direct
 - Use `.yml` extension (not `.yaml`) for YAML files unless the project already uses `.yaml`.
 - Use dot notation for attribute access in Python. Do not use `getattr`/`setattr` patterns or `pyright: ignore`/`type: ignore` comments unless absolutely unavoidable for third-party library compatibility.
 - For Python, use f-strings for string interpolation. Do not use `str.format()` or concatenation.
+- Comments should be a maximum of 2 lines and 88 characters per line. If it is impossible to write a comment in this space, 3 may be used if you ask me.
 
 ## Testing
 
 When developing an API or web application, there should always be the most simple checks that each endpoint or page is responding at a basic level. For example, if you create a new API route, add a smoke test that hits the route and checks for a 200 response. This ensures the route is wired up correctly before adding more complex tests. Loading the homepage of a web app and checking for a 200 with no console errors is another example of a simple smoke test. For databases, ensure there is a test that can connect to the database and perform a simple query. These basic checks catch fundamental issues early.
+
+Set parallel validation from current host resources. Calculate `parallel_limit` as `max(1, min(4, floor(MemAvailableGiB / 4), floor((logical_cpu_count - ceil(load_average_1m)) / 2)))`. Recalculate it before each new command. Use the limit only for independent unit tests, lint checks, and type checks. Force the limit to 1 when commands share mutable state or when a project wrapper classifies a job as heavy. Do not stop an active command only because the limit later decreases.
 
 ### Test Coverage Requirements
 
 Every code change must include appropriate test coverage:
 
 - **Bug fixes**: Must include a regression test that reproduces the bug and verifies the fix. The test must fail without the fix and pass with it. A bug fix without a regression test is incomplete.
-- **New features/functions**: Must include unit tests covering happy path, error paths, and edge cases. New public functions, components, routes, and handlers all require tests.
+- **New features/functions**: Must include unit tests covering known good paths, error paths, and realistic edge cases. Start with good paths, then add error paths, and only add edge cases if they are likely to happen. New public functions, components, routes, and handlers all require tests.
 - **UI/frontend features**: Must include component render tests, user interaction tests (clicks, form submissions, keyboard), and conditional rendering tests. For multi-page workflows, consider E2E tests.
-- **Integration points**: When adding new API integrations, database queries, or service-to-service communication, add integration tests that verify the interaction works end-to-end (mocking external services where necessary).
+- **Integration points**: When adding new API integrations, database queries, or service-to-service communication, add integration tests that verify the interaction works end-to-end (mocking external services where necessary). Consider if data needs to exist in the database before running e2e tests, and add it via direct queries if necessary.
 
 ### Running Tests
 
-Always run the full test suite after multi-file changes and before committing. Verify 0 failures. If tests fail, fix them before proceeding — do not commit with known failures.
+Always run the tests related to the files you've changed before committing unless told otherwise. Verify 0 failures. If tests fail, fix them before proceeding — do not commit with known failures.
 
 ## Static Analysis
 
@@ -131,7 +137,7 @@ Fix issues from both tools, not just one. If a project's instruction file (CLAUD
 
 ## Committing
 
-Before committing, run the full validation pipeline: `pre-commit` hooks, Ruff, Pyright, and the test suite. Fix every failure before committing — including pre-existing config problems (e.g., a broken Ruff config) you hit along the way, not just failures you introduced. Then commit with logical grouping: split unrelated changes into separate commits rather than one mixed commit.
+Before committing, run the full validation pipeline: `pre-commit` hooks, Ruff, Pyright, and the relevant test suites, if applicable. If a change will affect the entire application or program, you can run a holistic test suite run, otherwise, just focus on running applicable tests to what was changed. Fix every failure before committing — including pre-existing config problems (e.g., a broken Ruff config) you hit along the way, not just failures you introduced. Then commit with logical grouping: split unrelated changes into separate commits rather than one mixed commit.
 
 For a branch with an open pull request, end each commit subject with `(#<PR>)` and add `Refs #<PR>` in the body. Add `Sentry-Issue: <SENTRY-ID>` for Sentry work. Add `Refs #<issue>` for each related GitHub issue, or use a closing keyword only when the commit resolves it. Use the same references on merge commits. Do not invent references. Agent commit commands must not use `--no-verify` or `git commit -n`.
 

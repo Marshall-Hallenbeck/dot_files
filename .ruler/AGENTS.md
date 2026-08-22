@@ -67,6 +67,8 @@ Never ask "want me to fix it?" or "should I fix this?" — if there's a bug, err
 
 Ask a clarifying question only when unresolved ambiguity would materially change the result and cannot be resolved from the repository, issue, prior user choices, or established project conventions. An explicit request to implement, build, fix, or change something authorizes in-scope execution; do not ask the user to approve that same work again.
 
+After an explicit implementation request, if a workflow offers multiple execution methods and marks one as recommended, select the recommended method and continue. Do not ask the user to choose an execution method unless no safe recommendation exists or the choice changes the authorized scope.
+
 - Ambiguous requirements or feature scope
 - Unclear implementation approach (multiple reasonable options)
 - Uncertainty about intended behavior or edge cases
@@ -103,6 +105,8 @@ When continuing a multi-phase plan from a prior session, resume execution direct
 ## Testing
 
 When developing an API or web application, there should always be the most simple checks that each endpoint or page is responding at a basic level. For example, if you create a new API route, add a smoke test that hits the route and checks for a 200 response. This ensures the route is wired up correctly before adding more complex tests. Loading the homepage of a web app and checking for a 200 with no console errors is another example of a simple smoke test. For databases, ensure there is a test that can connect to the database and perform a simple query. These basic checks catch fundamental issues early.
+
+Set parallel validation from current host resources. Calculate `parallel_limit` as `max(1, min(4, floor(MemAvailableGiB / 4), floor((logical_cpu_count - ceil(load_average_1m)) / 2)))`. Recalculate it before each new command. Use the limit only for independent unit tests, lint checks, and type checks. Force the limit to 1 when commands share mutable state or when a project wrapper classifies a job as heavy. Do not stop an active command only because the limit later decreases.
 
 ### Test Coverage Requirements
 
