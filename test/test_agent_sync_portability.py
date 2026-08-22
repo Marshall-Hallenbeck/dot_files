@@ -69,20 +69,27 @@ print("tomlkit_fallback=plain-dict")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("tomlkit_fallback=plain-dict", result.stdout)
 
-    def test_codex_config_sync_enables_default_user_input_requests(self) -> None:
+    def test_codex_config_sync_enables_managed_global_settings(self) -> None:
         codex_config_sync = load_codex_config_sync()
         with tempfile.TemporaryDirectory() as temporary:
             config = pathlib.Path(temporary) / "config.toml"
-            config.write_text('[features]\nmemories = true\n\n[tui]\nstatus_line = ["model-name"]\n')
+            config.write_text(
+                '[features]\nmemories = true\n\n'
+                '[sandbox_workspace_write]\n'
+                'writable_roots = ["/var/tmp/existing"]\n\n'
+                '[tui]\nstatus_line = ["model-name"]\n'
+            )
 
             self.assertEqual(
-                codex_config_sync.sync_global_features(config),
-                ["default_mode_request_user_input:true"],
+                codex_config_sync.sync_global_settings(config),
+                ["default_mode_request_user_input:true", "writable_root:/tmp"],
             )
             rendered = config.read_text()
             self.assertIn("default_mode_request_user_input = true", rendered)
+            self.assertIn('writable_roots = ["/var/tmp/existing", "/tmp"]', rendered)
             self.assertIn('status_line = ["model-name"]', rendered)
-            self.assertEqual(codex_config_sync.sync_global_features(config), [])
+            self.assertEqual(rendered.count('"/tmp"'), 1)
+            self.assertEqual(codex_config_sync.sync_global_settings(config), [])
 
     def test_aggregate_return_code_preserves_failures_and_signals(self) -> None:
         agent_sync = load_agent_sync()
