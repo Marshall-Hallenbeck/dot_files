@@ -1061,6 +1061,25 @@ out=$(rm_decision '{"cwd":"/home/test","tool_input":{"command":"rm -f project.tx
 check "relative rm target outside /tmp -> ask" "ask" "$out"
 out=$(rm_decision '{"cwd":"/home/test","tool_input":{"command":"rm -f /tmp/job-1 && touch outside"}}')
 check "compound rm command -> ask" "ask" "$out"
+newline_rm_input=$(jq -nc --arg command $'rm -f /tmp/a\nbash /tmp/payload' \
+    '{cwd: "/tmp", tool_input: {command: $command}}')
+out=$(rm_decision "$newline_rm_input")
+check "newline-separated command after rm -> ask" "ask" "$out"
+# shellcheck disable=SC2016  # backticks must stay literal in the payload
+out=$(rm_decision '{"cwd":"/tmp","tool_input":{"command":"rm --interactive=`/tmp/payload` /tmp/a"}}')
+check "substitution in rm option -> ask" "ask" "$out"
+out=$(rm_decision '{"cwd":"/tmp","tool_input":{"command":"rm -rf /tmp/{safe,../../home/test/project}"}}')
+check "brace expansion in rm target -> ask" "ask" "$out"
+out=$(rm_decision '{"cwd":"/tmp","tool_input":{"command":"/usr/bin/rm -f /tmp/a"}}')
+check "exact /usr/bin/rm executable -> allow" "allow" "$out"
+out=$(rm_decision '{"cwd":"/tmp","tool_input":{"command":"/tmp/rm /tmp/a"}}')
+check "alternate rm executable -> ask" "ask" "$out"
+ln -s /home/test "$commit_tmp/rm-link"
+dotdot_rm_input=$(jq -nc \
+    --arg command "rm -f $commit_tmp/rm-link/../victim" \
+    '{cwd: "/tmp", tool_input: {command: $command}}')
+out=$(rm_decision "$dotdot_rm_input")
+check "dot-dot target after symlink -> ask" "ask" "$out"
 out=$(run_rm_hook '{"cwd":"/home/test","tool_input":{"command":"git status"}}')
 check "non-rm command stays silent" "" "$out"
 if printf '%s\n' '{"cwd":"/tmp","tool_input":{}}' |

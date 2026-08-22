@@ -7,6 +7,8 @@ import sys
 
 TMP_ROOT = pathlib.Path("/tmp")
 SHELL_OPERATOR_CHARS = frozenset(";&|<>()")
+SHELL_EXPANSION_CHARS = frozenset("$`{}*?[]")
+ALLOWED_RM_EXECUTABLES = frozenset(("rm", "/usr/bin/rm"))
 
 
 def emit(decision: str, reason: str) -> None:
@@ -42,8 +44,14 @@ def main() -> int:
         return 0
     if rm_indexes != [0]:
         return ask("The rm command is not a direct command.")
+    if tokens[0] not in ALLOWED_RM_EXECUTABLES:
+        return ask("The rm executable is not allowed.")
+    if "\n" in command or "\r" in command:
+        return ask("The rm command contains a newline.")
     if any(token and set(token) <= SHELL_OPERATOR_CHARS for token in tokens):
         return ask("The rm command contains a shell operator.")
+    if any(set(token) & SHELL_EXPANSION_CHARS for token in tokens[1:]):
+        return ask("The rm command contains shell expansion syntax.")
 
     targets: list[str] = []
     options = True
@@ -59,9 +67,9 @@ def main() -> int:
 
     cwd = pathlib.Path(payload["cwd"]).resolve(strict=False)
     for target in targets:
-        if "$" in target or "`" in target:
-            return ask("An rm target uses shell substitution.")
         expanded = pathlib.Path(os.path.expanduser(target))
+        if ".." in expanded.parts:
+            return ask("An rm target contains a parent-directory component.")
         candidate = expanded if expanded.is_absolute() else cwd / expanded
         candidate = pathlib.Path(os.path.normpath(candidate))
         if candidate == TMP_ROOT or TMP_ROOT not in candidate.parents:
