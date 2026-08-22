@@ -460,32 +460,40 @@ print("tomlkit_fallback=plain-dict")
         agent_service = (REPO / ".config/systemd/user/agent-sync.service").read_text()
         codex_service = (REPO / ".config/systemd/user/codex-app-server.service").read_text()
         updater_service = (REPO / ".config/systemd/user/dotfiles-update.service").read_text()
-        updater_timer = (REPO / ".config/systemd/user/dotfiles-update.timer").read_text()
         self.assertNotIn("WorkingDirectory=", agent_service)
         self.assertIn("agent-sync --all --no-restart --quiet", agent_service)
         self.assertIn("codex-config-sync --compat-only --quiet", codex_service)
         self.assertNotIn("agent-sync --all", codex_service)
         self.assertIn("%h/.local/bin/dotfiles-update", updater_service)
-        self.assertIn("OnBootSec=2min", updater_timer)
-        self.assertIn("OnUnitActiveSec=5min", updater_timer)
+        self.assertIn("ExecStart=%h/.local/bin/dotfiles-update", agent_service)
 
     def test_remote_control_feature_manages_dotfiles_updater_assets(self) -> None:
         deployer = (REPO / "scripts/dotfiles").read_text()
         for path in (
             ".config/systemd/user/dotfiles-update.service",
-            ".config/systemd/user/dotfiles-update.timer",
             ".local/bin/dotfiles-update",
+            ".local/libexec/ai-config-audit.py",
+            ".local/libexec/codex-app-server-watchdog.py",
         ):
             self.assertIn(path, deployer)
+        self.assertNotIn("    .config/systemd/user/dotfiles-update.timer\n", deployer)
+        self.assertFalse((REPO / ".config/systemd/user/dotfiles-update.timer").exists())
+        self.assertIn("enable --now agent-sync.timer", deployer)
+        self.assertIn("disable --now dotfiles-update.timer", deployer)
+        self.assertNotIn("enable --now agent-sync.timer dotfiles-update.timer", deployer)
 
     def test_agent_sync_uses_completion_based_timer_and_resource_limits(self) -> None:
         timer = (REPO / ".config/systemd/user/agent-sync.timer").read_text()
         service = (REPO / ".config/systemd/user/agent-sync.service").read_text()
 
-        self.assertIn("OnUnitInactiveSec=30min", timer)
-        self.assertIn("RandomizedDelaySec=5min", timer)
+        self.assertIn("OnUnitInactiveSec=3h", timer)
+        self.assertIn("RandomizedDelaySec=15min", timer)
         self.assertNotIn("OnUnitActiveSec=", timer)
         self.assertIn("Slice=ai-agents.slice", service)
+        self.assertLess(
+            service.index("ExecStart=%h/.local/bin/dotfiles-update"),
+            service.index("ExecStart=%h/.local/share/codex-config-sync-venv/bin/python"),
+        )
         self.assertIn(
             "ExecStart=%h/.local/share/codex-config-sync-venv/bin/python %h/.local/bin/agent-sync --all --no-restart --quiet",
             service,
@@ -506,7 +514,7 @@ print("tomlkit_fallback=plain-dict")
         self.assertIn("IOWeight=25", slice_unit)
         self.assertIn("MemoryHigh=25%", slice_unit)
         self.assertIn("MemoryMax=35%", slice_unit)
-        self.assertIn("TasksMax=1536", slice_unit)
+        self.assertIn("TasksMax=32768", slice_unit)
         self.assertNotIn("Persistent=true", (REPO / ".config/systemd/user/agent-sync.timer").read_text())
 
     def test_claude_tool_concurrency_is_bounded(self) -> None:
@@ -517,6 +525,7 @@ print("tomlkit_fallback=plain-dict")
         deployer = (REPO / "scripts/dotfiles").read_text()
         wrapper = (REPO / ".local/bin/codex-config-sync").read_text()
         self.assertIn("tomlkit==0.13.3", deployer)
+        self.assertIn("PyYAML==6.0.3", deployer)
         self.assertIn("codex-config-sync-venv/bin/python", wrapper)
 
     def test_codex_config_sync_wrapper_uses_managed_interpreter(self) -> None:
@@ -826,6 +835,8 @@ print("tomlkit_fallback=plain-dict")
             target_unit = home / ".config/systemd/user/agent-sync.service"
             target_unit.parent.mkdir(parents=True)
             target_unit.write_text("legacy unit\n")
+            legacy_timer = home / ".config/systemd/user/dotfiles-update.timer"
+            legacy_timer.symlink_to(dotfiles / ".config/systemd/user/dotfiles-update.timer")
             target_script = home / ".local/bin/agent-sync"
             target_script.mkdir(parents=True)
             (target_script / "legacy.txt").write_text("legacy directory\n")
@@ -884,13 +895,16 @@ print("tomlkit_fallback=plain-dict")
             self.assertEqual(
                 systemctl_log.read_text().splitlines(),
                 [
+                    "--user disable --now dotfiles-update.timer",
                     "--user daemon-reload",
-                    "--user enable --now agent-sync.timer dotfiles-update.timer",
+                    "--user enable --now agent-sync.timer",
                     "--user daemon-reload",
-                    "--user enable --now agent-sync.timer dotfiles-update.timer",
+                    "--user enable --now agent-sync.timer",
                 ],
             )
             self.assertNotIn("restart", systemctl_log.read_text())
+            self.assertFalse(legacy_timer.exists())
+            self.assertFalse(legacy_timer.is_symlink())
 
     def test_feature_enable_validates_managed_python_before_changes(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
