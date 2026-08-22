@@ -69,8 +69,35 @@ out=$(echo '{"hook_event_name":"Stop","stop_hook_active":true,"last_assistant_me
 check "active stop hook -> avoid continuation loop" "" "$out"
 
 echo "── inject-insights-index.sh ──"
-out=$(echo '{"source":"startup"}' | bash "$HOOKS_DIR/inject-insights-index.sh" | jq -r '.hookSpecificOutput.hookEventName // "none"')
-check "emits SessionStart index" "SessionStart" "$out"
+insights_tmp=$(mktemp -d)
+mkdir -p "$insights_tmp/.claude"
+printf '## Shell\n\n- Full insight body.\n' >"$insights_tmp/.claude/global-learned-insights.md"
+out=$(echo '{"source":"startup"}' | HOME="$insights_tmp" \
+    bash "$HOOKS_DIR/inject-insights-index.sh")
+event=$(jq -r '.hookSpecificOutput.hookEventName // "none"' <<<"$out")
+context=$(jq -r '.hookSpecificOutput.additionalContext // ""' <<<"$out")
+check "emits SessionStart context" "SessionStart" "$event"
+if grep -Fq "Full insight body." <<<"$context"; then res=full; else res=missing; fi
+check "small insight file -> full content" "full" "$res"
+fallback=$(echo '{"source":"startup"}' | HOME="$insights_tmp" \
+    CLAUDE_INSIGHTS_SIZE_LIMIT=1 bash "$HOOKS_DIR/inject-insights-index.sh" |
+    jq -r '.hookSpecificOutput.additionalContext // ""')
+if grep -Fq -- "- Shell" <<<"$fallback" && \
+   ! grep -Fq "Full insight body." <<<"$fallback"; then
+    res=index
+else
+    res=wrong
+fi
+check "large insight file -> topic index" "index" "$res"
+if echo '{"source":"startup"}' | HOME="$insights_tmp" \
+    CLAUDE_INSIGHTS_SIZE_LIMIT=invalid bash "$HOOKS_DIR/inject-insights-index.sh" \
+    >/dev/null 2>&1; then
+    res=accepted
+else
+    res=rejected
+fi
+check "invalid insight size limit -> failure" "rejected" "$res"
+rm -rf "$insights_tmp"
 
 echo "── validate-commit-references.sh ──"
 commit_hook="$HOOKS_DIR/validate-commit-references.sh"
