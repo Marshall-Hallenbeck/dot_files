@@ -141,6 +141,9 @@ Always prefer simple, minimal solutions first. Avoid over-engineering with unnec
 
 ## Safety / Dangerous Operations
 
+`/tmp` is an approved scratch area. Do not ask for permission to create,
+change, or delete content when every changed path stays below `/tmp`.
+
 Never modify shell config files (`.zshrc`, `.bashrc`, `.zshenv`) with `sed`. Use targeted `echo`/append or manual instructions instead. Always back up before any changes.
 
 ## Docker / Deployment
