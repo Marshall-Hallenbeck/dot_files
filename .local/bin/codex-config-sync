@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-python_bin="${CODEX_CONFIG_SYNC_PYTHON:-$HOME/.local/share/codex-config-sync-venv/bin/python}"
+python_bin="${CODEX_CONFIG_SYNC_PYTHON:-$HOME/.local/share/codex-config-sync-venv-current/bin/python}"
 implementation="$HOME/.local/libexec/codex-config-sync.py"
 
 if [[ ! -x "$python_bin" ]]; then

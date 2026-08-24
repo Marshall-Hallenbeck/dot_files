@@ -1,5 +1,5 @@
 #!/bin/sh
-'''exec' "$HOME/.local/share/codex-config-sync-venv/bin/python" "$0" "$@"
+'''exec' "$HOME/.local/share/codex-config-sync-venv-current/bin/python" "$0" "$@"
 ' '''
 """Monthly no-agent audit for the local Claude/Codex/Hermes configuration."""
 import json
