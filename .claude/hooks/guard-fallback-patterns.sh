@@ -11,6 +11,14 @@
 command -v jq >/dev/null 2>&1 || { echo "guard-fallback-patterns: jq unavailable, guard disabled" >&2; exit 0; }
 
 input=$(cat)
+
+# Documentation and prose legitimately use the word "fallback"; the
+# error-handling rule governs code behavior, so skip non-code files.
+file_path=$(echo "$input" | jq -r '.tool_input.file_path // empty')
+case "$file_path" in
+  *.md|*.markdown|*.txt|*.rst|*.adoc) exit 0 ;;
+esac
+
 # Cover Write (.content), Edit (.new_string), and MultiEdit (.edits[].new_string).
 content=$(echo "$input" | jq -r '[.tool_input.new_string, .tool_input.content, (.tool_input.edits[]?.new_string)] | map(select(. != null)) | join("\n")')
 [ -z "$content" ] && exit 0

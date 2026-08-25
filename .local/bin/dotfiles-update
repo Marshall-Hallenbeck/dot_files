@@ -13,6 +13,13 @@ fail() {
     exit 1
 }
 
+reconcile_enabled_remote_control() {
+    if [ -e "$HOME/.config/dotfiles/features/ai-remote-control" ]; then
+        "$DOTFILES_DIR/scripts/dotfiles" feature-enable ai-remote-control >/dev/null
+        "$HOME/.local/bin/agent-sync" --all --no-restart --quiet
+    fi
+}
+
 [ -d "$DOTFILES_DIR/.git" ] || fail "$DOTFILES_DIR is not a Git checkout"
 mkdir -p "$LOCK_DIR"
 exec 9>"$LOCK_FILE"
@@ -23,6 +30,7 @@ head=$(git -C "$DOTFILES_DIR" rev-parse HEAD)
 upstream=$(git -C "$DOTFILES_DIR" rev-parse "$UPSTREAM")
 
 if [ "$head" = "$upstream" ]; then
+    reconcile_enabled_remote_control
     exit 0
 fi
 
@@ -52,9 +60,6 @@ if [ -x "$DOTFILES_DIR/scripts/migrate-local-state" ]; then
     "$DOTFILES_DIR/scripts/migrate-local-state" >/dev/null
 fi
 
-if [ -e "$HOME/.config/dotfiles/features/ai-remote-control" ]; then
-    "$DOTFILES_DIR/scripts/dotfiles" feature-enable ai-remote-control >/dev/null
-    "$HOME/.local/bin/agent-sync" --all --no-restart --quiet
-fi
+reconcile_enabled_remote_control
 
 printf 'dotfiles-update: fast-forwarded %s to %s\n' "$BRANCH" "$(git -C "$DOTFILES_DIR" rev-parse --short HEAD)"

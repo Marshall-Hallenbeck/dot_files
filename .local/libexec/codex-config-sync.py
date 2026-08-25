@@ -12,7 +12,8 @@ import shutil
 import subprocess
 import sys
 import time
-from typing import Any, Iterator
+from collections.abc import Iterator
+from typing import Any
 
 import tomlkit
 
@@ -35,7 +36,7 @@ def load_json(path: pathlib.Path) -> dict[str, Any]:
         return {}
     value = json.loads(path.read_text(encoding="utf-8-sig"))
     if not isinstance(value, dict):
-        raise RuntimeError(f"expected object in {path}")
+        raise TypeError(f"expected object in {path}")
     return value
 
 
@@ -152,7 +153,7 @@ def sync_toml_mcp(path: pathlib.Path, servers: dict[str, Any], previous_managed:
             changed.append(f"removed:{name}")
     for name, source in sorted(servers.items()):
         if not isinstance(source, dict):
-            raise RuntimeError(f"invalid MCP definition: {name}")
+            raise TypeError(f"invalid MCP definition: {name}")
         old = existing.get(name)
         table = tomlkit.table()
         if old is not None:
@@ -247,19 +248,40 @@ def sync_plugins() -> list[str]:
     return changed
 
 
-def sync_global_features(path: pathlib.Path) -> list[str]:
-    """Apply global Codex feature settings managed by this dotfiles repository."""
+def sync_global_settings(path: pathlib.Path) -> list[str]:
+    """Apply global Codex settings managed by this dotfiles repository."""
     path.parent.mkdir(parents=True, exist_ok=True)
     doc = tomlkit.parse(path.read_text()) if path.is_file() else tomlkit.document()
+    changed: list[str] = []
     features = doc.get("features")
     if features is None:
         features = tomlkit.table()
         doc["features"] = features
-    if features.get("default_mode_request_user_input") is True:
-        return []
-    features["default_mode_request_user_input"] = True
-    path.write_text(tomlkit.dumps(doc))
-    return ["default_mode_request_user_input:true"]
+    if features.get("default_mode_request_user_input") is not True:
+        features["default_mode_request_user_input"] = True
+        changed.append("default_mode_request_user_input:true")
+
+    sandbox = doc.get("sandbox_workspace_write")
+    if sandbox is None:
+        sandbox = tomlkit.table()
+        doc["sandbox_workspace_write"] = sandbox
+    writable_roots = sandbox.get("writable_roots")
+    if writable_roots is None:
+        writable_roots = tomlkit.array()
+        sandbox["writable_roots"] = writable_roots
+    elif not isinstance(writable_roots, tomlkit.items.Array) or any(
+        not isinstance(root, str) for root in writable_roots
+    ):
+        raise RuntimeError(
+            "sandbox_workspace_write.writable_roots must be an array of strings"
+        )
+    if "/tmp" not in writable_roots:
+        writable_roots.append("/tmp")
+        changed.append("writable_root:/tmp")
+
+    if changed:
+        path.write_text(tomlkit.dumps(doc))
+    return changed
 
 
 def sync_hook_scripts() -> list[str]:
@@ -292,7 +314,7 @@ def main() -> int:
             state = load_json(state_file)
             hook_changes = sync_hook_scripts()
             skills, skill_changes = sync_skills(set(state.get("skillNames", [])))
-            feature_changes = sync_global_features(HOME / ".codex/config.toml")
+            feature_changes = sync_global_settings(HOME / ".codex/config.toml")
             plugin_changes = sync_plugins()
             result = {
                 "status": "ok",
@@ -318,7 +340,7 @@ def main() -> int:
         state = load_json(state_file)
         fingerprint = source_fingerprint(root)
         hook_changes = sync_hook_scripts()
-        feature_changes = sync_global_features(HOME / ".codex/config.toml")
+        feature_changes = sync_global_settings(HOME / ".codex/config.toml")
         if not args.force and state.get("fingerprint") == fingerprint and not hook_changes and not feature_changes:
             if not args.quiet:
                 print(json.dumps({"status": "unchanged", "root": str(root)}))
@@ -336,7 +358,10 @@ def main() -> int:
     # Never restart while holding the project lock: ExecStartPre runs this
     # synchronizer and would otherwise wait on the lock held by this process.
     if args.restart_daemon_on_change:
-        active = subprocess.run(["systemctl", "--user", "is-active", "--quiet", "codex-app-server.service"]).returncode == 0
+        active = subprocess.run(
+            ["systemctl", "--user", "is-active", "--quiet", "codex-app-server.service"],
+            check=False,
+        ).returncode == 0
         if active:
             if not args.quiet:
                 print("Configuration changed; restarting Codex App Server (graceful MCP shutdown can take about 30 seconds)...", file=sys.stderr, flush=True)
