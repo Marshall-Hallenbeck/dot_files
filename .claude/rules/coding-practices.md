@@ -55,7 +55,7 @@ Only make changes that are directly requested or clearly necessary.
 ## Comments
 
 - Comment only what needs one. Do not narrate code that already reads clearly.
-- Maximum 2 lines per comment. Long lines are fine; many lines are not.
+- Maximum 2 lines per comment, 88 characters per line. A third line only if you ask first.
 - If a comment runs long, **shorten the comment** — never restructure the code to accommodate it.
 - Do not write rationale, historical context, or the story of a bug into a comment. That belongs in the PR or issue. Reference it instead.
 
