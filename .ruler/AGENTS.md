@@ -94,6 +94,7 @@ When continuing a multi-phase plan from a prior session, resume execution direct
 
 ## Code Style
 
+
 - Use `.yml` extension (not `.yaml`) for YAML files unless the project already uses `.yaml`.
 - Use dot notation for attribute access in Python. Do not use `getattr`/`setattr` patterns or `pyright: ignore`/`type: ignore` comments unless absolutely unavoidable for third-party library compatibility.
 - For Python, use f-strings for string interpolation. Do not use `str.format()` or concatenation.

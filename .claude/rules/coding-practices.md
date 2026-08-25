@@ -52,6 +52,25 @@ Only make changes that are directly requested or clearly necessary.
 - Don't add docstrings, comments, or type annotations to code you didn't change
 - Only add comments where the logic isn't self-evident
 
+## Comments
+
+- Comment only what needs one. Do not narrate code that already reads clearly.
+- Maximum 2 lines per comment. Long lines are fine; many lines are not.
+- If a comment runs long, **shorten the comment** — never restructure the code to accommodate it.
+- Do not write rationale, historical context, or the story of a bug into a comment. That belongs in the PR or issue. Reference it instead.
+
+```python
+# Wrong — rationale, history, and a quoted error belong in the PR
+# Setting ad.baseDN narrowed every search alike, including ones whose objects
+# do not live under the given subtree. The domain object and its trusts are
+# children of the naming context, so those searches returned nothing and
+# collection aborted with "Could not find the requested domain ...".
+# The search_base fallback is therefore chosen per query instead.
+
+# Right
+# These objects live at the naming context root, not under a scoped OU. PR #1374
+```
+
 ## Direct Attribute Access
 
 Use dot notation for attribute access in Python. Do not use `getattr(obj, "attr")` or `setattr(obj, "attr", val)` when the attribute name is a constant — use `obj.attr` and `obj.attr = val` directly. Similarly, do not add `# pyright: ignore` or `# type: ignore` comments unless absolutely unavoidable for third-party library compatibility.
