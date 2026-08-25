@@ -81,11 +81,18 @@ pipx_install_if_missing impacket git+https://github.com/fortra/impacket.git
 echo "Installing cidrize"
 pipx_install_if_missing cidrize cidrize
 
-echo "Installing NetExec via GitHub, uv (editable)"
-NETEXEC_DIR="$HOME/pentest/tools/ad_and_windows/NetExec"
-[ -d "$NETEXEC_DIR" ] || git clone https://github.com/Pennyw0rth/NetExec "$NETEXEC_DIR"
-uv tool install "$NETEXEC_DIR" -e --force
-# pipx install git+https://github.com/Pennyw0rth/NetExec
+if ! command -v which cargo &> /dev/null; then
+    echo "Installing Rust for NetExec"
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+fi
+
+if ! command -v nxc --version | grep -i kali &> /dev/null; then
+    echo "Installing NetExec via GitHub, uv (editable)"
+    NETEXEC_DIR="$HOME/pentest/tools/ad_and_windows/NetExec"
+    [ -d "$NETEXEC_DIR" ] || git clone https://github.com/Pennyw0rth/NetExec "$NETEXEC_DIR"
+    uv tool install "$NETEXEC_DIR" -e --force
+    # pipx install git+https://github.com/Pennyw0rth/NetExec
+fi
 
 echo "Installing smbclientng"
 pipx_install_if_missing smbclientng smbclientng

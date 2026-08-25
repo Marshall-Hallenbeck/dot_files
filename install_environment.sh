@@ -191,8 +191,9 @@ fi
 
 export NVM_DIR="$HOME/.nvm"
 if [ ! -d "$NVM_DIR" ]; then
-    echo "Installing nvm..."
-    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
+    git clone https://github.com/nvm-sh/nvm.git "$NVM_DIR"
+    cd "$NVM_DIR"
+    git checkout `git describe --abbrev=0 --tags --match "v[0-9]*" $(git rev-list --tags --max-count=1)`
 fi
 # load nvm for the rest of this script
 # shellcheck disable=SC1091
@@ -245,10 +246,17 @@ fi
 # under a per-platform vendor directory instead, so publish it at the path they
 # expect. Point at the native binary, not the npm shim: the shim spawns a child
 # node process, which would sit between systemd and the long-lived app server.
-codex_vendor_bin=$(find "$(npm prefix -g)/lib/node_modules/@openai/codex/node_modules/@openai" \
-    -type d -path '*/vendor/*/bin' -print -quit)
+# Match the codex binary at its exact depth. A wildcard search for any bin
+# directory under vendor/ also matches the vendored zsh in
+# codex-resources/zsh/bin, which holds no codex binary.
+codex_vendor_binaries=("$(npm prefix -g)"/lib/node_modules/@openai/codex/node_modules/@openai/codex-*/vendor/*/bin/codex)
+codex_vendor_bin="${codex_vendor_binaries[0]}"
+if [ ! -x "$codex_vendor_bin" ]; then
+    echo "ERROR: no Codex binary at @openai/codex-*/vendor/*/bin/codex under $(npm prefix -g)/lib/node_modules" >&2
+    exit 1
+fi
 mkdir -p ~/.codex/packages/standalone
-ln -sfn "$codex_vendor_bin" ~/.codex/packages/standalone/current
+ln -sfn "$(dirname "$codex_vendor_bin")" ~/.codex/packages/standalone/current
 
 link_file "$DOTFILES_DIR/.codex/AGENTS.md" ~/.codex/AGENTS.md
 link_file "$DOTFILES_DIR/.codex/hooks.json" ~/.codex/hooks.json

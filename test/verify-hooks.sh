@@ -69,8 +69,35 @@ out=$(echo '{"hook_event_name":"Stop","stop_hook_active":true,"last_assistant_me
 check "active stop hook -> avoid continuation loop" "" "$out"
 
 echo "── inject-insights-index.sh ──"
-out=$(echo '{"source":"startup"}' | bash "$HOOKS_DIR/inject-insights-index.sh" | jq -r '.hookSpecificOutput.hookEventName // "none"')
-check "emits SessionStart index" "SessionStart" "$out"
+insights_tmp=$(mktemp -d)
+mkdir -p "$insights_tmp/.claude"
+printf '## Shell\n\n- Full insight body.\n' >"$insights_tmp/.claude/global-learned-insights.md"
+out=$(echo '{"source":"startup"}' | HOME="$insights_tmp" \
+    bash "$HOOKS_DIR/inject-insights-index.sh")
+event=$(jq -r '.hookSpecificOutput.hookEventName // "none"' <<<"$out")
+context=$(jq -r '.hookSpecificOutput.additionalContext // ""' <<<"$out")
+check "emits SessionStart context" "SessionStart" "$event"
+if grep -Fq "Full insight body." <<<"$context"; then res=full; else res=missing; fi
+check "small insight file -> full content" "full" "$res"
+fallback=$(echo '{"source":"startup"}' | HOME="$insights_tmp" \
+    CLAUDE_INSIGHTS_SIZE_LIMIT=1 bash "$HOOKS_DIR/inject-insights-index.sh" |
+    jq -r '.hookSpecificOutput.additionalContext // ""')
+if grep -Fq -- "- Shell" <<<"$fallback" && \
+   ! grep -Fq "Full insight body." <<<"$fallback"; then
+    res=index
+else
+    res=wrong
+fi
+check "large insight file -> topic index" "index" "$res"
+if echo '{"source":"startup"}' | HOME="$insights_tmp" \
+    CLAUDE_INSIGHTS_SIZE_LIMIT=invalid bash "$HOOKS_DIR/inject-insights-index.sh" \
+    >/dev/null 2>&1; then
+    res=accepted
+else
+    res=rejected
+fi
+check "invalid insight size limit -> failure" "rejected" "$res"
+rm -rf "$insights_tmp"
 
 echo "── validate-commit-references.sh ──"
 commit_hook="$HOOKS_DIR/validate-commit-references.sh"
@@ -1037,7 +1064,101 @@ out=$(printf '%s\n' '{"tool_input":{"cmd":"npm test"}}' |
     COMMIT_REFERENCE_PR=203 COMMIT_REFERENCE_SENTRY=TOTAL_TAVERN-H bash "$commit_hook")
 check "non-Git command stays silent" "" "$out"
 
+echo "── guard-rm-outside-tmp.py ──"
+rm_hook="$HOOKS_DIR/guard-rm-outside-tmp.py"
+run_rm_hook() {
+    local payload="$1" output
+
+    if ! output=$(printf '%s\n' "$payload" | python3 "$rm_hook"); then
+        printf 'hook-error\n'
+        return
+    fi
+    printf '%s' "$output"
+}
+
+rm_decision() {
+    run_rm_hook "$1" | decision
+}
+
+out=$(rm_decision '{"cwd":"/tmp","tool_input":{"command":"rm -f result.txt"}}')
+check "relative rm target below /tmp -> allow" "allow" "$out"
+out=$(rm_decision '{"cwd":"/home/test","tool_input":{"command":"rm -rf /tmp/job-1"}}')
+check "absolute rm target below /tmp -> allow" "allow" "$out"
+out=$(rm_decision '{"cwd":"/home/test","tool_input":{"command":"rm -f project.txt"}}')
+check "relative rm target outside /tmp -> ask" "ask" "$out"
+out=$(rm_decision '{"cwd":"/home/test","tool_input":{"command":"rm -f /tmp/job-1 && touch outside"}}')
+check "compound rm command -> ask" "ask" "$out"
+newline_rm_input=$(jq -nc --arg command $'rm -f /tmp/a\nbash /tmp/payload' \
+    '{cwd: "/tmp", tool_input: {command: $command}}')
+out=$(rm_decision "$newline_rm_input")
+check "newline-separated command after rm -> ask" "ask" "$out"
+# shellcheck disable=SC2016  # backticks must stay literal in the payload
+out=$(rm_decision '{"cwd":"/tmp","tool_input":{"command":"rm --interactive=`/tmp/payload` /tmp/a"}}')
+check "substitution in rm option -> ask" "ask" "$out"
+out=$(rm_decision '{"cwd":"/tmp","tool_input":{"command":"rm -rf /tmp/{safe,../../home/test/project}"}}')
+check "brace expansion in rm target -> ask" "ask" "$out"
+out=$(rm_decision '{"cwd":"/tmp","tool_input":{"command":"/usr/bin/rm -f /tmp/a"}}')
+check "exact /usr/bin/rm executable -> allow" "allow" "$out"
+out=$(run_rm_hook '{"cwd":"/tmp","tool_input":{"command":"/tmp/rm /tmp/a"}}')
+check "alternate rm executable stays silent" "" "$out"
+out=$(run_rm_hook '{"cwd":"/tmp","tool_input":{"command":"printf rm"}}')
+check "rm argument to another command stays silent" "" "$out"
+out=$(rm_decision '{"cwd":"/tmp","tool_input":{"command":"rm -f /tmp/rm"}}')
+check "rm target named rm -> allow" "allow" "$out"
+out=$(rm_decision '{"cwd":"/tmp","tool_input":{"command":"rm -f ~-/victim"}}')
+check "previous-directory tilde target -> ask" "ask" "$out"
+out=$(rm_decision '{"cwd":"/tmp","tool_input":{"command":"rm -f ~+/victim"}}')
+check "current-directory tilde target -> ask" "ask" "$out"
+out=$(rm_decision '{"cwd":"/tmp","tool_input":{"command":"rm -f ~1/victim"}}')
+check "directory-stack tilde target -> ask" "ask" "$out"
+out=$(rm_decision '{"cwd":"/tmp","tool_input":{"command":"rm -f /tmp/a /home/test/project"}}')
+check "mixed safe and outside rm targets -> ask" "ask" "$out"
+out=$(rm_decision '{"cwd":"/tmp","tool_input":{"command":"rm -rf /tmp"}}')
+check "rm target is /tmp itself -> ask" "ask" "$out"
+ln -s /home/test "$commit_tmp/rm-link"
+dotdot_rm_input=$(jq -nc \
+    --arg command "rm -f $commit_tmp/rm-link/../victim" \
+    '{cwd: "/tmp", tool_input: {command: $command}}')
+out=$(rm_decision "$dotdot_rm_input")
+check "dot-dot target after symlink -> ask" "ask" "$out"
+direct_link_rm_input=$(jq -nc \
+    --arg command "rm -f $commit_tmp/rm-link/victim" \
+    '{cwd: "/tmp", tool_input: {command: $command}}')
+out=$(rm_decision "$direct_link_rm_input")
+check "direct symlink parent outside /tmp -> ask" "ask" "$out"
+out=$(run_rm_hook '{"cwd":"/home/test","tool_input":{"command":"git status"}}')
+check "non-rm command stays silent" "" "$out"
+if printf '%s\n' '{"cwd":"/tmp","tool_input":{}}' |
+    python3 "$rm_hook" >/dev/null 2>&1; then
+    res=allowed
+else
+    res=failed
+fi
+check "malformed required hook input hard-fails" "failed" "$res"
+if [ -x "$rm_hook" ]; then res=executable; else res=missing; fi
+check "rm guard hook is executable" "executable" "$res"
+
 dotfiles_root="$(cd "$(dirname "$0")/.." && pwd)"
+tmp_file_permissions=$(jq -r '
+    .permissions as $permissions
+    | ["Read(/tmp/**)", "Write(/tmp/**)", "Edit(/tmp/**)"]
+    | all(. as $rule | $permissions.allow | index($rule))
+' "$dotfiles_root/.claude/settings.json")
+check "Claude allows file tools below /tmp" "true" "$tmp_file_permissions"
+rm_ask_rule=$(jq -r '
+    .permissions.ask | index("Bash(rm:*)") == null
+' "$dotfiles_root/.claude/settings.json")
+check "Claude removes the broad rm ask rule" "true" "$rm_ask_rule"
+claude_rm_hook=$(jq -r '
+    .hooks.PreToolUse[]
+    | select(.matcher == "Bash" and (.hooks | length) == 1)
+    | .hooks[]
+    | select(.command | contains("guard-rm-outside-tmp.py"))
+    | .command
+' "$dotfiles_root/.claude/settings.json")
+expected_rm_hook="\$HOME/.claude/hooks/guard-rm-outside-tmp.py"
+check "Claude loads the rm guard in its own Bash entry" \
+    "$expected_rm_hook" "$claude_rm_hook"
 claude_hook=$(jq -r '
     .hooks.PreToolUse[]
     | select(.matcher == "Bash")
@@ -1205,6 +1326,32 @@ else
     res=before
 fi
 check "Codex trust gate runs after every symlink is deployed" "after" "$res"
+
+# The Codex npm package ships a vendored zsh under codex-resources/zsh/bin. A
+# wildcard search for any bin directory below vendor/ matched that directory
+# first and published it as packages/standalone/current, so the Remote Control
+# wrapper and codex-app-server.service ran a path with no codex binary.
+codex_publish_home=$(mktemp -d "$commit_tmp/codex-publish.XXXXXX")
+codex_fake_prefix="$codex_publish_home/prefix"
+codex_fake_vendor="$codex_fake_prefix/lib/node_modules/@openai/codex/node_modules/@openai/codex-linux-x64/vendor/x86_64-unknown-linux-musl"
+mkdir -p "$codex_fake_vendor/bin" "$codex_fake_vendor/codex-resources/zsh/bin" "$codex_publish_home/bin"
+printf '#!/bin/bash\nprintf codex-cli\n' >"$codex_fake_vendor/bin/codex"
+printf '#!/bin/bash\nprintf zsh\n' >"$codex_fake_vendor/codex-resources/zsh/bin/zsh"
+chmod +x "$codex_fake_vendor/bin/codex" "$codex_fake_vendor/codex-resources/zsh/bin/zsh"
+# shellcheck disable=SC2016  # $FAKE_NPM_PREFIX must stay literal in the generated script
+printf '#!/bin/bash\nprintf "%%s\\n" "$FAKE_NPM_PREFIX"\n' >"$codex_publish_home/bin/npm"
+chmod +x "$codex_publish_home/bin/npm"
+{
+    echo 'set -euo pipefail'
+    sed -n '/^# ── OpenAI Codex/,/standalone\/current$/p' "$dotfiles_root/install_environment.sh"
+} | HOME="$codex_publish_home" FAKE_NPM_PREFIX="$codex_fake_prefix" \
+    PATH="$codex_publish_home/bin:$PATH" bash >/dev/null 2>&1
+if [ -x "$codex_publish_home/.codex/packages/standalone/current/codex" ]; then
+    res=published
+else
+    res=broken
+fi
+check "installer publishes the Codex binary, not the vendored zsh" "published" "$res"
 
 # The tracked instruction files are Ruler output: shared half, overlay marker,
 # then the per-agent overlay. If a hand edit lands in the output instead of the

@@ -45,6 +45,7 @@ digraph complete_issue {
     "Implement remaining work" [shape=box style=filled fillcolor=lightblue];
     "Implement all acceptance criteria" [shape=box style=filled fillcolor=lightblue];
     "Verify/create test coverage" [shape=box style=filled fillcolor=lightyellow];
+    "Commit, push, open PR" [shape=box style=filled fillcolor=lightgreen];
 
     "Read issue contents via gh" -> "Reconcile issue labels";
     "Reconcile issue labels" -> "Issue has implementation work?";
@@ -61,6 +62,7 @@ digraph complete_issue {
     "Partially implemented?" -> "Implement all acceptance criteria" [label="no"];
     "Implement remaining work" -> "Verify/create test coverage";
     "Implement all acceptance criteria" -> "Verify/create test coverage";
+    "Verify/create test coverage" -> "Commit, push, open PR";
 }
 ```
 
@@ -292,6 +294,46 @@ for full validation. If the project defines its own dispatcher (e.g.
 
 **All selected tests must pass before claiming completion.** Show output with pass/fail counts.
 
+## Step 6: Publish (Required — Green Tests Are Not Delivery)
+
+Passing tests in a working tree nobody can see is not a completed issue. Work
+that stops here is the single largest source of lost effort: an audit of one
+repository found 12 of 29 parallel agents, and 9 of 10 sessions in another
+batch, ran their tests green and never committed once. Their branches and
+worktrees were deleted weeks later with the work still uncommitted.
+
+Do not report the issue complete until every step below has run.
+
+```bash
+git add <files by name>          # never -A, never .
+git commit                       # Conventional Commits; body carries "Closes #N"
+git push -u origin <branch>
+gh pr create --base <default>    # use the repo's PR template if one exists
+```
+
+1. **Stage by name.** `git status --porcelain` first; stage only files this
+   issue touched. If unrelated changes are present, leave them unstaged and say
+   so.
+2. **Commit** with a Conventional Commits subject and `Closes #N` in the body
+   (or `Refs #N` when the issue is not fully resolved). Never `--no-verify`,
+   never `git commit -n`.
+3. **Push** the branch. A local commit is not delivery either.
+4. **Open the PR** against the repository's default branch. Fill the template
+   if the repo has one. Apply the labels matching the diff.
+5. **Wait for CI, then verify mergeability.** Zero failing checks *and* checks
+   that have actually reported — a PR with no checks yet reads as "clean" and
+   is not. Confirm `MERGEABLE/CLEAN`, or checks-passed `MERGEABLE/BLOCKED`.
+6. **Release the claim** if you took one in Step 1b, and clean up any worktree
+   the repo's conventions require.
+
+Do not merge the PR. Merging needs an explicit request from the user.
+
+### If you cannot finish
+
+Commit and push what you have on a branch anyway, then say exactly what is
+missing. An unpushed working tree is unrecoverable once its worktree is
+removed; a pushed branch is always recoverable.
+
 ## Quick Reference
 
 | Check | Command | Why |
@@ -325,6 +367,10 @@ for full validation. If the project defines its own dispatcher (e.g.
 - "This looks done" without specific commit references or file locations
 - Fix: Always cite commit SHAs and file:line evidence in close comments
 
+**Stopping at green tests**
+- Tests pass, so the work is reported done — but nothing is committed, pushed, or PR'd
+- Fix: Step 6 is mandatory. Delivery is a pushed branch and an open PR, not a green test run.
+
 **Skipping test verification**
 - Implementing code without checking for existing tests, updating broken tests, or creating missing tests
 - Fix: Step 5 is mandatory. Every acceptance criterion needs test coverage.
@@ -340,3 +386,5 @@ If you catch yourself doing any of these, go back to Step 2:
 - Skipping the completion assessment table
 - Implementing without updating or creating tests
 - Closing an issue when tests for the implemented criteria don't exist
+- Reporting an issue complete with green tests but no pushed branch and no PR
+- Leaving a worktree with uncommitted work because "the tests pass"

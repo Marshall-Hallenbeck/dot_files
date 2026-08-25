@@ -23,7 +23,7 @@ When you identify a noteworthy insight:
 
 ## Retrieval
 
-The `inject-insights-index.sh` SessionStart hook injects the topic headings of the global insights file into each session — not the full entries. When the current task matches a listed topic, read that section of `~/.claude/global-learned-insights.md` before proceeding.
+The `inject-insights-index.sh` SessionStart hook injects the full global insights file when it is within the configured size limit. It injects only the topic headings when the file is over that limit. When only the headings are present, read the matching section of `~/.claude/global-learned-insights.md` before work starts.
 
 ## Format
 
@@ -39,7 +39,7 @@ Use this format in the insights files:
 
 - Skip trivial or obvious insights — only save things that would genuinely help in future sessions
 - Deduplicate: don't save if a substantially similar insight is already recorded
-- Keep entries concise — a topic index is injected into each session (see `hooks/inject-insights-index.sh`) and full entries are read on demand
+- Keep entries concise because the full file is normally injected into each session
 - Don't save session-specific or task-specific details
 - Don't ask the user for classification — determine it yourself and save silently
 - If the project-level file doesn't exist yet, create it with a header comment: `# Project Learned Insights`

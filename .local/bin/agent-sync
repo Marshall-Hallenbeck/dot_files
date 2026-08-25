@@ -123,7 +123,12 @@ def instruction_paths(root: pathlib.Path) -> dict[str, dict[str, pathlib.Path]]:
 
     paths = {}
     for tool, ruler_default in RULER_DEFAULT_OUTPUT.items():
-        shared = ruler_agents.get(tool, {}).get("output_path", ruler_default)
+        agent_config = ruler_agents.get(tool, {})
+        shared = (
+            agent_config.get("output_path_instructions")
+            or agent_config.get("output_path")
+            or ruler_default
+        )
         paths[tool] = {
             "shared": root / shared,
             "overlay": root / f".ai-config/AGENTS.{tool}.md",
