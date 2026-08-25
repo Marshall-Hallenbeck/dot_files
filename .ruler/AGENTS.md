@@ -101,7 +101,6 @@ When continuing a multi-phase plan from a prior session, resume execution direct
 - Use `.yml` extension (not `.yaml`) for YAML files unless the project already uses `.yaml`.
 - Use dot notation for attribute access in Python. Do not use `getattr`/`setattr` patterns or `pyright: ignore`/`type: ignore` comments unless absolutely unavoidable for third-party library compatibility.
 - For Python, use f-strings for string interpolation. Do not use `str.format()` or concatenation.
-- Comments should be a maximum of 2 lines and 88 characters per line. If it is impossible to write a comment in this space, 3 may be used if you ask me.
 
 ## Testing
 
