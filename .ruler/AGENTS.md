@@ -65,19 +65,38 @@ Never ask "want me to fix it?" or "should I fix this?" — if there's a bug, err
 
 ## Asking Questions
 
-Ask a clarifying question only when unresolved ambiguity would materially change the result and cannot be resolved from the repository, issue, prior user choices, or established project conventions. An explicit request to implement, build, fix, or change something authorizes in-scope execution; do not ask the user to approve that same work again.
+Use a collaborative decision style for requirements and design. Do not silently select between multiple reasonable outcomes when the choice affects the user.
 
-After an explicit implementation request, if a workflow offers multiple execution methods and marks one as recommended, select the recommended method and continue. Do not ask the user to choose an execution method unless no safe recommendation exists or the choice changes the authorized scope.
+Ask before implementation when a decision affects:
 
-- Ambiguous requirements or feature scope
-- Unclear implementation approach (multiple reasonable options)
-- Uncertainty about intended behavior or edge cases
-- File placement, naming, or architectural decisions that aren't obvious
-- Whether to add defensive checks, guards, or safety measures
-- Whether to fix source code vs test assertions
-- Anything where a wrong assumption would waste effort or produce the wrong result
+- User-visible behavior or UX
+- Feature scope or acceptance criteria
+- API contracts, data models, or architecture
+- Security, permissions, privacy, or destructive operations
+- Compatibility, migration, or deployment behavior
+- Error behavior or important edge cases
+- A trade-off where two or more options are reasonable
 
-Make repository-backed, reversible, in-scope decisions autonomously. Ask before destructive actions, meaningful scope expansion, or choices that remain genuinely blocking after investigation.
+Ask even when one option is recommended. Mark the recommended option and briefly state why it is recommended.
+
+When the runtime provides a structured question tool, use it instead of asking the question in plain text:
+
+- Claude Code: `AskUserQuestion`
+- Codex: `request_user_input`
+- ChatGPT: the native structured-choice interface, when available
+
+Group related questions into one tool call. Give two to four distinct options. State the practical consequence of each option. Use multi-select only when the choices are independent.
+
+Do not ask for:
+
+- Information available from the repository, issue, logs, or current system
+- Approval for work the user already explicitly requested
+- Trivial, reversible implementation details with one conventional answer
+- Permission to fix an in-scope bug, warning, or failed test
+
+An explicit request to implement, build, fix, or change something authorizes in-scope execution. Approval of both a design and its implementation plan authorizes immediate implementation. Do not ask the user to approve the same work again.
+
+If the session is non-interactive, do not pretend that a question tool is available. For a reversible choice, use the recommended option and state the assumption. For a consequential or irreversible choice, stop and return `NEEDS_USER_INPUT` with the available options.
 
 ## Planning & Approach
 
@@ -96,7 +115,6 @@ Stay focused on the stated goal. If you think work should extend beyond the orig
 When continuing a multi-phase plan from a prior session, resume execution directly at the next incomplete chunk. Do NOT re-summarize prior work or ask clarifying questions unless you hit a genuine blocker.
 
 ## Code Style
-
 
 - Use `.yml` extension (not `.yaml`) for YAML files unless the project already uses `.yaml`.
 - Use dot notation for attribute access in Python. Do not use `getattr`/`setattr` patterns or `pyright: ignore`/`type: ignore` comments unless absolutely unavoidable for third-party library compatibility.
