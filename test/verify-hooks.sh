@@ -1141,10 +1141,19 @@ check "rm guard hook is executable" "executable" "$res"
 dotfiles_root="$(cd "$(dirname "$0")/.." && pwd)"
 tmp_file_permissions=$(jq -r '
     .permissions as $permissions
-    | ["Read(/tmp/**)", "Write(/tmp/**)", "Edit(/tmp/**)"]
+    | ["Read(/tmp/**)", "Edit(/tmp/**)"]
     | all(. as $rule | $permissions.allow | index($rule))
 ' "$dotfiles_root/.claude/settings.json")
 check "Claude allows file tools below /tmp" "true" "$tmp_file_permissions"
+write_path_rules=$(jq -r '
+    [.permissions.allow, .permissions.ask, .permissions.deny]
+    | map(. // [])
+    | add
+    | map(select(startswith("Write(")))
+    | length
+' "$dotfiles_root/.claude/settings.json")
+check "Claude has no Write(path) rules; only Edit rules match file tools" \
+    "0" "$write_path_rules"
 rm_ask_rule=$(jq -r '
     .permissions.ask | index("Bash(rm:*)") == null
 ' "$dotfiles_root/.claude/settings.json")

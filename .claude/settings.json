@@ -37,7 +37,6 @@
       "Edit(**/*learned-insights.md)",
       "Bash(uv run:*)",
       "Read(/tmp/**)",
-      "Write(/tmp/**)",
       "Edit(/tmp/**)"
     ],
     "ask": [

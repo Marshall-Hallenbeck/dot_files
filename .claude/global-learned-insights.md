@@ -72,6 +72,7 @@ Accumulated knowledge from working across projects. Auto-maintained by Claude.
 - Wrappers `timeout`/`time`/`nice`/`nohup`/`stdbuf`/`command`/`builtin`/`noglob` are stripped before matching; `npx`, `docker exec`, `devbox run`, `mise exec` are NOT — so `Bash(devbox run *)` grants `devbox run rm -rf .`. `watch`/`setsid`/`ionice`/`flock` and `find -exec`/`-delete` always prompt and cannot be prefix-allowed.
 - Many read-only commands never prompt (no allowlist entry needed): `cat`/`ls`/`grep`/`find`/`head`/`tail`/`wc`/`cut`/`sort`/`diff`, all git read subcommands (`git log/diff/status/show/branch`), gh read subcommands, `docker ps/images/logs/inspect`. Worth allowlisting only the read-only tools OUTSIDE that set: `objdump`/`nm`/`readelf`/`ping`/`dig`, etc.
 - When cwd is the home directory, the "project" `.claude/settings.json` path resolves to the global `~/.claude/settings.json` — they're the same file. `settings.local.json` holds machine-specific grants and (in this setup) is symlinked into `~/.dot_files`, so it IS dotfiles-tracked despite the usual "local = gitignored" convention.
+- `Write(path)` permission rules are never matched: file-tool checks evaluate only `Edit(path)` rules, which already cover Write/Edit/NotebookEdit. A `Write(...)` entry only prints a startup warning, so use `Edit(...)` alone. `claude -p ok --settings <file>` prints the same settings warnings as interactive startup, so it verifies a settings fix without the TUI.
 
 ## PostgreSQL JSONB Patterns
 
