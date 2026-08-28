@@ -1,0 +1,245 @@
+model = "gpt-5.6-sol"
+model_reasoning_effort = "high"
+personality = "pragmatic"
+developer_instructions = "When you need the user to answer a question before you can continue, use request_user_input exclusively whenever it is available. Do not ask a blocking question only in normal assistant text. If request_user_input returns without an answer, ask the same question again with request_user_input and continue to wait. Do not infer an answer or treat an empty response as permission or cancellation."
+approvals_reviewer = "user"
+approval_policy = "never"
+default_permissions = ":danger-full-access"
+
+[mcp_servers.context7]
+url = "https://mcp.context7.com/mcp"
+
+[mcp_servers.hermes]
+command = "ssh"
+args = ["-o", "BatchMode=yes", "-o", "IdentitiesOnly=yes", "-o", "StrictHostKeyChecking=yes", "-o", "ServerAliveInterval=30", "-o", "ServerAliveCountMax=3", "-i", "/home/marshall/.ssh/id_hermes_mcp", "marshall@192.168.8.121"]
+
+[mcp_servers.next-devtools]
+command = "npx"
+args = ["-y", "next-devtools-mcp@latest"]
+
+[mcp_servers.sentry]
+url = "https://mcp.sentry.dev/mcp/marshall-hallenbeck/total_tavern"
+
+[mcp_servers.postgres-mcp]
+command = "bash"
+args = ["-lc", 'exec "$(git rev-parse --show-toplevel)/.claude/mcp/postgres-mcp.sh"']
+
+[mcp_servers.openaiDeveloperDocs]
+url = "https://developers.openai.com/mcp"
+
+[projects."/home/marshall/code/turins_tavern"]
+trust_level = "trusted"
+
+[projects."/home/marshall/projects/dot_files"]
+trust_level = "trusted"
+
+[projects."/home/marshall/.dot_files"]
+trust_level = "trusted"
+
+[projects."/home/marshall"]
+trust_level = "trusted"
+
+[projects."/tmp/codex-security-scans-OmvUyB/turins_tavern/19bef5b672b179b639436b89d8f46b2d7550b8e4_20260729T210317Z_t8pwr_wo/artifacts/deep_discovery/workers/discovery-0003/output"]
+trust_level = "trusted"
+
+[projects."/tmp/codex-security-scans-OmvUyB/turins_tavern/19bef5b672b179b639436b89d8f46b2d7550b8e4_20260729T210317Z_t8pwr_wo/artifacts/deep_discovery/workers/discovery-0004/output"]
+trust_level = "trusted"
+
+[projects."/tmp/codex-security-scans-OmvUyB/turins_tavern/19bef5b672b179b639436b89d8f46b2d7550b8e4_20260729T210317Z_t8pwr_wo/artifacts/deep_discovery/workers/discovery-0001/output"]
+trust_level = "trusted"
+
+[projects."/tmp/codex-security-scans-OmvUyB/turins_tavern/19bef5b672b179b639436b89d8f46b2d7550b8e4_20260729T210317Z_t8pwr_wo/artifacts/deep_discovery/workers/discovery-0005/output"]
+trust_level = "trusted"
+
+[projects."/tmp/codex-security-scans-OmvUyB/turins_tavern/19bef5b672b179b639436b89d8f46b2d7550b8e4_20260729T210317Z_t8pwr_wo/artifacts/deep_discovery/workers/discovery-0002/output"]
+trust_level = "trusted"
+
+[projects."/tmp"]
+trust_level = "trusted"
+
+[projects."/tmp/codex-security-scans-2dQ90J/turins_tavern/7487c3fde8bbafc2452b181c4172ed7cb1dc45dd_20260803T104052Z_59ufpdpm/artifacts"]
+trust_level = "trusted"
+
+[projects."/home/marshall/.codex/worktrees/b45f/turins_tavern"]
+trust_level = "trusted"
+
+[features]
+multi_agent = true
+memories = true
+default_mode_request_user_input = true
+
+[notice]
+hide_full_access_warning = true
+hide_rate_limit_model_nudge = true
+
+[notice.model_migrations]
+"gpt-5.2-codex" = "gpt-5.3-codex"
+
+[tui]
+status_line = [
+    "model-with-reasoning",
+    "current-dir",
+    "project-root",
+    "git-branch",
+    "context-remaining",
+    "context-used",
+    "five-hour-limit",
+    "weekly-limit",
+    "codex-version",
+    "context-window-size",
+    "used-tokens",
+]
+
+[tui.model_availability_nux]
+"gpt-5.5" = 1
+"gpt-5.6-sol" = 2
+
+[shell_environment_policy]
+inherit = "core"
+
+[shell_environment_policy.set]
+CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS = "1"
+CLAUDE_CODE_FORK_SUBAGENT = "1"
+CLAUDE_CODE_MAX_TOOL_USE_CONCURRENCY = "20"
+CLAUDE_CODE_NO_FLICKER = "1"
+CLAUDE_CODE_RESUME_INTERRUPTED_TURN = "1"
+CLAUDE_CODE_SCROLL_SPEED = "3"
+TASK_MAX_OUTPUT_LENGTH = "64000"
+CLAUDE_CODE_EFFORT_LEVEL = "max"
+CLAUDE_AFK_TIMEOUT_MS = "86400000"
+
+[marketplaces.claude-plugins-official]
+last_updated = "2026-08-21T17:40:36Z"
+last_revision = "340e33aef211d95769d252324854497af871dafe"
+source_type = "git"
+source = "https://github.com/anthropics/claude-plugins-official.git"
+
+[marketplaces.openai-bundled]
+source_type = "local"
+source = "/home/marshall/.codex/.tmp/bundled-marketplaces/openai-bundled"
+
+[plugins."claude-code-setup@claude-plugins-official"]
+enabled = true
+
+[plugins."claude-md-management@claude-plugins-official"]
+enabled = true
+
+[plugins."code-simplifier@claude-plugins-official"]
+enabled = true
+
+[plugins."context7@claude-plugins-official"]
+enabled = false
+
+[plugins."explanatory-output-style@claude-plugins-official"]
+enabled = false
+
+[plugins."feature-dev@claude-plugins-official"]
+enabled = true
+
+[plugins."frontend-design@claude-plugins-official"]
+enabled = true
+
+[plugins."pyright-lsp@claude-plugins-official"]
+enabled = true
+
+[plugins."security-guidance@claude-plugins-official"]
+enabled = false
+
+[plugins."typescript-lsp@claude-plugins-official"]
+enabled = true
+
+[plugins."sites@openai-bundled"]
+enabled = true
+
+[plugins."visualize@openai-bundled"]
+enabled = true
+
+[plugins."codex-security@openai-curated"]
+enabled = true
+
+[hooks.state]
+
+[hooks.state."/home/marshall/.codex/hooks.json:pre_tool_use:0:0"]
+trusted_hash = "sha256:09adc401b761208447da5049dc1372aa2063c63b758b0319389e04b3148096be"
+
+[hooks.state."/home/marshall/.codex/hooks.json:post_tool_use:0:0"]
+trusted_hash = "sha256:335a9c58221831bf88218703f19c07e7f71ef01f7a62cfda797ba72b9b805d11"
+
+[hooks.state."/home/marshall/.codex/hooks.json:post_tool_use:1:0"]
+trusted_hash = "sha256:1e406cfb7fdd8e49e9cd6dc22ff0f4173d87d7928294529628e6d4e26aa74586"
+
+[hooks.state."/home/marshall/.codex/hooks.json:session_start:0:0"]
+trusted_hash = "sha256:9c5076fb7df34c41d6c50a42f5eca7cdca7800af79d01c958aeaeea80010a487"
+
+[hooks.state."/home/marshall/.codex/hooks.json:stop:0:0"]
+trusted_hash = "sha256:67f6dfd900438b37602b72beb624f1fd0f2ff05d9cca4f2926aae3087fbf6c43"
+
+[hooks.state."explanatory-output-style@claude-plugins-official:hooks/hooks.json:session_start:0:0"]
+trusted_hash = "sha256:362c33d95b5e93327acdaa6ec1830feab9b95d5e08d5d75e902a1ce77cb19526"
+
+[hooks.state."security-guidance@claude-plugins-official:hooks/hooks.json:post_tool_use:0:0"]
+trusted_hash = "sha256:e1f574c07fd492df4de2ceb615c3b0a2a3eca27329bf0929ff9095650c7174bf"
+
+[hooks.state."security-guidance@claude-plugins-official:hooks/hooks.json:post_tool_use:1:0"]
+trusted_hash = "sha256:ff051adf363232a355758bbc96941b87ab8b38bd47e6c5940b1232827a68b6d6"
+
+[hooks.state."security-guidance@claude-plugins-official:hooks/hooks.json:post_tool_use:1:1"]
+trusted_hash = "sha256:ff051adf363232a355758bbc96941b87ab8b38bd47e6c5940b1232827a68b6d6"
+
+[hooks.state."security-guidance@claude-plugins-official:hooks/hooks.json:post_tool_use:1:2"]
+trusted_hash = "sha256:ff051adf363232a355758bbc96941b87ab8b38bd47e6c5940b1232827a68b6d6"
+
+[hooks.state."security-guidance@claude-plugins-official:hooks/hooks.json:post_tool_use:1:3"]
+trusted_hash = "sha256:ff051adf363232a355758bbc96941b87ab8b38bd47e6c5940b1232827a68b6d6"
+
+[hooks.state."security-guidance@claude-plugins-official:hooks/hooks.json:post_tool_use:1:4"]
+trusted_hash = "sha256:ff051adf363232a355758bbc96941b87ab8b38bd47e6c5940b1232827a68b6d6"
+
+[hooks.state."security-guidance@claude-plugins-official:hooks/hooks.json:session_start:0:0"]
+trusted_hash = "sha256:3def3be0b299c29f829ea4b057509c24f3c6f8eede7b8c719bbd4167866d6cf6"
+
+[hooks.state."security-guidance@claude-plugins-official:hooks/hooks.json:user_prompt_submit:0:0"]
+trusted_hash = "sha256:c22701bf949e9ffd219867faec1158e0124874e94f3668dab6209fa3acc92dd6"
+
+[hooks.state."security-guidance@claude-plugins-official:hooks/hooks.json:stop:0:0"]
+trusted_hash = "sha256:5d8880157e747997146b5eb0443a43909e23fb0203e64ae4895eff5a1b0282fa"
+
+[hooks.state."/home/marshall/.codex/hooks.json:pre_tool_use:1:0"]
+trusted_hash = "sha256:37092818e58dc1d5b869eeb0fca86497d3aec475d0cf2900a04b9aac0fb08c7b"
+
+[hooks.state."/home/marshall/.dot_files/.codex/hooks.json:pre_tool_use:0:0"]
+trusted_hash = "sha256:a1a83cf5abe045cba2f4734208196277170a5f33d73e40661fcd60310fb14ab2"
+
+[hooks.state."/home/marshall/.dot_files/.codex/hooks.json:pre_tool_use:1:0"]
+trusted_hash = "sha256:37092818e58dc1d5b869eeb0fca86497d3aec475d0cf2900a04b9aac0fb08c7b"
+
+[hooks.state."/home/marshall/.dot_files/.codex/hooks.json:post_tool_use:0:0"]
+trusted_hash = "sha256:335a9c58221831bf88218703f19c07e7f71ef01f7a62cfda797ba72b9b805d11"
+
+[hooks.state."/home/marshall/.dot_files/.codex/hooks.json:post_tool_use:1:0"]
+trusted_hash = "sha256:1e406cfb7fdd8e49e9cd6dc22ff0f4173d87d7928294529628e6d4e26aa74586"
+
+[hooks.state."/home/marshall/.dot_files/.codex/hooks.json:session_start:0:0"]
+trusted_hash = "sha256:039b4275ad1b0b71a41024423c23bc57585be0ebb347e773a950f864eb46738b"
+
+[hooks.state."/home/marshall/.dot_files/.codex/hooks.json:stop:0:0"]
+trusted_hash = "sha256:67f6dfd900438b37602b72beb624f1fd0f2ff05d9cca4f2926aae3087fbf6c43"
+
+[hooks.state."/home/marshall/code/turins_tavern/.codex/hooks.json:session_start:0:0"]
+trusted_hash = "sha256:d766bac826552eed62d351cc250b49a0ec866d7c78faa3c24eea3a938ea7c883"
+
+[hooks.state."/home/marshall/code/turins_tavern/.codex/hooks.json:session_start:0:1"]
+trusted_hash = "sha256:5e0cfb23a7c48ebedda31926be6355d1a23d2c01564b27c1e1680caf66160d7e"
+
+[hooks.state."/home/marshall/code/turins_tavern/.codex/hooks.json:subagent_start:0:0"]
+trusted_hash = "sha256:f4ee06edb4b372e30674beea20d057cf7c1f1d0c35cc732188e5df2dace6faf3"
+
+[apps.connector_76869538009648d5b282a4bb21c3d157.tools."github.add_comment_to_issue"]
+approval_mode = "approve"
+
+[memories]
+generate_memories = true
+use_memories = true
+
+[sandbox_workspace_write]
+writable_roots = ["/tmp"]
