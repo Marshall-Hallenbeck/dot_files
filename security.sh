@@ -1,5 +1,5 @@
 #!/usr/bin/env zsh
-# shellcheck disable=SC1071
+# shellcheck shell=bash
 # setup script for my security tooling, etc
 
 set -euo pipefail
