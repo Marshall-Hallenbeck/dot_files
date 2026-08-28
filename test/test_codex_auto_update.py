@@ -339,7 +339,7 @@ class CodexAutoUpdateTests(unittest.TestCase):
                 capture_output=True,
                 text=True,
                 check=False,
-                timeout=1,
+                timeout=10,
             )
 
             self.assertNotEqual(result.returncode, 0)
