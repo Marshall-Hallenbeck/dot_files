@@ -401,3 +401,9 @@ Accumulated knowledge from working across projects. Auto-maintained by Claude.
 - paramiko 5.0.0 removed `ssh-rsa` and `ssh-dss` from `Transport._key_info` entirely (`dsskey.py` is gone). `_preferred_keys` is only ssh-ed25519, ecdsa-sha2-nistp256/384/521, rsa-sha2-512, rsa-sha2-256. `disabled_algorithms` can only subtract, so a server offering only SHA-1 host keys cannot be reached by any paramiko-based tool (nxc ssh included) without patching paramiko itself.
 - `IncompatiblePeer: Incompatible ssh peer (no acceptable host key)` is a key-exchange negotiation failure, not an authentication failure. NetExec renders it as a full rich traceback per credential attempt via `logger.exception()` in `nxc/protocols/ssh.py plaintext_login`, and those tracebacks contain no host address.
 - nmap `ssh2-enum-algos` writes the full algorithm name-lists into the XML `<table key="server_host_key_algorithms">` at any verbosity; only the `-oN` text rendering is gated behind `-v`.
+
+## JVM / GC Diagnosis
+
+- High load with low `%wa` and a single `java` process at high `%MEM` usually means G1 GC thrash, not application work. Confirm with `top -H -b -n1 -p <pid>` — if all `GC Thread#N` are in state `R`, the heap is full and the collector is spinning.
+- Per-thread CPU time without JVM tools: `for t in /proc/<pid>/task/*; do echo "$(awk '{print $14+$15}' $t/stat) $(cat $t/comm)"; done | sort -rn`. Values are jiffies (100/s). `/proc/<pid>/task/*/comm` truncates names to 15 characters.
+- Burp Suite Pro ships its own JRE and launches with `-XX:MaxRAMPercentage=50`. It has no `jcmd`/`jstat`/`jmap` in `BurpSuitePro/jre/bin`, so use `/proc` instead.
