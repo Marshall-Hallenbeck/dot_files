@@ -9,10 +9,12 @@ AI_REMOTE_CONTROL_PATHS=(
     .config/systemd/user/agent-sync.service
     .config/systemd/user/agent-sync.timer
     .config/systemd/user/claude-rc@.service
+    .config/systemd/user/claude-rc@.service.d/40-reattach.conf
     .config/systemd/user/codex-app-server.service
     .config/systemd/user/dotfiles-update.service
     .local/bin/agent-sync
     .local/bin/claude-rc
+    .local/bin/claude-rc-reattach
     .local/bin/codex
     .local/bin/codex-auto-update
     .local/bin/codex-config-sync
