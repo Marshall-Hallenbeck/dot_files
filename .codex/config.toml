@@ -1,4 +1,4 @@
-model = "gpt-5.6-sol"
+model = "gpt-6-astra"
 model_reasoning_effort = "high"
 personality = "pragmatic"
 developer_instructions = "When you need the user to answer a question before you can continue, use request_user_input exclusively whenever it is available. Do not ask a blocking question only in normal assistant text. If request_user_input returns without an answer, ask the same question again with request_user_input and continue to wait. Do not infer an answer or treat an empty response as permission or cancellation."
@@ -61,6 +61,9 @@ trust_level = "trusted"
 trust_level = "trusted"
 
 [projects."/home/marshall/.codex/worktrees/b45f/turins_tavern"]
+trust_level = "trusted"
+
+[projects."/home/marshall/Documents/Codex/2026-09-04-new-realtime-voice-chat"]
 trust_level = "trusted"
 
 [features]
