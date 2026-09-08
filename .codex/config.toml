@@ -40,6 +40,10 @@ hide_rate_limit_model_nudge = true
 "gpt-5.2-codex" = "gpt-5.3-codex"
 
 [tui]
+# request_user_input fires the "plan-mode-prompt" notification type in every
+# mode, so this surfaces questions before the 120s auto-resolve countdown ends.
+notifications = true
+notification_condition = "unfocused"
 status_line = [
     "model-with-reasoning",
     "current-dir",
