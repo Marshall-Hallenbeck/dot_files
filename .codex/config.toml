@@ -27,45 +27,6 @@ args = ["-lc", 'exec "$(git rev-parse --show-toplevel)/.claude/mcp/postgres-mcp.
 [mcp_servers.openaiDeveloperDocs]
 url = "https://developers.openai.com/mcp"
 
-[projects."/home/marshall/code/turins_tavern"]
-trust_level = "trusted"
-
-[projects."/home/marshall/projects/dot_files"]
-trust_level = "trusted"
-
-[projects."/home/marshall/.dot_files"]
-trust_level = "trusted"
-
-[projects."/home/marshall"]
-trust_level = "trusted"
-
-[projects."/tmp/codex-security-scans-OmvUyB/turins_tavern/19bef5b672b179b639436b89d8f46b2d7550b8e4_20260729T210317Z_t8pwr_wo/artifacts/deep_discovery/workers/discovery-0003/output"]
-trust_level = "trusted"
-
-[projects."/tmp/codex-security-scans-OmvUyB/turins_tavern/19bef5b672b179b639436b89d8f46b2d7550b8e4_20260729T210317Z_t8pwr_wo/artifacts/deep_discovery/workers/discovery-0004/output"]
-trust_level = "trusted"
-
-[projects."/tmp/codex-security-scans-OmvUyB/turins_tavern/19bef5b672b179b639436b89d8f46b2d7550b8e4_20260729T210317Z_t8pwr_wo/artifacts/deep_discovery/workers/discovery-0001/output"]
-trust_level = "trusted"
-
-[projects."/tmp/codex-security-scans-OmvUyB/turins_tavern/19bef5b672b179b639436b89d8f46b2d7550b8e4_20260729T210317Z_t8pwr_wo/artifacts/deep_discovery/workers/discovery-0005/output"]
-trust_level = "trusted"
-
-[projects."/tmp/codex-security-scans-OmvUyB/turins_tavern/19bef5b672b179b639436b89d8f46b2d7550b8e4_20260729T210317Z_t8pwr_wo/artifacts/deep_discovery/workers/discovery-0002/output"]
-trust_level = "trusted"
-
-[projects."/tmp"]
-trust_level = "trusted"
-
-[projects."/tmp/codex-security-scans-2dQ90J/turins_tavern/7487c3fde8bbafc2452b181c4172ed7cb1dc45dd_20260803T104052Z_59ufpdpm/artifacts"]
-trust_level = "trusted"
-
-[projects."/home/marshall/.codex/worktrees/b45f/turins_tavern"]
-trust_level = "trusted"
-
-[projects."/home/marshall/Documents/Codex/2026-09-04-new-realtime-voice-chat"]
-trust_level = "trusted"
-
 [features]
 multi_agent = true
 memories = true

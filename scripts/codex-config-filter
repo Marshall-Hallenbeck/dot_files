@@ -1,0 +1,77 @@
+#!/usr/bin/env python3
+"""Git clean/smudge filter that keeps Codex [projects] trust entries host-local.
+
+clean: strip top-level [projects.*] tables from stdin and save them to
+~/.codex/projects.local.toml so the tracked config never carries machine paths.
+smudge: append the saved tables back so a checkout never wipes local trust.
+"""
+from __future__ import annotations
+
+import os
+import pathlib
+import re
+import sys
+import tempfile
+
+SIDE_FILE = pathlib.Path.home() / ".codex/projects.local.toml"
+HEADER = re.compile(r"^\s*\[projects[.\]]")
+ANY_HEADER = re.compile(r"^\s*\[")
+
+
+def split_projects(text: str) -> tuple[str, str]:
+    kept: list[str] = []
+    captured: list[str] = []
+    in_projects = False
+    for line in text.splitlines(keepends=True):
+        if ANY_HEADER.match(line):
+            in_projects = bool(HEADER.match(line))
+        (captured if in_projects else kept).append(line)
+    return "".join(kept), "".join(captured)
+
+
+def write_side_file(content: str) -> None:
+    if not content.strip():
+        SIDE_FILE.unlink(missing_ok=True)
+        return
+    SIDE_FILE.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(dir=SIDE_FILE.parent, prefix=".projects.local.")
+    with os.fdopen(fd, "w") as handle:
+        handle.write(content)
+    os.replace(tmp, SIDE_FILE)
+
+
+def normalize_tail(text: str) -> str:
+    return text.rstrip("\n") + "\n" if text.strip() else ""
+
+
+def clean(text: str) -> str:
+    kept, captured = split_projects(text)
+    write_side_file(normalize_tail(captured))
+    return normalize_tail(kept)
+
+
+def smudge(text: str) -> str:
+    if not SIDE_FILE.is_file():
+        return text
+    side = SIDE_FILE.read_text()
+    sections: list[str] = []
+    for section in re.split(r"(?m)^(?=\s*\[)", side):
+        header = section.splitlines()[0].strip() if section.strip() else ""
+        if header and header not in text:
+            sections.append(section)
+    addition = normalize_tail("".join(sections))
+    if not addition:
+        return text
+    return normalize_tail(text) + "\n" + addition
+
+
+def main() -> int:
+    if len(sys.argv) != 2 or sys.argv[1] not in ("clean", "smudge"):
+        raise SystemExit(f"usage: {sys.argv[0]} clean|smudge")
+    mode = clean if sys.argv[1] == "clean" else smudge
+    sys.stdout.write(mode(sys.stdin.read()))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

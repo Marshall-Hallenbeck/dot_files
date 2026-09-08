@@ -262,6 +262,13 @@ link_file "$DOTFILES_DIR/.codex/AGENTS.md" ~/.codex/AGENTS.md
 link_file "$DOTFILES_DIR/.codex/hooks.json" ~/.codex/hooks.json
 link_file "$DOTFILES_DIR/.claude/global-learned-insights.md" ~/.codex/global-learned-insights.md
 
+# Codex writes [projects] trust entries into config.toml (a symlink into this
+# repo). The clean/smudge filter keeps those machine-local paths out of git and
+# restores them on checkout from ~/.codex/projects.local.toml.
+git -C "$DOTFILES_DIR" config filter.codex-projects.clean "$DOTFILES_DIR/scripts/codex-config-filter clean"
+git -C "$DOTFILES_DIR" config filter.codex-projects.smudge "$DOTFILES_DIR/scripts/codex-config-filter smudge"
+git -C "$DOTFILES_DIR" config filter.codex-projects.required true
+
 # ── GitHub Copilot ───────────────────────────────────────────────
 if ! have_command copilot; then
     echo "Installing GitHub Copilot..."

@@ -1,0 +1,2 @@
+# Keep Codex [projects] trust entries host-local; see scripts/codex-config-filter
+.codex/config.toml filter=codex-projects
