@@ -335,9 +335,20 @@ cmd_feature_enable() {
 }
 
 cmd_pull() {
+    local head changed
+    head=$(git -C "$DOTFILES_DIR" rev-parse HEAD)
     git -C "$DOTFILES_DIR" pull
     if [ -e "$AI_REMOTE_CONTROL_MARKER" ]; then
         cmd_feature_enable "$AI_REMOTE_CONTROL_FEATURE"
+    fi
+    # Same trigger paths as dotfiles-update; interactive pulls can re-run the
+    # installer directly because sudo and the Codex trust gate can prompt here.
+    changed=$(git -C "$DOTFILES_DIR" diff --name-only "$head" HEAD)
+    if grep -qE '^(install_environment\.sh$|\.config/systemd/user/)' <<<"$changed"; then
+        mkdir -p "$HOME/.config/dotfiles"
+        printf '%s..%s\n' "$head" "$(git -C "$DOTFILES_DIR" rev-parse HEAD)" > "$HOME/.config/dotfiles/install-required"
+        echo "dotfiles: installer-relevant files changed; running install_environment.sh"
+        "$DOTFILES_DIR/install_environment.sh"
     fi
 }
 

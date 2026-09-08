@@ -440,6 +440,10 @@ if [ -L ~/.claude/skills/windows-protocols ] && [ ! -e ~/.claude/skills/windows-
 fi
 
 # ── Summary ──────────────────────────────────────────────────────
+# A completed run satisfies any pending install-required stamp from
+# dotfiles-update or dotfiles pull.
+rm -f "$HOME/.config/dotfiles/install-required"
+
 if [ -d "$BACKUP_DIR" ]; then
     echo ""
     echo "Backed up files that differed from repo to: $BACKUP_DIR"

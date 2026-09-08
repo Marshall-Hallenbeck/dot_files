@@ -4,8 +4,18 @@ from __future__ import annotations
 import pathlib
 import subprocess
 import tempfile
-import tomllib
 import unittest
+
+try:
+    import tomllib
+
+    def toml_loads(text: str) -> dict:
+        return tomllib.loads(text)
+except ModuleNotFoundError:  # Python 3.10 on Ubuntu 22.04
+    import tomlkit
+
+    def toml_loads(text: str) -> dict:
+        return tomlkit.parse(text).unwrap()
 
 REPO = pathlib.Path(__file__).resolve().parents[1]
 FILTER = REPO / "scripts/codex-config-filter"
@@ -57,8 +67,8 @@ class CodexConfigFilterTests(unittest.TestCase):
         saved = self.side_file.read_text()
         self.assertIn('[projects."/home/user/code/alpha"]', saved)
         self.assertIn('[projects."/home/user/code/beta"]', saved)
-        tomllib.loads(cleaned)
-        tomllib.loads(saved)
+        toml_loads(cleaned)
+        toml_loads(saved)
 
     def test_clean_without_projects_is_identity_and_clears_side_file(self) -> None:
         self.side_file.parent.mkdir(parents=True)
@@ -72,7 +82,7 @@ class CodexConfigFilterTests(unittest.TestCase):
         self.side_file.write_text(PROJECTS)
         smudged = self.run_filter("smudge", TRACKED)
         self.assertIn('[projects."/home/user/code/alpha"]', smudged)
-        parsed = tomllib.loads(smudged)
+        parsed = toml_loads(smudged)
         self.assertEqual(parsed["projects"]["/home/user/code/alpha"]["trust_level"], "trusted")
         self.assertEqual(parsed["features"], {"multi_agent": True})
 
@@ -84,7 +94,7 @@ class CodexConfigFilterTests(unittest.TestCase):
         self.side_file.write_text(PROJECTS)
         already = TRACKED + "\n" + PROJECTS
         smudged = self.run_filter("smudge", already)
-        tomllib.loads(smudged)
+        toml_loads(smudged)
         self.assertEqual(smudged.count('[projects."/home/user/code/alpha"]'), 1)
 
     def test_round_trip_is_stable(self) -> None:
