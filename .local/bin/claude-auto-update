@@ -1,0 +1,316 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import fcntl
+import json
+import os
+import re
+import signal
+import subprocess
+import time
+from pathlib import Path
+
+VERSION = re.compile(r"(?<![0-9])(\d+\.\d+\.\d+)(?![0-9])")
+
+
+class UpdateInterrupted(RuntimeError):
+    def __init__(self, signum: int) -> None:
+        super().__init__(f"Interrupted by signal {signum}")
+        self.signum = signum
+
+
+def interrupt(signum: int, _frame: object) -> None:
+    raise UpdateInterrupted(signum)
+
+
+def output(command: list[str], timeout: float) -> str:
+    return subprocess.run(
+        command, check=True, capture_output=True, text=True, timeout=timeout
+    ).stdout.strip()
+
+
+def version(command_output: str) -> str:
+    match = VERSION.search(command_output)
+    if match is None:
+        raise RuntimeError(f"Could not parse Claude version from: {command_output!r}")
+    return match.group(1)
+
+
+def active_units(systemctl: str, timeout: float) -> list[str]:
+    listing = output(
+        [
+            systemctl,
+            "--user",
+            "list-units",
+            "--all",
+            "--type=service",
+            "--plain",
+            "--no-legend",
+            "--full",
+            "claude-rc@*.service",
+        ],
+        timeout,
+    )
+    return [
+        fields[0]
+        for line in listing.splitlines()
+        if len(fields := line.split()) >= 4 and fields[2] == "active"
+    ]
+
+
+def unit_process(
+    systemctl: str, unit: str, timeout: float
+) -> tuple[int, str]:
+    properties = output(
+        [
+            systemctl,
+            "--user",
+            "show",
+            unit,
+            "--property=ActiveState",
+            "--property=MainPID",
+            "--property=ControlGroup",
+        ],
+        timeout,
+    )
+    values = dict(line.split("=", 1) for line in properties.splitlines() if "=" in line)
+    if values.get("ActiveState") != "active":
+        return 0, values.get("ControlGroup", "")
+    try:
+        pid = int(values.get("MainPID", "0"))
+    except ValueError as error:
+        raise RuntimeError(f"Invalid MainPID for {unit}: {values.get('MainPID')!r}") from error
+    control_group = values.get("ControlGroup", "")
+    if pid <= 0 or not control_group.startswith("/"):
+        raise RuntimeError(f"Invalid process identity for {unit}")
+    return pid, control_group
+
+
+def cgroup_pids(cgroup_root: Path, control_group: str) -> set[int]:
+    directory = cgroup_root / control_group.lstrip("/")
+    if not directory.is_dir():
+        raise RuntimeError(f"Control group does not exist: {control_group}")
+    pids: set[int] = set()
+    files = [directory / "cgroup.procs", *directory.glob("**/cgroup.procs")]
+    for path in files:
+        if not path.is_file():
+            continue
+        for value in path.read_text().splitlines():
+            try:
+                pid = int(value)
+            except ValueError as error:
+                raise RuntimeError(f"Invalid PID in {path}: {value!r}") from error
+            if pid > 0:
+                pids.add(pid)
+    if not pids:
+        raise RuntimeError(f"No processes found in control group: {control_group}")
+    return pids
+
+
+def active_agents(claude: str, timeout: float) -> bool:
+    payload = json.loads(output([claude, "agents", "--json"], timeout))
+    if not isinstance(payload, list):
+        raise RuntimeError("claude agents --json did not return an array")
+    return bool(payload)
+
+
+def thaw_without_interruption(systemctl: str, unit: str, timeout: float) -> None:
+    signals = (signal.SIGHUP, signal.SIGTERM)
+    previous = {item: signal.signal(item, signal.SIG_IGN) for item in signals}
+    try:
+        subprocess.run(
+            [systemctl, "--user", "thaw", unit],
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+        )
+    finally:
+        for item, handler in previous.items():
+            signal.signal(item, handler)
+
+
+def restart_quiescent_unit(
+    claude: str,
+    systemctl: str,
+    unit: str,
+    installed_executable: Path,
+    proc_root: Path,
+    cgroup_root: Path,
+    timeout: float,
+) -> bool:
+    previous_handlers = {
+        item: signal.signal(item, interrupt) for item in (signal.SIGHUP, signal.SIGTERM)
+    }
+    freeze_attempted = False
+    killed = False
+    try:
+        freeze_attempted = True
+        subprocess.run(
+            [systemctl, "--user", "freeze", unit], check=True, timeout=timeout
+        )
+        pid, control_group = unit_process(systemctl, unit, timeout)
+        if pid <= 0:
+            return False
+        if active_agents(claude, timeout):
+            return False
+        executable = proc_root / str(pid) / "exe"
+        try:
+            if executable.resolve(strict=True) == installed_executable:
+                return True
+        except FileNotFoundError:
+            return False
+        if cgroup_pids(cgroup_root, control_group) != {pid}:
+            return False
+        subprocess.run(
+            [
+                systemctl,
+                "--user",
+                "kill",
+                "--kill-whom=main",
+                "--signal=SIGKILL",
+                unit,
+            ],
+            check=True,
+            timeout=timeout,
+        )
+        killed = True
+    finally:
+        try:
+            if freeze_attempted:
+                thaw_without_interruption(systemctl, unit, timeout)
+        finally:
+            for item, handler in previous_handlers.items():
+                signal.signal(item, handler)
+    if not killed:
+        return False
+
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        pid, _ = unit_process(
+            systemctl, unit, max(0.1, deadline - time.monotonic())
+        )
+        if pid > 0:
+            executable = proc_root / str(pid) / "exe"
+            try:
+                if executable.resolve(strict=True) == installed_executable:
+                    return True
+            except FileNotFoundError:
+                pass
+        time.sleep(0.2)
+    raise RuntimeError(f"Timed out waiting for {unit} to restart on {installed_executable}")
+
+
+def write_pending(path: Path, installed_version: str, stale_units: list[str]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    with temporary.open("x") as stream:
+        json.dump(
+            {"installedVersion": installed_version, "staleUnits": stale_units},
+            stream,
+            sort_keys=True,
+        )
+        stream.write("\n")
+        stream.flush()
+        os.fsync(stream.fileno())
+    os.replace(temporary, path)
+
+
+def main() -> int:
+    home = Path.home()
+    runtime = Path(os.environ.get("XDG_RUNTIME_DIR", home / ".cache"))
+    runtime.mkdir(parents=True, exist_ok=True)
+    lock = (runtime / "claude-auto-update.lock").open("w")
+    try:
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        print("claude-auto-update: another update is already running")
+        return 0
+
+    claude = os.environ.get(
+        "CLAUDE_AUTO_UPDATE_CLAUDE_BIN", str(home / ".local/bin/claude")
+    )
+    systemctl = os.environ.get("CLAUDE_AUTO_UPDATE_SYSTEMCTL_BIN", "systemctl")
+    proc_root = Path(os.environ.get("CLAUDE_AUTO_UPDATE_PROC_ROOT", "/proc"))
+    cgroup_root = Path(
+        os.environ.get("CLAUDE_AUTO_UPDATE_CGROUP_ROOT", "/sys/fs/cgroup")
+    )
+    timeout = float(os.environ.get("CLAUDE_AUTO_UPDATE_TIMEOUT", "300"))
+    if timeout <= 0:
+        raise RuntimeError("CLAUDE_AUTO_UPDATE_TIMEOUT must be positive")
+
+    before = version(output([claude, "--version"], timeout))
+    output([claude, "update"], timeout)
+    installed = version(output([claude, "--version"], timeout))
+    installed_executable = Path(claude).resolve()
+
+    stale: list[str] = []
+    for unit in active_units(systemctl, timeout):
+        pid, _ = unit_process(systemctl, unit, timeout)
+        if pid <= 0:
+            continue
+        executable = proc_root / str(pid) / "exe"
+        try:
+            live_executable = executable.resolve(strict=True)
+        except FileNotFoundError:
+            stale.append(unit)
+            continue
+        if live_executable != installed_executable:
+            stale.append(unit)
+
+    state_home = Path(os.environ.get("XDG_STATE_HOME", home / ".local/state"))
+    pending = state_home / "claude-auto-update/pending-restart.json"
+    if stale:
+        if active_agents(claude, timeout):
+            write_pending(pending, installed, stale)
+            print(
+                "claude-auto-update: "
+                f"installed {before} -> {installed}; deferred restart for {', '.join(stale)}"
+            )
+        else:
+            auth_payload = json.loads(
+                output([claude, "auth", "status", "--json"], timeout)
+            )
+            if not isinstance(auth_payload, dict) or auth_payload.get("loggedIn") is not True:
+                write_pending(pending, installed, stale)
+                print(
+                    "claude-auto-update: "
+                    f"installed {before} -> {installed}; deferred restart because authentication is not ready"
+                )
+                return 0
+            write_pending(pending, installed, stale)
+            deferred: list[str] = []
+            restarted: list[str] = []
+            for unit in stale:
+                if restart_quiescent_unit(
+                    claude,
+                    systemctl,
+                    unit,
+                    installed_executable,
+                    proc_root,
+                    cgroup_root,
+                    timeout,
+                ):
+                    restarted.append(unit)
+                else:
+                    deferred.append(unit)
+            if deferred:
+                write_pending(pending, installed, deferred)
+                print(
+                    "claude-auto-update: "
+                    f"restarted {', '.join(restarted) or 'none'}; deferred {', '.join(deferred)}"
+                )
+            else:
+                pending.unlink(missing_ok=True)
+                print(
+                    "claude-auto-update: "
+                    f"installed {before} -> {installed}; restarted {', '.join(restarted)}"
+                )
+    else:
+        pending.unlink(missing_ok=True)
+        print(f"claude-auto-update: installed {installed}; active services are current")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

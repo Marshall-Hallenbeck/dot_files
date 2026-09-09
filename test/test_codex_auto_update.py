@@ -93,6 +93,9 @@ class CodexAutoUpdateTests(unittest.TestCase):
                   cp {installed!s} {server!s}
                 fi
                 ;;
+              "--user try-restart --no-block codex-app-server.service")
+                [[ ! -e {root!s}/restart-fails ]] || exit 1
+                ;;
               *) exit 2 ;;
             esac
             """,
@@ -163,7 +166,7 @@ class CodexAutoUpdateTests(unittest.TestCase):
             )
             self.assertIn("already current", result.stdout)
 
-    def test_outdated_install_updates_and_try_restarts_active_server(self) -> None:
+    def test_outdated_install_updates_and_queues_graceful_restart(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = pathlib.Path(temporary)
             env, installed, server, _, calls, pending = self.make_environment(
@@ -174,17 +177,17 @@ class CodexAutoUpdateTests(unittest.TestCase):
 
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(installed.read_text(), "0.149.1")
-            self.assertEqual(server.read_text(), "0.149.1")
-            self.assertFalse(pending.exists())
+            self.assertEqual(server.read_text(), "0.147.0")
+            self.assertTrue(pending.exists())
             self.assertIn(
                 "npm install --global @openai/codex@0.149.1", calls.read_text()
             )
             self.assertNotIn("codex update", calls.read_text())
             self.assertIn(
-                "systemctl --user try-restart codex-app-server.service",
+                "systemctl --user try-restart --no-block codex-app-server.service",
                 calls.read_text(),
             )
-            self.assertIn("App Server restarted", result.stdout)
+            self.assertIn("restart queued", result.stdout)
 
     def test_outdated_install_does_not_start_an_inactive_server(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -243,9 +246,9 @@ class CodexAutoUpdateTests(unittest.TestCase):
             result = self.run_updater(env)
 
             self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertEqual(server.read_text(), "0.149.1")
-            self.assertIn("try-restart", calls.read_text())
-            self.assertFalse(pending.exists())
+            self.assertEqual(server.read_text(), "0.145.0")
+            self.assertIn("try-restart --no-block", calls.read_text())
+            self.assertTrue(pending.exists())
 
     def test_concurrent_newer_install_is_preserved_before_npm_update(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -260,7 +263,7 @@ class CodexAutoUpdateTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(installed.read_text(), "0.150.0")
             self.assertNotIn("npm install", calls.read_text())
-            self.assertFalse(pending.exists())
+            self.assertTrue(pending.exists())
 
     def test_registry_race_accepts_newer_installed_version(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -273,8 +276,8 @@ class CodexAutoUpdateTests(unittest.TestCase):
 
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(installed.read_text(), "0.150.0")
-            self.assertEqual(server.read_text(), "0.150.0")
-            self.assertFalse(pending.exists())
+            self.assertEqual(server.read_text(), "0.147.0")
+            self.assertTrue(pending.exists())
 
     def test_service_query_failure_keeps_pending_restart(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -305,9 +308,31 @@ class CodexAutoUpdateTests(unittest.TestCase):
             result = self.run_updater(env)
 
             self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertEqual(server.read_text(), "0.149.1")
-            self.assertIn("try-restart", calls.read_text())
-            self.assertFalse(pending.exists())
+            self.assertEqual(server.read_text(), "0.147.0")
+            self.assertIn("try-restart --no-block", calls.read_text())
+            self.assertEqual(calls.read_text().count("try-restart --no-block"), 1)
+            self.assertTrue(pending.exists())
+
+    def test_transitional_pending_restart_is_deferred_without_reconciliation(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            env, _, _, _, calls, pending = self.make_environment(
+                root, "0.149.1", "0.149.1", active_state="activating"
+            )
+            pending.parent.mkdir(parents=True)
+            pending.write_text('{"installedVersion":"0.149.1"}\n')
+
+            result = self.run_updater(env)
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertTrue(pending.exists())
+            self.assertEqual(
+                calls.read_text().count(
+                    "systemctl --user show --property=ActiveState --value"
+                ),
+                1,
+            )
+            self.assertIn("deferred while state is activating", result.stdout)
 
     def test_restart_failure_keeps_pending_marker_for_retry(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -344,7 +369,7 @@ class CodexAutoUpdateTests(unittest.TestCase):
 
             self.assertNotEqual(result.returncode, 0)
             self.assertTrue(pending.exists())
-            self.assertIn("Timed out waiting", result.stderr)
+            self.assertIn("timed out after", result.stderr)
 
     def test_malformed_semver_values_are_rejected(self) -> None:
         updater = self.load_updater_module()
@@ -388,7 +413,8 @@ class CodexAutoUpdateTests(unittest.TestCase):
 
             self.assertEqual(recovered.returncode, 0, recovered.stderr)
             self.assertEqual(installed.read_text(), "0.149.1")
-            self.assertEqual(server.read_text(), "0.149.1")
+            self.assertEqual(server.read_text(), "0.147.0")
+            self.assertTrue(pending.exists())
 
     def test_term_resistant_npm_descendant_is_killed_after_timeout(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -494,6 +520,9 @@ class CodexAutoUpdateTests(unittest.TestCase):
         self.assertIn('f"@openai/codex@{target_version}"', updater)
         self.assertNotIn("@openai/codex@latest", updater)
         self.assertNotIn('subprocess.run([codex, "update"]', updater)
+    def test_app_server_service_never_force_kills_a_draining_turn(self) -> None:
+        unit = (REPO / ".config/systemd/user/codex-app-server.service").read_text()
+        self.assertIn("TimeoutStopSec=infinity", unit)
 
 
 if __name__ == "__main__":

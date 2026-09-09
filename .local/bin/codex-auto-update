@@ -249,17 +249,27 @@ def process_pending_restart(
 
     state = service_state(systemctl)
     if state == "active":
+        payload = json.loads(
+            output([codex, "app-server", "daemon", "version"], ready_timeout)
+        )
+        app_version_value = payload.get("appServerVersion")
+        if not isinstance(app_version_value, str):
+            raise RuntimeError("App Server did not report appServerVersion")
+        app_version = parse_semver(app_version_value)
+        if compare_versions(app_version, installed_version) >= 0:
+            remove_pending(pending)
+            return "App Server is already current"
         subprocess.run(
-            [systemctl, "--user", "try-restart", UNIT],
+            [systemctl, "--user", "try-restart", "--no-block", UNIT],
             check=True,
             timeout=ready_timeout,
         )
-        wait_until_ready(codex, systemctl, installed_version, ready_timeout)
-        remove_pending(pending)
-        return "App Server restarted"
+        return "graceful App Server restart queued; pending marker retained"
     if state in {"inactive", "failed"}:
         remove_pending(pending)
         return "App Server was inactive and remains stopped"
+    if state in {"activating", "deactivating", "reloading"}:
+        return f"App Server restart deferred while state is {state}"
     raise RuntimeError(f"Refusing to update App Server while state is {state}")
 
 
@@ -320,6 +330,7 @@ def main() -> int:
             pending, codex, systemctl, current, ready_timeout
         )
         print(f"codex-auto-update: completed pending action; {result}")
+        return 0
 
     latest = fetch_latest(registry_url)
     if compare_versions(current, latest) >= 0:
