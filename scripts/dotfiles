@@ -12,6 +12,7 @@ AI_REMOTE_CONTROL_PATHS=(
     .config/systemd/user/codex-app-server.service
     .config/systemd/user/dotfiles-update.service
     .local/bin/agent-sync
+    .local/bin/claude-auto-update
     .local/bin/claude-rc
     .local/bin/codex
     .local/bin/codex-auto-update
