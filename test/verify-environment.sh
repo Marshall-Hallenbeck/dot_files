@@ -135,6 +135,8 @@ for skill_dir in /repo/.claude/skills/*/; do
     skill=$(basename "$skill_dir")
     if [ -f "$skill_dir/SKILL.md" ]; then
         check_file "skill: $skill" ~/.claude/skills/"$skill"/SKILL.md
+        check "Codex skill link: $skill" test -L ~/.agents/skills/"$skill"
+        check_file "Codex skill: $skill" ~/.agents/skills/"$skill"/SKILL.md
     fi
 done
 
@@ -161,6 +163,21 @@ done
 
 echo "── dotfiles helper ──"
 check_link "dotfiles helper" ~/.local/bin/dotfiles
+
+echo "── Automatic agent configuration sync ──"
+for sync_path in \
+    ~/.config/systemd/user/ai-agents.slice \
+    ~/.config/systemd/user/agent-sync.service \
+    ~/.config/systemd/user/agent-sync.timer \
+    ~/.local/bin/agent-sync \
+    ~/.local/bin/codex-config-sync \
+    ~/.local/libexec/codex-config-sync.py; do
+    check_link "agent sync: ${sync_path#"$HOME/"}" "$sync_path"
+done
+check "managed sync interpreter" ~/.local/share/codex-config-sync-venv-current/bin/python -c 'import tomlkit, yaml'
+if [ -d /run/systemd/system ]; then
+    check "agent-sync.timer enabled" systemctl --user is-enabled --quiet agent-sync.timer
+fi
 
 echo ""
 echo "Results: $PASS passed, $FAIL failed"

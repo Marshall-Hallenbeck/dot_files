@@ -43,23 +43,30 @@ def git_root(path: pathlib.Path) -> pathlib.Path:
     return pathlib.Path(result.stdout.strip()).resolve()
 
 
-def discover_roots(projects_dir: pathlib.Path | None = None) -> list[pathlib.Path]:
-    """Return unique Ruler-enabled roots registered as Claude RC projects."""
+def discover_roots(
+    projects_dir: pathlib.Path | None = None,
+    global_root: pathlib.Path | None = None,
+) -> list[pathlib.Path]:
+    """Return the global dotfiles root and registered Ruler project roots."""
     projects_dir = projects_dir or HOME / ".config/claude-rc/projects"
-    if not projects_dir.is_dir():
-        return []
     roots: set[pathlib.Path] = set()
-    for project in projects_dir.iterdir():
-        try:
-            root = project.resolve(strict=True)
-        except (FileNotFoundError, RuntimeError):
-            continue
-        if (root / ".ruler/ruler.toml").is_file():
-            roots.add(root)
+    global_root = global_root or pathlib.Path(
+        os.environ.get("DOTFILES_DIR", HOME / ".dot_files")
+    )
+    if (global_root / ".ruler/ruler.toml").is_file():
+        roots.add(global_root.resolve())
+    if projects_dir.is_dir():
+        for project in projects_dir.iterdir():
+            try:
+                root = project.resolve(strict=True)
+            except (FileNotFoundError, RuntimeError):
+                continue
+            if (root / ".ruler/ruler.toml").is_file():
+                roots.add(root)
     return sorted(roots, key=str)
 
 
-def update_digest(digest: "hashlib._Hash", path: pathlib.Path, label: str) -> None:
+def update_digest(digest: hashlib._Hash, path: pathlib.Path, label: str) -> None:
     digest.update(label.encode())
     digest.update(b"\0")
     if path.is_symlink():
@@ -208,7 +215,7 @@ def build_instructions(root: pathlib.Path) -> None:
 
 
 def run_checked(command: list[str], quiet: bool) -> None:
-    result = subprocess.run(command, capture_output=True, text=True)
+    result = subprocess.run(command, capture_output=True, text=True, check=False)
     if result.returncode != 0:
         if result.stdout:
             print(result.stdout, end="", file=sys.stderr)
@@ -224,7 +231,8 @@ def run_checked(command: list[str], quiet: bool) -> None:
 
 def service_active(unit: str) -> bool:
     return subprocess.run(
-        ["systemctl", "--user", "is-active", "--quiet", unit]
+        ["systemctl", "--user", "is-active", "--quiet", unit],
+        check=False,
     ).returncode == 0
 
 
@@ -336,7 +344,7 @@ def main() -> int:
                 command.append("--no-restart")
             if args.quiet:
                 command.append("--quiet")
-            result = subprocess.run(command)
+            result = subprocess.run(command, check=False)
             return_code = aggregate_return_code(return_code, result.returncode)
         return return_code
 

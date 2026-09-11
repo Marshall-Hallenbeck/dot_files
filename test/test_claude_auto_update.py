@@ -348,13 +348,17 @@ class ClaudeAutoUpdateTests(unittest.TestCase):
             self.assertIn("already running", first_stdout + second.stdout)
 
     def test_agent_sync_service_runs_claude_updater_after_codex_updater(self) -> None:
-        service = (
-            REPO / ".config/systemd/user/agent-sync.service"
+        maintenance = (
+            REPO
+            / ".config/systemd/user/agent-sync.service.d/40-maintenance.conf"
         ).read_text().splitlines()
-        codex_line = "ExecStart=%h/.local/bin/codex-auto-update"
-        claude_line = "ExecStart=%h/.local/bin/claude-auto-update"
-        self.assertIn(claude_line, service)
-        self.assertGreater(service.index(claude_line), service.index(codex_line))
+        codex_line = "ExecStartPost=%h/.local/bin/codex-auto-update"
+        claude_line = "ExecStartPost=%h/.local/bin/claude-auto-update"
+        self.assertIn(claude_line, maintenance)
+        self.assertGreater(
+            maintenance.index(claude_line),
+            maintenance.index(codex_line),
+        )
 
     def test_remote_control_feature_deploys_claude_updater(self) -> None:
         deployer = (REPO / "scripts/dotfiles").read_text()

@@ -58,6 +58,30 @@ link_file() {
     ln -s "$src" "$dest"
 }
 
+link_directory() {
+    local src="$1" dest="$2"
+
+    if [ ! -d "$src" ]; then
+        echo "ERROR: source directory not found: $src" >&2
+        return 1
+    fi
+
+    if [ -L "$dest" ] && [ "$(readlink -f "$dest")" = "$(readlink -f "$src")" ]; then
+        return 0
+    fi
+
+    if [ -e "$dest" ] || [ -L "$dest" ]; then
+        mkdir -p "$BACKUP_DIR"
+        local backup_path
+        backup_path="$BACKUP_DIR/$(echo "$dest" | sed "s|$HOME/||; s|/|__|g")"
+        mv "$dest" "$backup_path"
+        echo "  backed up: $dest -> $backup_path"
+    fi
+
+    mkdir -p "$(dirname "$dest")"
+    ln -s "$src" "$dest"
+}
+
 # Install a shell wrapper that sources the tracked configuration. Tool installers
 # can safely append host-specific entries to ~/.zshrc.local.
 install_shell_wrapper() {
@@ -372,6 +396,20 @@ if [ -d ~/.claude/skills ] && [ ! -L ~/.claude/skills ]; then
 fi
 link_file "$DOTFILES_DIR/.claude/skills" ~/.claude/skills
 
+# Codex discovers user skills under ~/.agents/skills. Keep this as a real
+# directory so community skills can coexist with links to tracked Claude skills.
+mkdir -p ~/.agents/skills
+agents_skills_root=$(readlink -f ~/.agents/skills)
+for skill_dir in "$DOTFILES_DIR"/.claude/skills/*/; do
+    [ -f "$skill_dir/SKILL.md" ] || continue
+    skill_source=$(readlink -f "$skill_dir")
+    case "$skill_source/" in
+        "$agents_skills_root/"*) continue ;;
+    esac
+    skill_name=$(basename "$skill_dir")
+    link_directory "$skill_dir" ~/.agents/skills/"$skill_name"
+done
+
 # Agents
 for agent_file in "$DOTFILES_DIR"/.claude/agents/*.md; do
     [ -f "$agent_file" ] || continue
@@ -394,6 +432,14 @@ done
 # ── dotfiles helper on PATH ──────────────────────────────────────
 mkdir -p "$HOME/.local/bin"
 link_file "$DOTFILES_DIR/scripts/dotfiles" "$HOME/.local/bin/dotfiles"
+
+# ── Automatic Claude and Codex configuration sync ───────────────
+# Run one full sync now. Enable the timer only where systemd is the init system.
+if [ -d /run/systemd/system ]; then
+    "$DOTFILES_DIR/scripts/dotfiles" sync-enable
+else
+    DOTFILES_SKIP_SYSTEMD=1 "$DOTFILES_DIR/scripts/dotfiles" sync-enable
+fi
 
 # ── Commit-reference hooks and Codex trust gate ──────────────────
 # This gate exits nonzero when Codex has not trusted the hooks, so it runs after

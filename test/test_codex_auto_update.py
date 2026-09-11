@@ -501,25 +501,32 @@ class CodexAutoUpdateTests(unittest.TestCase):
             current.unlink()
             self.assertEqual(updater.discover_npm(home), str(npm))
 
-        with tempfile.TemporaryDirectory() as temporary:
-            with self.assertRaisesRegex(RuntimeError, "Could not identify"):
-                updater.discover_npm(pathlib.Path(temporary))
+        with (
+            tempfile.TemporaryDirectory() as temporary,
+            self.assertRaisesRegex(RuntimeError, "Could not identify"),
+        ):
+            updater.discover_npm(pathlib.Path(temporary))
 
     def test_updater_is_deployed_after_configuration_sync(self) -> None:
         deployer = (REPO / "scripts/dotfiles").read_text()
         service = (REPO / ".config/systemd/user/agent-sync.service").read_text()
-        updater_exec = "ExecStart=%h/.local/bin/codex-auto-update"
+        maintenance = (
+            REPO
+            / ".config/systemd/user/agent-sync.service.d/40-maintenance.conf"
+        ).read_text()
+        updater_exec = "ExecStartPost=%h/.local/bin/codex-auto-update"
         sync_exec = (
             "ExecStart=%h/.local/share/codex-config-sync-venv-current/bin/python"
         )
 
         self.assertIn(".local/bin/codex-auto-update", deployer)
-        self.assertIn(updater_exec, service)
-        self.assertLess(service.index(sync_exec), service.index(updater_exec))
+        self.assertIn(sync_exec, service)
+        self.assertIn(updater_exec, maintenance)
         updater = UPDATER.read_text()
         self.assertIn('f"@openai/codex@{target_version}"', updater)
         self.assertNotIn("@openai/codex@latest", updater)
         self.assertNotIn('subprocess.run([codex, "update"]', updater)
+
     def test_app_server_service_never_force_kills_a_draining_turn(self) -> None:
         unit = (REPO / ".config/systemd/user/codex-app-server.service").read_text()
         self.assertIn("TimeoutStopSec=infinity", unit)

@@ -226,7 +226,29 @@ print("tomlkit_fallback=plain-dict")
             (projects / "plain").symlink_to(plain_project, target_is_directory=True)
             (projects / "broken").symlink_to(root / "missing", target_is_directory=True)
 
-            self.assertEqual(agent_sync.discover_roots(projects), [ruler_project.resolve()])
+            self.assertEqual(
+                agent_sync.discover_roots(
+                    projects,
+                    global_root=root / "missing-dotfiles",
+                ),
+                [ruler_project.resolve()],
+            )
+
+    def test_discover_roots_includes_global_dotfiles_without_registered_projects(self) -> None:
+        agent_sync = load_agent_sync()
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            dotfiles = root / ".dot_files"
+            (dotfiles / ".ruler").mkdir(parents=True)
+            (dotfiles / ".ruler/ruler.toml").write_text("[agents]\n")
+
+            self.assertEqual(
+                agent_sync.discover_roots(
+                    root / "missing-projects",
+                    global_root=dotfiles,
+                ),
+                [dotfiles.resolve()],
+            )
 
     def test_sync_skills_never_mirrors_a_community_skill_onto_itself(self) -> None:
         codex_config_sync = load_codex_config_sync()
@@ -374,6 +396,7 @@ print("tomlkit_fallback=plain-dict")
             REPO / ".local/libexec/codex-rc-cleanup",
             REPO / ".config/systemd/user/ai-agents.slice",
             REPO / ".config/systemd/user/agent-sync.service",
+            REPO / ".config/systemd/user/agent-sync.service.d/40-maintenance.conf",
             REPO / ".config/systemd/user/agent-sync.timer",
             REPO / ".config/systemd/user/claude-rc@.service",
             REPO / ".config/systemd/user/codex-app-server.service",
@@ -428,6 +451,12 @@ print("tomlkit_fallback=plain-dict")
         )
         self.assertNotIn("seed_runtime_file", installer)
 
+    def test_linux_installer_enables_core_agent_sync(self) -> None:
+        installer = (REPO / "install_environment.sh").read_text()
+
+        self.assertIn('"$DOTFILES_DIR/scripts/dotfiles" sync-enable', installer)
+        self.assertIn("DOTFILES_SKIP_SYSTEMD=1", installer)
+
     def test_windows_updater_is_fail_closed_and_runs_agent_sync(self) -> None:
         updater = (REPO / "scripts/dotfiles-update-windows.ps1").read_text()
         sync = (REPO / "scripts/sync-agent-config-windows.ps1").read_text()
@@ -459,14 +488,22 @@ print("tomlkit_fallback=plain-dict")
 
     def test_systemd_sync_entrypoints_discover_registered_projects(self) -> None:
         agent_service = (REPO / ".config/systemd/user/agent-sync.service").read_text()
+        maintenance = (
+            REPO
+            / ".config/systemd/user/agent-sync.service.d/40-maintenance.conf"
+        ).read_text()
         codex_service = (REPO / ".config/systemd/user/codex-app-server.service").read_text()
         updater_service = (REPO / ".config/systemd/user/dotfiles-update.service").read_text()
         self.assertNotIn("WorkingDirectory=", agent_service)
         self.assertIn("agent-sync --all --no-restart --quiet", agent_service)
+        self.assertNotIn("dotfiles-update", agent_service)
+        self.assertIn("ExecStartPre=%h/.local/bin/dotfiles-update", maintenance)
+        self.assertIn("ExecStartPost=%h/.local/bin/codex-auto-update", maintenance)
+        self.assertIn("ExecStartPost=%h/.local/bin/claude-auto-update", maintenance)
         self.assertIn("codex-config-sync --compat-only --quiet", codex_service)
         self.assertNotIn("agent-sync --all", codex_service)
         self.assertIn("%h/.local/bin/dotfiles-update", updater_service)
-        self.assertIn("ExecStart=%h/.local/bin/dotfiles-update", agent_service)
+        self.assertNotIn("ExecStart=%h/.local/bin/dotfiles-update", agent_service)
 
     def test_remote_control_feature_manages_dotfiles_updater_assets(self) -> None:
         deployer = (REPO / "scripts/dotfiles").read_text()
@@ -474,6 +511,7 @@ print("tomlkit_fallback=plain-dict")
             ".config/systemd/user/dotfiles-update.service",
             ".local/bin/dotfiles-update",
             ".local/bin/codex-auto-update",
+            ".config/systemd/user/agent-sync.service.d/40-maintenance.conf",
             ".local/libexec/ai-config-audit.py",
             ".local/libexec/codex-app-server-watchdog.py",
         ):
@@ -492,14 +530,11 @@ print("tomlkit_fallback=plain-dict")
         self.assertIn("RandomizedDelaySec=15min", timer)
         self.assertNotIn("OnUnitActiveSec=", timer)
         self.assertIn("Slice=ai-agents.slice", service)
-        self.assertLess(
-            service.index("ExecStart=%h/.local/bin/dotfiles-update"),
-            service.index("ExecStart=%h/.local/share/codex-config-sync-venv-current/bin/python"),
-        )
         self.assertIn(
             "ExecStart=%h/.local/share/codex-config-sync-venv-current/bin/python %h/.local/bin/agent-sync --all --no-restart --quiet",
             service,
         )
+        self.assertEqual(service.count("ExecStart="), 1)
         self.assertIn("CPUQuota=50%", service)
         self.assertIn("MemoryMax=1G", service)
         self.assertIn("TasksMax=64", service)
@@ -523,12 +558,159 @@ print("tomlkit_fallback=plain-dict")
         settings = (REPO / ".claude/settings.json").read_text()
         self.assertIn('"CLAUDE_CODE_MAX_TOOL_USE_CONCURRENCY": "4"', settings)
 
-    def test_feature_enable_provisions_pinned_codex_sync_dependency(self) -> None:
+    def test_sync_enable_provisions_pinned_codex_sync_dependency(self) -> None:
         deployer = (REPO / "scripts/dotfiles").read_text()
         wrapper = (REPO / ".local/bin/codex-config-sync").read_text()
         self.assertIn("tomlkit==0.13.3", deployer)
         self.assertIn("PyYAML==6.0.3", deployer)
         self.assertIn("codex-config-sync-venv-current/bin/python", wrapper)
+        self.assertIn("sync-enable", deployer)
+        self.assertIn("Run: dotfiles sync-enable", wrapper)
+
+    def test_sync_enable_installs_core_assets_and_starts_timer(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            home = pathlib.Path(temporary)
+            dotfiles = home / ".dot_files"
+            core_assets = {
+                ".config/systemd/user/ai-agents.slice": "[Slice]\n",
+                ".config/systemd/user/agent-sync.service": "[Service]\nType=oneshot\n",
+                ".config/systemd/user/agent-sync.timer": "[Timer]\n",
+                ".local/bin/agent-sync": "#!/usr/bin/env python3\n",
+                ".local/bin/codex-config-sync": "#!/usr/bin/env bash\n",
+                ".local/libexec/codex-config-sync.py": "# implementation\n",
+            }
+            for relative, content in core_assets.items():
+                source = dotfiles / relative
+                source.parent.mkdir(parents=True, exist_ok=True)
+                source.write_text(content)
+
+            fake_bin = home / "fake-bin"
+            fake_bin.mkdir()
+            python_log = home / "python.log"
+            fake_python = fake_bin / "python"
+            fake_python.write_text(
+                "#!/usr/bin/env bash\n"
+                "set -euo pipefail\n"
+                "[[ \"${1:-}\" == '-c' ]] && exit 0\n"
+                "printf '%s\\n' \"$*\" > \"$PYTHON_LOG\"\n"
+            )
+            fake_python.chmod(0o755)
+            systemctl_log = home / "systemctl.log"
+            fake_systemctl = fake_bin / "systemctl"
+            fake_systemctl.write_text(
+                "#!/usr/bin/env bash\n"
+                "printf '%s\\n' \"$*\" >> \"$SYSTEMCTL_LOG\"\n"
+            )
+            fake_systemctl.chmod(0o755)
+            env = os.environ | {
+                "HOME": str(home),
+                "PATH": f"{fake_bin}:{os.environ['PATH']}",
+                "CODEX_CONFIG_SYNC_PYTHON": str(fake_python),
+                "PYTHON_LOG": str(python_log),
+                "SYSTEMCTL_LOG": str(systemctl_log),
+            }
+
+            result = subprocess.run(
+                [str(REPO / "scripts/dotfiles"), "sync-enable"],
+                env=env,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            for relative in core_assets:
+                target = home / relative
+                self.assertTrue(target.is_symlink(), relative)
+                self.assertEqual(target.resolve(), (dotfiles / relative).resolve())
+            self.assertFalse(
+                (home / ".config/dotfiles/features/ai-remote-control").exists()
+            )
+            self.assertEqual(
+                python_log.read_text().strip(),
+                f"{home}/.local/bin/agent-sync sync --root {dotfiles} --no-restart --quiet",
+            )
+            self.assertEqual(
+                systemctl_log.read_text().splitlines(),
+                ["--user daemon-reload", "--user enable --now agent-sync.timer"],
+            )
+
+    def test_sync_enable_immediately_projects_claude_skills(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            home = pathlib.Path(temporary)
+            dotfiles = home / ".dot_files"
+            core_assets = (
+                ".config/systemd/user/ai-agents.slice",
+                ".config/systemd/user/agent-sync.service",
+                ".config/systemd/user/agent-sync.timer",
+                ".local/bin/agent-sync",
+                ".local/bin/codex-config-sync",
+                ".local/libexec/codex-config-sync.py",
+            )
+            for relative in core_assets:
+                source = REPO / relative
+                target = dotfiles / relative
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes(source.read_bytes())
+                if relative.startswith(".local/bin/"):
+                    target.chmod(0o755)
+
+            (dotfiles / ".ruler").mkdir()
+            (dotfiles / ".ruler/ruler.toml").write_text("[agents]\n")
+            subprocess.run(
+                ["git", "init", "--quiet", str(dotfiles)],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+
+            claude = home / ".claude"
+            skill = claude / "skills/full-review"
+            skill.mkdir(parents=True)
+            (skill / "SKILL.md").write_text("# Full review\n")
+            hooks = claude / "hooks"
+            hooks.mkdir()
+            for name in ("reinject-on-compact.sh", "save-insights-reminder.sh"):
+                (hooks / name).write_text("#!/bin/bash\nset -euo pipefail\n")
+            (claude / "settings.json").write_text("{}\n")
+
+            ruler = home / ".local/bin/ruler"
+            ruler.parent.mkdir(parents=True)
+            ruler.write_text(
+                "#!/bin/bash\n"
+                "set -euo pipefail\n"
+                "if [ \"${1:-}\" = '--version' ]; then\n"
+                "    printf '%s\\n' '0.3.44'\n"
+                "    exit 0\n"
+                "fi\n"
+                "[ \"${1:-}\" = 'apply' ]\n"
+            )
+            ruler.chmod(0o755)
+
+            fake_bin = home / "fake-bin"
+            fake_bin.mkdir()
+            fake_systemctl = fake_bin / "systemctl"
+            fake_systemctl.write_text("#!/bin/bash\nset -euo pipefail\n")
+            fake_systemctl.chmod(0o755)
+            env = os.environ | {
+                "HOME": str(home),
+                "PATH": f"{fake_bin}:{os.environ['PATH']}",
+                "CODEX_CONFIG_SYNC_PYTHON": sys.executable,
+            }
+            codex_skill = home / ".agents/skills/full-review"
+            self.assertFalse(codex_skill.exists())
+
+            result = subprocess.run(
+                [str(REPO / "scripts/dotfiles"), "sync-enable"],
+                env=env,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertTrue(codex_skill.is_symlink())
+            self.assertEqual(codex_skill.resolve(), skill.resolve())
 
     def test_codex_config_sync_wrapper_uses_managed_interpreter(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -927,13 +1109,14 @@ print("tomlkit_fallback=plain-dict")
             for absent in (".ruler", ".ai-config", "verify-hook-trust.py"):
                 self.assertNotIn(absent, result.stdout)
 
-    def test_dotfiles_status_only_requires_opted_in_remote_control_assets(self) -> None:
+    def test_dotfiles_status_always_requires_core_sync_assets(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             home = pathlib.Path(temporary)
             dotfiles = home / ".dot_files"
             (dotfiles / ".local/bin").mkdir(parents=True)
             (dotfiles / ".zshrc").write_text("# shared\n")
             (dotfiles / ".local/bin/agent-sync").write_text("#!/usr/bin/env python3\n")
+            (dotfiles / ".local/bin/claude-rc").write_text("#!/usr/bin/env bash\n")
             subprocess.run(["git", "init", "-q", str(dotfiles)], check=True)
             subprocess.run(["git", "-C", str(dotfiles), "add", "."], check=True)
             env = os.environ | {"HOME": str(home)}
@@ -945,8 +1128,21 @@ print("tomlkit_fallback=plain-dict")
                 text=True,
                 check=True,
             )
-            self.assertNotIn(str(home / ".local/bin/agent-sync"), without_feature.stdout)
-            self.assertIn("Status: 0 linked, 0 issues, 0 missing", without_feature.stdout)
+            self.assertIn(str(home / ".local/bin/agent-sync"), without_feature.stdout)
+            self.assertNotIn(str(home / ".local/bin/claude-rc"), without_feature.stdout)
+            self.assertIn("Status: 0 linked, 0 issues, 1 missing", without_feature.stdout)
+
+            target = home / ".local/bin/agent-sync"
+            target.parent.mkdir(parents=True)
+            target.symlink_to(dotfiles / ".local/bin/agent-sync")
+            core_installed = subprocess.run(
+                [str(REPO / "scripts/dotfiles"), "status"],
+                env=env,
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            self.assertIn("Status: 1 linked, 0 issues, 0 missing", core_installed.stdout)
 
             marker = home / ".config/dotfiles/features/ai-remote-control"
             marker.parent.mkdir(parents=True)
@@ -958,8 +1154,8 @@ print("tomlkit_fallback=plain-dict")
                 text=True,
                 check=True,
             )
-            self.assertIn(str(home / ".local/bin/agent-sync"), with_feature.stdout)
-            self.assertIn("Status: 0 linked, 0 issues, 1 missing", with_feature.stdout)
+            self.assertIn(str(home / ".local/bin/claude-rc"), with_feature.stdout)
+            self.assertIn("Status: 1 linked, 0 issues, 1 missing", with_feature.stdout)
 
     def test_feature_enable_links_and_reloads_without_restarting_services(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -1261,7 +1457,10 @@ print("tomlkit_fallback=plain-dict")
             self.assertNotEqual(result.returncode, 0)
             self.assertEqual(current.resolve(), old_generation)
             self.assertEqual(
-                subprocess.run([str(current / "bin/python"), "-c", "pass"]).returncode,
+                subprocess.run(
+                    [str(current / "bin/python"), "-c", "pass"],
+                    check=False,
+                ).returncode,
                 0,
             )
             self.assertEqual(

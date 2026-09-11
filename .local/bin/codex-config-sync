@@ -6,12 +6,12 @@ implementation="$HOME/.local/libexec/codex-config-sync.py"
 
 if [[ ! -x "$python_bin" ]]; then
   echo "Managed codex-config-sync interpreter is missing: $python_bin" >&2
-  echo "Run: dotfiles feature-enable ai-remote-control" >&2
+  echo "Run: dotfiles sync-enable" >&2
   exit 1
 fi
 if ! "$python_bin" -c 'import tomlkit' >/dev/null 2>&1; then
   echo "Managed codex-config-sync interpreter cannot import tomlkit: $python_bin" >&2
-  echo "Run: dotfiles feature-enable ai-remote-control" >&2
+  echo "Run: dotfiles sync-enable" >&2
   exit 1
 fi
 if [[ ! -f "$implementation" ]]; then
