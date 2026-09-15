@@ -407,3 +407,11 @@ Accumulated knowledge from working across projects. Auto-maintained by Claude.
 - High load with low `%wa` and a single `java` process at high `%MEM` usually means G1 GC thrash, not application work. Confirm with `top -H -b -n1 -p <pid>` — if all `GC Thread#N` are in state `R`, the heap is full and the collector is spinning.
 - Per-thread CPU time without JVM tools: `for t in /proc/<pid>/task/*; do echo "$(awk '{print $14+$15}' $t/stat) $(cat $t/comm)"; done | sort -rn`. Values are jiffies (100/s). `/proc/<pid>/task/*/comm` truncates names to 15 characters.
 - Burp Suite Pro ships its own JRE and launches with `-XX:MaxRAMPercentage=50`. It has no `jcmd`/`jstat`/`jmap` in `BurpSuitePro/jre/bin`, so use `/proc` instead.
+
+## Burp Extension Development (Montoya)
+
+- Montoya `HttpHandler` fires BOTH `handleHttpRequestToBeSent` and `handleHttpResponseReceived` for the same message. If you record/count in both, hits double-count. Count on the request phase, only update status on the response phase (pass a countHit flag).
+- `api.proxy().history()` and `api.siteMap().requestResponses()` carry NO source-tool attribution. To distinguish Repeater/Intruder from Proxy in historical data you must parse the Logger++ CSV (column 0 = Tool). Live capture via `toolSource().toolType()` does have it.
+- Build a Montoya extension without sudo: portable Temurin JDK tarball (adoptium API) for javac, `montoya-api.jar` as compile-only (Burp provides it at runtime, so no fat jar), hand-roll JSON/CSV parsing to avoid bundling deps. Register the entry class via `META-INF/services/burp.api.montoya.BurpExtension`.
+- Swing classes in an extension trigger `-Xlint:all` [serial] and [this-escape] warnings. These are noise (UI is never serialized). Suppress with `@SuppressWarnings({"serial","this-escape"})` on the class, do not add serialVersionUID.
+- Scope filtering via `api.scope().isInScope(url)` returns false for everything when Burp Target scope is empty. An extension that filters to in-scope-only will silently record nothing until the user sets Target scope.
