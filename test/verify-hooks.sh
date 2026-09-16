@@ -22,14 +22,16 @@ check() {
 }
 
 decision() { jq -r '.hookSpecificOutput.permissionDecision // "allow"'; }
+# The guard must never prompt the user; it reminds the agent via additionalContext.
+context_only() { jq -r 'if .hookSpecificOutput.permissionDecision then "prompted" elif (.hookSpecificOutput.additionalContext // "") | test("FALLBACK GUARD") then "context" else "none" end'; }
 
 echo "── guard-fallback-patterns.sh ──"
-out=$(echo '{"tool_input":{"new_string":"x = a || []"}}' | bash "$HOOKS_DIR/guard-fallback-patterns.sh" | decision)
-check "Edit fallback -> ask" "ask" "$out"
-out=$(echo '{"tool_input":{"content":"x = a ?? {}"}}' | bash "$HOOKS_DIR/guard-fallback-patterns.sh" | decision)
-check "Write fallback -> ask" "ask" "$out"
-out=$(echo '{"tool_input":{"edits":[{"new_string":"safe"},{"new_string":"x = a || []"}]}}' | bash "$HOOKS_DIR/guard-fallback-patterns.sh" | decision)
-check "MultiEdit fallback -> ask (regression)" "ask" "$out"
+out=$(echo '{"tool_input":{"new_string":"x = a || []"}}' | bash "$HOOKS_DIR/guard-fallback-patterns.sh" | context_only)
+check "Edit fallback -> agent context, no prompt" "context" "$out"
+out=$(echo '{"tool_input":{"content":"x = a ?? {}"}}' | bash "$HOOKS_DIR/guard-fallback-patterns.sh" | context_only)
+check "Write fallback -> agent context, no prompt" "context" "$out"
+out=$(echo '{"tool_input":{"edits":[{"new_string":"safe"},{"new_string":"x = a || []"}]}}' | bash "$HOOKS_DIR/guard-fallback-patterns.sh" | context_only)
+check "MultiEdit fallback -> agent context, no prompt (regression)" "context" "$out"
 out=$(echo '{"tool_input":{"new_string":"x = compute(a)"}}' | bash "$HOOKS_DIR/guard-fallback-patterns.sh")
 check "clean content -> allow (silent)" "" "$out"
 
@@ -40,8 +42,9 @@ cat > "$tmpdir/t.sh" <<'BADSH'
 #!/bin/bash
 echo $X
 BADSH
-if echo "{\"tool_input\":{\"file_path\":\"$tmpdir/t.sh\"}}" | bash "$HOOKS_DIR/post-edit-lint.sh" | grep -q SC2086; then res=ran; else res=silent; fi
-check "shell file -> shellcheck runs" "ran" "$res"
+out=$(echo "{\"tool_input\":{\"file_path\":\"$tmpdir/t.sh\"}}" | bash "$HOOKS_DIR/post-edit-lint.sh" | jq -r '.hookSpecificOutput.additionalContext // ""')
+if grep -q SC2086 <<<"$out"; then res=ran; else res=silent; fi
+check "shell file -> shellcheck output reaches agent as additionalContext" "ran" "$res"
 mkdir -p "$tmpdir/typescript" "$tmpdir/bin"
 printf '{}\n' >"$tmpdir/typescript/tsconfig.json"
 printf 'const value: number = 1;\n' >"$tmpdir/typescript/example.ts"
@@ -1396,6 +1399,25 @@ else
     res=drifted
 fi
 check "Ruler sources regenerate Codex AGENTS.md exactly" "matches" "$res"
+
+# CLAUDE.md sends agents to docs/agents/*.md, but docs/ is gitignored, so a file
+# there reaches the repo only through `git add -f`. Guard both the files and the warning.
+if git -C "$dotfiles_root" ls-files --error-unmatch \
+    docs/agents/issue-tracker.md docs/agents/triage-labels.md docs/agents/domain.md \
+    >/dev/null 2>&1; then
+    res=tracked
+else
+    res=untracked
+fi
+check "agent docs referenced by CLAUDE.md are tracked despite the docs/ ignore" "tracked" "$res"
+
+# shellcheck disable=SC2016  # backticks are Markdown in the gotcha text, not substitution
+if grep -Fq 'Add them with `git add -f`' "$dotfiles_root/.claude/CLAUDE.md"; then
+    res=present
+else
+    res=missing
+fi
+check "CLAUDE.md warns that docs/ files need git add -f" "present" "$res"
 
 if grep -Fq 'Refs #<PR>' "$dotfiles_root/.claude/skills/fix-tests/SKILL.md" &&
     grep -Fq 'Sentry-Issue: <SENTRY-ID>' "$dotfiles_root/.claude/skills/fix-tests/SKILL.md"; then

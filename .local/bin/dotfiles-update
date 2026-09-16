@@ -56,6 +56,14 @@ fi
 
 git -C "$DOTFILES_DIR" merge --ff-only --quiet "$UPSTREAM"
 
+# Changes that need install_environment.sh always touch the installer itself or
+# a systemd unit. Stamp the host; .zshrc warns until a successful install run.
+if grep -qE '^(install_environment\.sh$|\.config/systemd/user/)' "$temporary/upstream"; then
+    mkdir -p "$HOME/.config/dotfiles"
+    printf '%s..%s\n' "$head" "$upstream" > "$HOME/.config/dotfiles/install-required"
+    printf 'dotfiles-update: installer-relevant files changed; run install_environment.sh\n' >&2
+fi
+
 if [ -x "$DOTFILES_DIR/scripts/migrate-local-state" ]; then
     "$DOTFILES_DIR/scripts/migrate-local-state" >/dev/null
 fi

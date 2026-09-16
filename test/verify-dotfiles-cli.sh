@@ -28,9 +28,14 @@ echo "── AI_REMOTE_CONTROL_PATHS coverage ──"
 # feature owns everything this repo tracks under .config/systemd/ and .local/.
 tracked=$(cd "$REPO_DIR" && git ls-files .config/systemd .local | sort)
 
-# Read the list without running the script, which would need a real $HOME.
-listed=$(sed -n '/^AI_REMOTE_CONTROL_PATHS=(/,/^)/p' "$REPO_DIR/scripts/dotfiles" \
-    | sed '1d;$d' | tr -d ' ' | sort)
+# Read both lists without running the script, which would need a real $HOME.
+# AI_REMOTE_CONTROL_PATHS includes AGENT_SYNC_PATHS through Bash expansion.
+agent_sync_list=$(sed -n '/^AGENT_SYNC_PATHS=(/,/^)/p' "$REPO_DIR/scripts/dotfiles" \
+    | sed '1d;$d' | tr -d ' ')
+# shellcheck disable=SC2016  # Match the literal array expansion in the source.
+remote_control_list=$(sed -n '/^AI_REMOTE_CONTROL_PATHS=(/,/^)/p' "$REPO_DIR/scripts/dotfiles" \
+    | sed '1d;$d' | grep -vF '"${AGENT_SYNC_PATHS[@]}"' | tr -d ' ')
+listed=$(printf '%s\n%s\n' "$agent_sync_list" "$remote_control_list" | sort -u)
 
 check "no tracked Remote Control file is unregistered" "" \
     "$(comm -23 <(echo "$tracked") <(echo "$listed") | tr '\n' ' ' | sed 's/ $//')"

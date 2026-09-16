@@ -85,6 +85,12 @@ export CLAUDE_CODE_DISABLE_AUTO_MEMORY=0  # Force on as of 2026/2/9
 # for Tabby directory reporting https://github.com/Eugeny/tabby/wiki/Shell-working-directory-reporting
 precmd () { echo -n "\x1b]1337;CurrentDir=$(pwd)\x07" }
 
+# dotfiles-update stamps this file when a background pull changes
+# installer-managed state; a successful install_environment.sh run clears it.
+if [ -f "$HOME/.config/dotfiles/install-required" ]; then
+    echo ">>> dotfiles: upstream changes ($(cat "$HOME/.config/dotfiles/install-required")) require a re-run of ~/.dot_files/install_environment.sh <<<"
+fi
+
 # Per-host overrides (not in repo, not symlinked)
 [ -f "$HOME/.zshrc.local" ] && source "$HOME/.zshrc.local"
 

@@ -1,12 +1,9 @@
 #!/bin/bash
 # PreToolUse hook (Write|Edit|MultiEdit): if the content being written contains
-# fallback / graceful-degradation / silent-default patterns, ask the user to
-# confirm — per rules/error-handling.md these require an explicit request.
-#
-# Hook input arrives on STDIN as JSON (there is no CLAUDE_TOOL_INPUT env var,
-# and the user's prompt is NOT in the PreToolUse payload — so we cannot
-# auto-allow "the user asked for it". We surface an ask decision instead of a
-# hard block so a genuinely-requested fallback can be approved in place.
+# fallback / graceful-degradation / silent-default patterns, inject a reminder
+# to the agent (additionalContext) instead of prompting the user. The edit
+# proceeds; the agent must confirm the fallback is required by the user's ask,
+# not added by instinct. See rules/error-handling.md.
 
 command -v jq >/dev/null 2>&1 || { echo "guard-fallback-patterns: jq unavailable, guard disabled" >&2; exit 0; }
 
@@ -27,8 +24,7 @@ if echo "$content" | grep -Eiq '\bfallback\b|graceful[[:space:]]+degrad|degraded
   jq -n '{
     hookSpecificOutput: {
       hookEventName: "PreToolUse",
-      permissionDecision: "ask",
-      permissionDecisionReason: "Content contains a fallback / graceful-degradation / silent-default pattern. Per rules/error-handling.md these require an explicit request — confirm this is intended."
+      additionalContext: "FALLBACK GUARD: this edit contains a fallback / graceful-degradation / silent-default pattern (fallback, defaulting to, `?? []`, `|| {}`, retry-without-auth, etc). Per rules/error-handling.md such code is allowed only when the user explicitly asked for it or the requirements make it necessary. Before continuing, re-check the user'"'"'s request: if the fallback is required, keep it and state in one clause why it is required. If you added it by instinct, remove it now and let the error propagate."
     }
   }'
 fi

@@ -10,3 +10,11 @@
 
 - `AI_REMOTE_CONTROL_PATHS` in `scripts/dotfiles` is hand-maintained and read by both `cmd_status` and `cmd_feature_enable`. A tracked Remote Control file left out of it is reported MISSING on hosts that never enabled the feature, and `feature-enable` never deploys it. `test/verify-dotfiles-cli.sh` now enforces set-equality against `git ls-files .config/systemd .local`.
 - `~/.codex/config.toml` is live per-host state that Codex and `codex-config-sync.py` rewrite in place; it is never symlinked from the repo. `codex-config-sync.py:351` also writes `<project-root>/.codex/config.toml`, so running it inside dot_files creates a repo-side file.
+
+## Docs tracking
+
+- `docs/` is deliberately gitignored (`.gitignore:20`). Shareable docs (plans, agents) are force-added with `git add -f`; a new doc under `docs/` stays untracked until you `-f` it.
+
+## Hook deployment
+
+- A hook file added to `.claude/hooks/` is not live until its per-file symlink exists in `~/.claude/hooks/` (created by `install_environment.sh`). Until then every matching tool call reports "not found" because `settings.json` invokes `$HOME/.claude/hooks/<file>`.

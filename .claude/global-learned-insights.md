@@ -148,6 +148,11 @@ Accumulated knowledge from working across projects. Auto-maintained by Claude.
 ## Git Staging
 
 - Once an insertion and a nearby deletion in the same file get entangled by diff minimization, hunk-level staging (`git apply --cached` on extracted hunks) can't separate them. Clean split: temporarily revert one change so the diff is pure, commit, re-apply, commit.
+- Newly defined clean/smudge filters do not take effect on already-tracked files: git trusts the stat cache, so `git status` stays clean. Run `git add --renormalize <path>` to re-run the clean filter against the index. Clean/smudge must round-trip exactly (`clean(smudge(blob)) == blob`, normalize trailing newlines) or the file shows as modified forever. An undefined filter driver is silently ignored, so `required = true` only bites after registration — safe for bootstrap clones.
+
+## Codex Config Layering
+
+- Codex CLI (0.153.x) has no include/local-override mechanism for `~/.codex/config.toml` — no `config.toml.local`, no `config.d`. Only `-p <name>` layers `$CODEX_HOME/<name>.config.toml` on top, and profile files must match that exact `<name>.config.toml` pattern. Codex writes `[projects]` trust entries directly into the base config.toml.
 
 ## Git Credential Helpers
 
