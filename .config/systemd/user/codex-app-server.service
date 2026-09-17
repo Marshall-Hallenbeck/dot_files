@@ -12,6 +12,9 @@ ExecStart=%h/.codex/packages/standalone/current/codex app-server --remote-contro
 ExecStopPost=%h/.local/libexec/codex-rc-cleanup
 Restart=on-failure
 RestartSec=10
+# App Server drains running assistant turns after SIGTERM. Never let systemd
+# convert an unattended update into SIGKILL while a turn is still running.
+TimeoutStopSec=infinity
 TimeoutStartSec=300
 Slice=ai-agents.slice
 CPUWeight=100

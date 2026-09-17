@@ -6,6 +6,9 @@ __pycache__/
 # Machine-specific Claude local settings (ends in .json, so *.local misses it)
 .claude/settings.local.json
 
+# Live per-host Codex state, rewritten by Codex and codex-config-sync
+.codex/config.toml
+
 # Re-include files that happen to have .local in their name but ARE managed
 !.claude/hookify.*.local.md
 !.local/

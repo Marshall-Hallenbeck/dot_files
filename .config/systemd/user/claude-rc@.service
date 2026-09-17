@@ -6,14 +6,25 @@ After=network-online.target
 [Service]
 Type=simple
 WorkingDirectory=%h/.config/claude-rc/projects/%i
-Environment=PATH=%h/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+# %h/go/bin holds Go-installed security tools (titus, brutus, vulnx, nuclei).
+# Without it here, a scan started from this service fails its dependency check
+# with "titus is not installed" even though the binaries are present.
+Environment=PATH=%h/.local/bin:%h/go/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 ExecStart=%h/.local/bin/claude remote-control --name %i --permission-mode bypassPermissions --spawn same-dir
 Restart=always
 RestartSec=10
 Slice=ai-agents.slice
 CPUWeight=100
 IOWeight=50
-TasksMax=768
+# Raised from 768, which was the binding limit: nuclei aborted with
+# "pthread_create failed: Resource temporarily unavailable" ~6s after loading
+# templates, and the whole bulk scan was reported as "0 findings". Must stay
+# at or below TasksMax in ai-agents.slice.
+TasksMax=16384
+# The systemd default soft limit is 1024 open files. Port scanners and nuclei
+# hold thousands of sockets at once and fail opaquely when they run out.
+# The hard limit is unchanged from the inherited 524288.
+LimitNOFILE=65536:524288
 KillMode=control-group
 OOMPolicy=stop
 

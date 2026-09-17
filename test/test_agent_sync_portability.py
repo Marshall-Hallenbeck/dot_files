@@ -64,25 +64,97 @@ print("tomlkit_fallback=plain-dict")
             [sys.executable, "-c", code, str(AGENT_SYNC)],
             capture_output=True,
             text=True,
+            check=False,
         )
 
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("tomlkit_fallback=plain-dict", result.stdout)
 
-    def test_codex_config_sync_enables_default_user_input_requests(self) -> None:
+    def test_codex_config_sync_enables_managed_global_settings(self) -> None:
         codex_config_sync = load_codex_config_sync()
         with tempfile.TemporaryDirectory() as temporary:
             config = pathlib.Path(temporary) / "config.toml"
-            config.write_text('[features]\nmemories = true\n\n[tui]\nstatus_line = ["model-name"]\n')
+            config.write_text(
+                '[features]\nmemories = true\n\n'
+                '[sandbox_workspace_write]\n'
+                'writable_roots = ["/var/tmp/existing"]\n\n'
+                '[tui]\nstatus_line = ["model-name"]\n'
+            )
 
             self.assertEqual(
-                codex_config_sync.sync_global_features(config),
-                ["default_mode_request_user_input:true"],
+                codex_config_sync.sync_global_settings(config),
+                ["default_mode_request_user_input:true", "writable_root:/tmp"],
             )
             rendered = config.read_text()
             self.assertIn("default_mode_request_user_input = true", rendered)
+            self.assertIn('writable_roots = ["/var/tmp/existing", "/tmp"]', rendered)
             self.assertIn('status_line = ["model-name"]', rendered)
-            self.assertEqual(codex_config_sync.sync_global_features(config), [])
+            self.assertEqual(rendered.count('"/tmp"'), 1)
+            self.assertEqual(codex_config_sync.sync_global_settings(config), [])
+
+    def test_codex_config_sync_preserves_writable_root_array_comments(self) -> None:
+        codex_config_sync = load_codex_config_sync()
+        with tempfile.TemporaryDirectory() as temporary:
+            config = pathlib.Path(temporary) / "config.toml"
+            config.write_text(
+                '[features]\ndefault_mode_request_user_input = true\n\n'
+                '[sandbox_workspace_write]\n'
+                'writable_roots = [\n'
+                '    "/var/tmp/existing", # keep this root\n'
+                ']\n'
+            )
+
+            self.assertEqual(
+                codex_config_sync.sync_global_settings(config),
+                ["writable_root:/tmp"],
+            )
+
+            rendered = config.read_text()
+            self.assertIn('# keep this root', rendered)
+            self.assertIn('    "/var/tmp/existing",', rendered)
+            self.assertIn('    "/tmp",', rendered)
+
+    def test_codex_config_sync_rejects_scalar_writable_roots(self) -> None:
+        codex_config_sync = load_codex_config_sync()
+        with tempfile.TemporaryDirectory() as temporary:
+            config = pathlib.Path(temporary) / "config.toml"
+            config.write_text(
+                '[sandbox_workspace_write]\nwritable_roots = "/var/tmp/existing"\n'
+            )
+
+            with self.assertRaisesRegex(
+                RuntimeError,
+                r"sandbox_workspace_write\.writable_roots must be an array of strings",
+            ):
+                codex_config_sync.sync_global_settings(config)
+
+    def test_codex_config_sync_rejects_non_string_writable_root(self) -> None:
+        codex_config_sync = load_codex_config_sync()
+        with tempfile.TemporaryDirectory() as temporary:
+            config = pathlib.Path(temporary) / "config.toml"
+            config.write_text(
+                '[sandbox_workspace_write]\nwritable_roots = ["/tmp", 42]\n'
+            )
+
+            with self.assertRaisesRegex(
+                RuntimeError,
+                r"sandbox_workspace_write\.writable_roots must be an array of strings",
+            ):
+                codex_config_sync.sync_global_settings(config)
+
+    def test_codex_config_sync_creates_writable_roots_on_first_run(self) -> None:
+        codex_config_sync = load_codex_config_sync()
+        with tempfile.TemporaryDirectory() as temporary:
+            config = pathlib.Path(temporary) / "config.toml"
+
+            self.assertEqual(
+                codex_config_sync.sync_global_settings(config),
+                ["default_mode_request_user_input:true", "writable_root:/tmp"],
+            )
+            self.assertIn(
+                '[sandbox_workspace_write]\nwritable_roots = ["/tmp"]',
+                config.read_text(),
+            )
 
     def test_aggregate_return_code_preserves_failures_and_signals(self) -> None:
         agent_sync = load_agent_sync()
@@ -154,7 +226,29 @@ print("tomlkit_fallback=plain-dict")
             (projects / "plain").symlink_to(plain_project, target_is_directory=True)
             (projects / "broken").symlink_to(root / "missing", target_is_directory=True)
 
-            self.assertEqual(agent_sync.discover_roots(projects), [ruler_project.resolve()])
+            self.assertEqual(
+                agent_sync.discover_roots(
+                    projects,
+                    global_root=root / "missing-dotfiles",
+                ),
+                [ruler_project.resolve()],
+            )
+
+    def test_discover_roots_includes_global_dotfiles_without_registered_projects(self) -> None:
+        agent_sync = load_agent_sync()
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            dotfiles = root / ".dot_files"
+            (dotfiles / ".ruler").mkdir(parents=True)
+            (dotfiles / ".ruler/ruler.toml").write_text("[agents]\n")
+
+            self.assertEqual(
+                agent_sync.discover_roots(
+                    root / "missing-projects",
+                    global_root=dotfiles,
+                ),
+                [dotfiles.resolve()],
+            )
 
     def test_sync_skills_never_mirrors_a_community_skill_onto_itself(self) -> None:
         codex_config_sync = load_codex_config_sync()
@@ -295,12 +389,14 @@ print("tomlkit_fallback=plain-dict")
             REPO / ".local/bin/agent-sync",
             REPO / ".local/bin/claude-rc",
             REPO / ".local/bin/codex",
+            REPO / ".local/bin/codex-auto-update",
             REPO / ".local/bin/codex-rc",
             REPO / ".local/bin/codex-config-sync",
             REPO / ".local/libexec/codex-config-sync.py",
             REPO / ".local/libexec/codex-rc-cleanup",
             REPO / ".config/systemd/user/ai-agents.slice",
             REPO / ".config/systemd/user/agent-sync.service",
+            REPO / ".config/systemd/user/agent-sync.service.d/40-maintenance.conf",
             REPO / ".config/systemd/user/agent-sync.timer",
             REPO / ".config/systemd/user/claude-rc@.service",
             REPO / ".config/systemd/user/codex-app-server.service",
@@ -355,6 +451,12 @@ print("tomlkit_fallback=plain-dict")
         )
         self.assertNotIn("seed_runtime_file", installer)
 
+    def test_linux_installer_enables_core_agent_sync(self) -> None:
+        installer = (REPO / "install_environment.sh").read_text()
+
+        self.assertIn('"$DOTFILES_DIR/scripts/dotfiles" sync-enable', installer)
+        self.assertIn("DOTFILES_SKIP_SYSTEMD=1", installer)
+
     def test_windows_updater_is_fail_closed_and_runs_agent_sync(self) -> None:
         updater = (REPO / "scripts/dotfiles-update-windows.ps1").read_text()
         sync = (REPO / "scripts/sync-agent-config-windows.ps1").read_text()
@@ -386,38 +488,53 @@ print("tomlkit_fallback=plain-dict")
 
     def test_systemd_sync_entrypoints_discover_registered_projects(self) -> None:
         agent_service = (REPO / ".config/systemd/user/agent-sync.service").read_text()
+        maintenance = (
+            REPO
+            / ".config/systemd/user/agent-sync.service.d/40-maintenance.conf"
+        ).read_text()
         codex_service = (REPO / ".config/systemd/user/codex-app-server.service").read_text()
         updater_service = (REPO / ".config/systemd/user/dotfiles-update.service").read_text()
-        updater_timer = (REPO / ".config/systemd/user/dotfiles-update.timer").read_text()
         self.assertNotIn("WorkingDirectory=", agent_service)
         self.assertIn("agent-sync --all --no-restart --quiet", agent_service)
+        self.assertNotIn("dotfiles-update", agent_service)
+        self.assertIn("ExecStartPre=%h/.local/bin/dotfiles-update", maintenance)
+        self.assertIn("ExecStartPost=%h/.local/bin/codex-auto-update", maintenance)
+        self.assertIn("ExecStartPost=%h/.local/bin/claude-auto-update", maintenance)
         self.assertIn("codex-config-sync --compat-only --quiet", codex_service)
         self.assertNotIn("agent-sync --all", codex_service)
         self.assertIn("%h/.local/bin/dotfiles-update", updater_service)
-        self.assertIn("OnBootSec=2min", updater_timer)
-        self.assertIn("OnUnitActiveSec=5min", updater_timer)
+        self.assertNotIn("ExecStart=%h/.local/bin/dotfiles-update", agent_service)
 
     def test_remote_control_feature_manages_dotfiles_updater_assets(self) -> None:
         deployer = (REPO / "scripts/dotfiles").read_text()
         for path in (
             ".config/systemd/user/dotfiles-update.service",
-            ".config/systemd/user/dotfiles-update.timer",
             ".local/bin/dotfiles-update",
+            ".local/bin/codex-auto-update",
+            ".config/systemd/user/agent-sync.service.d/40-maintenance.conf",
+            ".local/libexec/ai-config-audit.py",
+            ".local/libexec/codex-app-server-watchdog.py",
         ):
             self.assertIn(path, deployer)
+        self.assertNotIn("    .config/systemd/user/dotfiles-update.timer\n", deployer)
+        self.assertFalse((REPO / ".config/systemd/user/dotfiles-update.timer").exists())
+        self.assertIn("enable --now agent-sync.timer", deployer)
+        self.assertIn("disable --now dotfiles-update.timer", deployer)
+        self.assertNotIn("enable --now agent-sync.timer dotfiles-update.timer", deployer)
 
     def test_agent_sync_uses_completion_based_timer_and_resource_limits(self) -> None:
         timer = (REPO / ".config/systemd/user/agent-sync.timer").read_text()
         service = (REPO / ".config/systemd/user/agent-sync.service").read_text()
 
-        self.assertIn("OnUnitInactiveSec=30min", timer)
-        self.assertIn("RandomizedDelaySec=5min", timer)
+        self.assertIn("OnUnitInactiveSec=3h", timer)
+        self.assertIn("RandomizedDelaySec=15min", timer)
         self.assertNotIn("OnUnitActiveSec=", timer)
         self.assertIn("Slice=ai-agents.slice", service)
         self.assertIn(
-            "ExecStart=%h/.local/share/codex-config-sync-venv/bin/python %h/.local/bin/agent-sync --all --no-restart --quiet",
+            "ExecStart=%h/.local/share/codex-config-sync-venv-current/bin/python %h/.local/bin/agent-sync --all --no-restart --quiet",
             service,
         )
+        self.assertEqual(service.count("ExecStart="), 1)
         self.assertIn("CPUQuota=50%", service)
         self.assertIn("MemoryMax=1G", service)
         self.assertIn("TasksMax=64", service)
@@ -434,18 +551,166 @@ print("tomlkit_fallback=plain-dict")
         self.assertIn("IOWeight=25", slice_unit)
         self.assertIn("MemoryHigh=25%", slice_unit)
         self.assertIn("MemoryMax=35%", slice_unit)
-        self.assertIn("TasksMax=1536", slice_unit)
+        self.assertIn("TasksMax=32768", slice_unit)
         self.assertNotIn("Persistent=true", (REPO / ".config/systemd/user/agent-sync.timer").read_text())
 
     def test_claude_tool_concurrency_is_bounded(self) -> None:
         settings = (REPO / ".claude/settings.json").read_text()
         self.assertIn('"CLAUDE_CODE_MAX_TOOL_USE_CONCURRENCY": "4"', settings)
 
-    def test_feature_enable_provisions_pinned_codex_sync_dependency(self) -> None:
+    def test_sync_enable_provisions_pinned_codex_sync_dependency(self) -> None:
         deployer = (REPO / "scripts/dotfiles").read_text()
         wrapper = (REPO / ".local/bin/codex-config-sync").read_text()
         self.assertIn("tomlkit==0.13.3", deployer)
-        self.assertIn("codex-config-sync-venv/bin/python", wrapper)
+        self.assertIn("PyYAML==6.0.3", deployer)
+        self.assertIn("codex-config-sync-venv-current/bin/python", wrapper)
+        self.assertIn("sync-enable", deployer)
+        self.assertIn("Run: dotfiles sync-enable", wrapper)
+
+    def test_sync_enable_installs_core_assets_and_starts_timer(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            home = pathlib.Path(temporary)
+            dotfiles = home / ".dot_files"
+            core_assets = {
+                ".config/systemd/user/ai-agents.slice": "[Slice]\n",
+                ".config/systemd/user/agent-sync.service": "[Service]\nType=oneshot\n",
+                ".config/systemd/user/agent-sync.timer": "[Timer]\n",
+                ".local/bin/agent-sync": "#!/usr/bin/env python3\n",
+                ".local/bin/codex-config-sync": "#!/usr/bin/env bash\n",
+                ".local/libexec/codex-config-sync.py": "# implementation\n",
+            }
+            for relative, content in core_assets.items():
+                source = dotfiles / relative
+                source.parent.mkdir(parents=True, exist_ok=True)
+                source.write_text(content)
+
+            fake_bin = home / "fake-bin"
+            fake_bin.mkdir()
+            python_log = home / "python.log"
+            fake_python = fake_bin / "python"
+            fake_python.write_text(
+                "#!/usr/bin/env bash\n"
+                "set -euo pipefail\n"
+                "[[ \"${1:-}\" == '-c' ]] && exit 0\n"
+                "printf '%s\\n' \"$*\" > \"$PYTHON_LOG\"\n"
+            )
+            fake_python.chmod(0o755)
+            systemctl_log = home / "systemctl.log"
+            fake_systemctl = fake_bin / "systemctl"
+            fake_systemctl.write_text(
+                "#!/usr/bin/env bash\n"
+                "printf '%s\\n' \"$*\" >> \"$SYSTEMCTL_LOG\"\n"
+            )
+            fake_systemctl.chmod(0o755)
+            env = os.environ | {
+                "HOME": str(home),
+                "PATH": f"{fake_bin}:{os.environ['PATH']}",
+                "CODEX_CONFIG_SYNC_PYTHON": str(fake_python),
+                "PYTHON_LOG": str(python_log),
+                "SYSTEMCTL_LOG": str(systemctl_log),
+            }
+
+            result = subprocess.run(
+                [str(REPO / "scripts/dotfiles"), "sync-enable"],
+                env=env,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            for relative in core_assets:
+                target = home / relative
+                self.assertTrue(target.is_symlink(), relative)
+                self.assertEqual(target.resolve(), (dotfiles / relative).resolve())
+            self.assertFalse(
+                (home / ".config/dotfiles/features/ai-remote-control").exists()
+            )
+            self.assertEqual(
+                python_log.read_text().strip(),
+                f"{home}/.local/bin/agent-sync sync --root {dotfiles} --no-restart --quiet",
+            )
+            self.assertEqual(
+                systemctl_log.read_text().splitlines(),
+                ["--user daemon-reload", "--user enable --now agent-sync.timer"],
+            )
+
+    def test_sync_enable_immediately_projects_claude_skills(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            home = pathlib.Path(temporary)
+            dotfiles = home / ".dot_files"
+            core_assets = (
+                ".config/systemd/user/ai-agents.slice",
+                ".config/systemd/user/agent-sync.service",
+                ".config/systemd/user/agent-sync.timer",
+                ".local/bin/agent-sync",
+                ".local/bin/codex-config-sync",
+                ".local/libexec/codex-config-sync.py",
+            )
+            for relative in core_assets:
+                source = REPO / relative
+                target = dotfiles / relative
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes(source.read_bytes())
+                if relative.startswith(".local/bin/"):
+                    target.chmod(0o755)
+
+            (dotfiles / ".ruler").mkdir()
+            (dotfiles / ".ruler/ruler.toml").write_text("[agents]\n")
+            subprocess.run(
+                ["git", "init", "--quiet", str(dotfiles)],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+
+            claude = home / ".claude"
+            skill = claude / "skills/full-review"
+            skill.mkdir(parents=True)
+            (skill / "SKILL.md").write_text("# Full review\n")
+            hooks = claude / "hooks"
+            hooks.mkdir()
+            for name in ("reinject-on-compact.sh", "save-insights-reminder.sh"):
+                (hooks / name).write_text("#!/bin/bash\nset -euo pipefail\n")
+            (claude / "settings.json").write_text("{}\n")
+
+            ruler = home / ".local/bin/ruler"
+            ruler.parent.mkdir(parents=True)
+            ruler.write_text(
+                "#!/bin/bash\n"
+                "set -euo pipefail\n"
+                "if [ \"${1:-}\" = '--version' ]; then\n"
+                "    printf '%s\\n' '0.3.44'\n"
+                "    exit 0\n"
+                "fi\n"
+                "[ \"${1:-}\" = 'apply' ]\n"
+            )
+            ruler.chmod(0o755)
+
+            fake_bin = home / "fake-bin"
+            fake_bin.mkdir()
+            fake_systemctl = fake_bin / "systemctl"
+            fake_systemctl.write_text("#!/bin/bash\nset -euo pipefail\n")
+            fake_systemctl.chmod(0o755)
+            env = os.environ | {
+                "HOME": str(home),
+                "PATH": f"{fake_bin}:{os.environ['PATH']}",
+                "CODEX_CONFIG_SYNC_PYTHON": sys.executable,
+            }
+            codex_skill = home / ".agents/skills/full-review"
+            self.assertFalse(codex_skill.exists())
+
+            result = subprocess.run(
+                [str(REPO / "scripts/dotfiles"), "sync-enable"],
+                env=env,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertTrue(codex_skill.is_symlink())
+            self.assertEqual(codex_skill.resolve(), skill.resolve())
 
     def test_codex_config_sync_wrapper_uses_managed_interpreter(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -468,6 +733,7 @@ print("tomlkit_fallback=plain-dict")
                 env=env,
                 capture_output=True,
                 text=True,
+                check=False,
             )
 
             self.assertEqual(result.returncode, 0, result.stderr)
@@ -496,6 +762,7 @@ print("tomlkit_fallback=plain-dict")
                 env=env,
                 capture_output=True,
                 text=True,
+                check=False,
             )
 
             self.assertEqual(result.returncode, 0, result.stderr)
@@ -518,6 +785,7 @@ print("tomlkit_fallback=plain-dict")
                 env=env,
                 capture_output=True,
                 text=True,
+                check=False,
             )
 
             self.assertEqual(result.returncode, 0, result.stderr)
@@ -548,10 +816,151 @@ print("tomlkit_fallback=plain-dict")
                 env=env,
                 capture_output=True,
                 text=True,
+                check=False,
             )
 
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(log.read_text().strip(), f"status --root {registered_root}")
+
+    def test_dotfiles_update_reconciles_enabled_feature_when_already_current(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            remote = root / "remote.git"
+            source = root / "source"
+            home = root / "home"
+            checkout = home / ".dot_files"
+            subprocess.run(["git", "init", "--bare", "-q", str(remote)], check=True)
+            subprocess.run(["git", "clone", "-q", str(remote), str(source)], check=True)
+            subprocess.run(["git", "-C", str(source), "config", "user.name", "Test"], check=True)
+            subprocess.run(["git", "-C", str(source), "config", "user.email", "test@example.com"], check=True)
+            script = source / "scripts/dotfiles"
+            script.parent.mkdir(parents=True)
+            script.write_text(
+                "#!/usr/bin/env bash\n"
+                "printf 'feature %s\\n' \"$*\" >> \"$RECONCILE_LOG\"\n"
+            )
+            script.chmod(0o755)
+            subprocess.run(["git", "-C", str(source), "add", "."], check=True)
+            subprocess.run(["git", "-C", str(source), "commit", "-qm", "initial"], check=True)
+            subprocess.run(["git", "-C", str(source), "push", "-qu", "origin", "HEAD:main"], check=True)
+            subprocess.run(["git", "--git-dir", str(remote), "symbolic-ref", "HEAD", "refs/heads/main"], check=True)
+            subprocess.run(["git", "clone", "-q", str(remote), str(checkout)], check=True)
+            marker = home / ".config/dotfiles/features/ai-remote-control"
+            marker.parent.mkdir(parents=True)
+            marker.touch()
+            agent_sync = home / ".local/bin/agent-sync"
+            agent_sync.parent.mkdir(parents=True)
+            agent_sync.write_text(
+                "#!/usr/bin/env bash\n"
+                "printf 'sync %s\\n' \"$*\" >> \"$RECONCILE_LOG\"\n"
+            )
+            agent_sync.chmod(0o755)
+            log = root / "reconcile.log"
+            env = os.environ | {
+                "HOME": str(home),
+                "DOTFILES_DIR": str(checkout),
+                "XDG_RUNTIME_DIR": str(root / "run"),
+                "RECONCILE_LOG": str(log),
+            }
+
+            result = subprocess.run(
+                [str(REPO / ".local/bin/dotfiles-update")],
+                env=env,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(
+                log.read_text().splitlines(),
+                ["feature feature-enable ai-remote-control", "sync --all --no-restart --quiet"],
+            )
+
+    def test_parent_pull_is_reconciled_by_current_head_maintenance(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            remote = root / "remote.git"
+            source = root / "source"
+            home = root / "home"
+            checkout = home / ".dot_files"
+            subprocess.run(["git", "init", "--bare", "-q", str(remote)], check=True)
+            subprocess.run(["git", "clone", "-q", str(remote), str(source)], check=True)
+            subprocess.run(["git", "-C", str(source), "config", "user.name", "Test"], check=True)
+            subprocess.run(["git", "-C", str(source), "config", "user.email", "test@example.com"], check=True)
+            old_script = source / "scripts/dotfiles"
+            old_script.parent.mkdir(parents=True)
+            old_script.write_text(
+                "#!/usr/bin/env bash\n"
+                "set -euo pipefail\n"
+                "git -C \"$DOTFILES_DIR\" pull --ff-only origin main >/dev/null\n"
+            )
+            old_script.chmod(0o755)
+            updater = source / ".local/bin/dotfiles-update"
+            updater.parent.mkdir(parents=True)
+            updater.write_text("#!/usr/bin/env bash\nexit 0\n")
+            updater.chmod(0o755)
+            subprocess.run(["git", "-C", str(source), "add", "."], check=True)
+            subprocess.run(["git", "-C", str(source), "commit", "-qm", "parent"], check=True)
+            subprocess.run(["git", "-C", str(source), "push", "-qu", "origin", "HEAD:main"], check=True)
+            subprocess.run(["git", "--git-dir", str(remote), "symbolic-ref", "HEAD", "refs/heads/main"], check=True)
+            subprocess.run(["git", "clone", "-q", str(remote), str(checkout)], check=True)
+
+            old_script.write_text(
+                "#!/usr/bin/env bash\n"
+                "printf 'feature %s\\n' \"$*\" >> \"$RECONCILE_LOG\"\n"
+            )
+            old_script.chmod(0o755)
+            updater.write_text((REPO / ".local/bin/dotfiles-update").read_text())
+            updater.chmod(0o755)
+            subprocess.run(["git", "-C", str(source), "add", "."], check=True)
+            subprocess.run(["git", "-C", str(source), "commit", "-qm", "add reconciliation"], check=True)
+            subprocess.run(["git", "-C", str(source), "push", "-q"], check=True)
+
+            marker = home / ".config/dotfiles/features/ai-remote-control"
+            marker.parent.mkdir(parents=True)
+            marker.touch()
+            local_bin = home / ".local/bin"
+            local_bin.mkdir(parents=True)
+            (local_bin / "dotfiles-update").symlink_to(checkout / ".local/bin/dotfiles-update")
+            agent_sync = local_bin / "agent-sync"
+            agent_sync.write_text(
+                "#!/usr/bin/env bash\n"
+                "printf 'sync %s\\n' \"$*\" >> \"$RECONCILE_LOG\"\n"
+            )
+            agent_sync.chmod(0o755)
+            log = root / "reconcile.log"
+            runtime = root / "run"
+            env = os.environ | {
+                "HOME": str(home),
+                "DOTFILES_DIR": str(checkout),
+                "XDG_RUNTIME_DIR": str(runtime),
+                "RECONCILE_LOG": str(log),
+            }
+
+            pulled = subprocess.run(
+                [str(checkout / "scripts/dotfiles"), "pull"],
+                env=env,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(pulled.returncode, 0, pulled.stderr)
+            self.assertFalse(log.exists())
+
+            reconciled = subprocess.run(
+                [str(local_bin / "dotfiles-update")],
+                env=env,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+            self.assertEqual(reconciled.returncode, 0, reconciled.stderr)
+            self.assertEqual(
+                log.read_text().splitlines(),
+                ["feature feature-enable ai-remote-control", "sync --all --no-restart --quiet"],
+            )
 
     def test_dotfiles_update_fast_forwards_and_preserves_non_overlapping_changes(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -581,6 +990,7 @@ print("tomlkit_fallback=plain-dict")
                 env=os.environ | {"HOME": str(home), "DOTFILES_DIR": str(checkout)},
                 capture_output=True,
                 text=True,
+                check=False,
             )
 
             self.assertEqual(result.returncode, 0, result.stderr)
@@ -616,6 +1026,7 @@ print("tomlkit_fallback=plain-dict")
                 env=os.environ | {"HOME": str(home), "DOTFILES_DIR": str(checkout)},
                 capture_output=True,
                 text=True,
+                check=False,
             )
 
             self.assertNotEqual(result.returncode, 0)
@@ -659,6 +1070,7 @@ print("tomlkit_fallback=plain-dict")
                 env=os.environ | {"HOME": str(home), "DOTFILES_DIR": str(checkout)},
                 capture_output=True,
                 text=True,
+                check=False,
             )
 
             self.assertNotEqual(result.returncode, 0)
@@ -697,13 +1109,14 @@ print("tomlkit_fallback=plain-dict")
             for absent in (".ruler", ".ai-config", "verify-hook-trust.py"):
                 self.assertNotIn(absent, result.stdout)
 
-    def test_dotfiles_status_only_requires_opted_in_remote_control_assets(self) -> None:
+    def test_dotfiles_status_always_requires_core_sync_assets(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             home = pathlib.Path(temporary)
             dotfiles = home / ".dot_files"
             (dotfiles / ".local/bin").mkdir(parents=True)
             (dotfiles / ".zshrc").write_text("# shared\n")
             (dotfiles / ".local/bin/agent-sync").write_text("#!/usr/bin/env python3\n")
+            (dotfiles / ".local/bin/claude-rc").write_text("#!/usr/bin/env bash\n")
             subprocess.run(["git", "init", "-q", str(dotfiles)], check=True)
             subprocess.run(["git", "-C", str(dotfiles), "add", "."], check=True)
             env = os.environ | {"HOME": str(home)}
@@ -715,8 +1128,21 @@ print("tomlkit_fallback=plain-dict")
                 text=True,
                 check=True,
             )
-            self.assertNotIn(str(home / ".local/bin/agent-sync"), without_feature.stdout)
-            self.assertIn("Status: 0 linked, 0 issues, 0 missing", without_feature.stdout)
+            self.assertIn(str(home / ".local/bin/agent-sync"), without_feature.stdout)
+            self.assertNotIn(str(home / ".local/bin/claude-rc"), without_feature.stdout)
+            self.assertIn("Status: 0 linked, 0 issues, 1 missing", without_feature.stdout)
+
+            target = home / ".local/bin/agent-sync"
+            target.parent.mkdir(parents=True)
+            target.symlink_to(dotfiles / ".local/bin/agent-sync")
+            core_installed = subprocess.run(
+                [str(REPO / "scripts/dotfiles"), "status"],
+                env=env,
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            self.assertIn("Status: 1 linked, 0 issues, 0 missing", core_installed.stdout)
 
             marker = home / ".config/dotfiles/features/ai-remote-control"
             marker.parent.mkdir(parents=True)
@@ -728,8 +1154,8 @@ print("tomlkit_fallback=plain-dict")
                 text=True,
                 check=True,
             )
-            self.assertIn(str(home / ".local/bin/agent-sync"), with_feature.stdout)
-            self.assertIn("Status: 0 linked, 0 issues, 1 missing", with_feature.stdout)
+            self.assertIn(str(home / ".local/bin/claude-rc"), with_feature.stdout)
+            self.assertIn("Status: 1 linked, 0 issues, 1 missing", with_feature.stdout)
 
     def test_feature_enable_links_and_reloads_without_restarting_services(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -747,6 +1173,8 @@ print("tomlkit_fallback=plain-dict")
             target_unit = home / ".config/systemd/user/agent-sync.service"
             target_unit.parent.mkdir(parents=True)
             target_unit.write_text("legacy unit\n")
+            legacy_timer = home / ".config/systemd/user/dotfiles-update.timer"
+            legacy_timer.symlink_to(dotfiles / ".config/systemd/user/dotfiles-update.timer")
             target_script = home / ".local/bin/agent-sync"
             target_script.mkdir(parents=True)
             (target_script / "legacy.txt").write_text("legacy directory\n")
@@ -771,6 +1199,7 @@ print("tomlkit_fallback=plain-dict")
                 env=env,
                 capture_output=True,
                 text=True,
+                check=False,
             )
 
             self.assertEqual(result.returncode, 0, result.stderr)
@@ -781,6 +1210,7 @@ print("tomlkit_fallback=plain-dict")
                 env=env,
                 capture_output=True,
                 text=True,
+                check=False,
             )
             self.assertEqual(second_result.returncode, 0, second_result.stderr)
 
@@ -803,13 +1233,16 @@ print("tomlkit_fallback=plain-dict")
             self.assertEqual(
                 systemctl_log.read_text().splitlines(),
                 [
+                    "--user disable --now dotfiles-update.timer",
                     "--user daemon-reload",
-                    "--user enable --now agent-sync.timer dotfiles-update.timer",
+                    "--user enable --now agent-sync.timer",
                     "--user daemon-reload",
-                    "--user enable --now agent-sync.timer dotfiles-update.timer",
+                    "--user enable --now agent-sync.timer",
                 ],
             )
             self.assertNotIn("restart", systemctl_log.read_text())
+            self.assertFalse(legacy_timer.exists())
+            self.assertFalse(legacy_timer.is_symlink())
 
     def test_feature_enable_validates_managed_python_before_changes(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -833,11 +1266,416 @@ print("tomlkit_fallback=plain-dict")
                 env=env,
                 capture_output=True,
                 text=True,
+                check=False,
             )
 
             self.assertNotEqual(result.returncode, 0)
             self.assertEqual(target.read_text(), "legacy wrapper\n")
             self.assertFalse((home / ".config/dotfiles/features/ai-remote-control").exists())
+
+    def test_feature_enable_accepts_valid_python_override_without_sibling_pip(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            home = pathlib.Path(temporary)
+            dotfiles = home / ".dot_files"
+            wrapper = dotfiles / ".local/bin/codex-config-sync"
+            implementation = dotfiles / ".local/libexec/codex-config-sync.py"
+            wrapper.parent.mkdir(parents=True)
+            implementation.parent.mkdir(parents=True)
+            wrapper.write_text("#!/usr/bin/env bash\n")
+            implementation.write_text("# implementation\n")
+            override_dir = home / "override"
+            override_dir.mkdir()
+            override = override_dir / "python"
+            override.write_text("#!/usr/bin/env bash\nexit 0\n")
+            override.chmod(0o755)
+            fake_bin = home / "fake-bin"
+            fake_bin.mkdir()
+            systemctl = fake_bin / "systemctl"
+            systemctl.write_text("#!/usr/bin/env bash\nexit 0\n")
+            systemctl.chmod(0o755)
+            env = os.environ | {
+                "HOME": str(home),
+                "PATH": f"{fake_bin}:{os.environ['PATH']}",
+                "CODEX_CONFIG_SYNC_PYTHON": str(override),
+            }
+
+            result = subprocess.run(
+                [str(REPO / "scripts/dotfiles"), "feature-enable", "ai-remote-control"],
+                env=env,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertFalse((override_dir / "pip").exists())
+
+    def test_dotfiles_pull_reconciles_assets_for_enabled_remote_control(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            origin = root / "origin.git"
+            seed = root / "seed"
+            home = root / "home"
+            home.mkdir()
+            subprocess.run(["git", "init", "--bare", str(origin)], check=True, capture_output=True)
+            subprocess.run(["git", "init", "-b", "main", str(seed)], check=True, capture_output=True)
+            subprocess.run(["git", "-C", str(seed), "config", "user.email", "test@example.com"], check=True)
+            subprocess.run(["git", "-C", str(seed), "config", "user.name", "Test"], check=True)
+            source = seed / ".local/bin/agent-sync"
+            source.parent.mkdir(parents=True)
+            source.write_text("#!/usr/bin/env python3\n")
+            subprocess.run(["git", "-C", str(seed), "add", "."], check=True)
+            subprocess.run(["git", "-C", str(seed), "commit", "-m", "seed"], check=True, capture_output=True)
+            subprocess.run(["git", "-C", str(seed), "remote", "add", "origin", str(origin)], check=True)
+            subprocess.run(["git", "-C", str(seed), "push", "-u", "origin", "main"], check=True, capture_output=True)
+            checkout = home / ".dot_files"
+            subprocess.run(["git", "clone", "--branch", "main", str(origin), str(checkout)], check=True, capture_output=True)
+            marker = home / ".config/dotfiles/features/ai-remote-control"
+            marker.parent.mkdir(parents=True)
+            marker.touch()
+            fake_bin = root / "fake-bin"
+            fake_bin.mkdir()
+            systemctl = fake_bin / "systemctl"
+            systemctl.write_text("#!/usr/bin/env bash\nexit 0\n")
+            systemctl.chmod(0o755)
+            env = os.environ | {
+                "HOME": str(home),
+                "DOTFILES_DIR": str(checkout),
+                "PATH": f"{fake_bin}:{os.environ['PATH']}",
+            }
+
+            result = subprocess.run(
+                [str(REPO / "scripts/dotfiles"), "pull"],
+                env=env,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertTrue((home / ".local/bin/agent-sync").is_symlink())
+
+    def test_feature_enable_rebuilds_when_managed_pip_is_missing(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            home = pathlib.Path(temporary)
+            dotfiles = home / ".dot_files"
+            wrapper = dotfiles / ".local/bin/codex-config-sync"
+            implementation = dotfiles / ".local/libexec/codex-config-sync.py"
+            wrapper.parent.mkdir(parents=True)
+            implementation.parent.mkdir(parents=True)
+            wrapper.write_text("#!/usr/bin/env bash\n")
+            implementation.write_text("# implementation\n")
+            share = home / ".local/share"
+            old_generation = share / "codex-config-sync-venv.generation.old"
+            (old_generation / "bin").mkdir(parents=True)
+            old_python = old_generation / "bin/python"
+            old_python.write_text("#!/usr/bin/env bash\nexit 0\n")
+            old_python.chmod(0o755)
+            current = share / "codex-config-sync-venv-current"
+            current.symlink_to(old_generation, target_is_directory=True)
+            fake_bin = home / "fake-bin"
+            fake_bin.mkdir()
+            python3 = fake_bin / "python3"
+            python3.write_text(
+                "#!/usr/bin/env bash\n"
+                "set -euo pipefail\n"
+                "[[ \"${1:-}\" != '-c' ]] || exit 0\n"
+                "target=$3\n"
+                "mkdir -p \"$target/bin\"\n"
+                "printf '#!/usr/bin/env bash\\nexit 0\\n' > \"$target/bin/python\"\n"
+                "printf '#!/usr/bin/env bash\\nexit 0\\n' > \"$target/bin/pip\"\n"
+                "chmod +x \"$target/bin/python\" \"$target/bin/pip\"\n"
+            )
+            python3.chmod(0o755)
+            systemctl = fake_bin / "systemctl"
+            systemctl.write_text("#!/usr/bin/env bash\nexit 0\n")
+            systemctl.chmod(0o755)
+            env = os.environ | {
+                "HOME": str(home),
+                "PATH": f"{fake_bin}:{os.environ['PATH']}",
+            }
+
+            result = subprocess.run(
+                [str(REPO / "scripts/dotfiles"), "feature-enable", "ai-remote-control"],
+                env=env,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertNotEqual(current.resolve(), old_generation)
+            self.assertTrue((current / "bin/pip").is_file())
+
+    def test_failed_venv_build_preserves_current_and_removes_partial_generation(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            home = pathlib.Path(temporary)
+            dotfiles = home / ".dot_files"
+            wrapper = dotfiles / ".local/bin/codex-config-sync"
+            implementation = dotfiles / ".local/libexec/codex-config-sync.py"
+            wrapper.parent.mkdir(parents=True)
+            implementation.parent.mkdir(parents=True)
+            wrapper.write_text("#!/usr/bin/env bash\n")
+            implementation.write_text("# implementation\n")
+            share = home / ".local/share"
+            old_generation = share / "codex-config-sync-venv.generation.old"
+            (old_generation / "bin").mkdir(parents=True)
+            old_python = old_generation / "bin/python"
+            old_python.write_text("#!/usr/bin/env bash\nexit 0\n")
+            old_python.chmod(0o755)
+            current = share / "codex-config-sync-venv-current"
+            current.symlink_to(old_generation, target_is_directory=True)
+            fake_bin = home / "fake-bin"
+            fake_bin.mkdir()
+            python3 = fake_bin / "python3"
+            python3.write_text(
+                "#!/usr/bin/env bash\n"
+                "set -euo pipefail\n"
+                "[[ \"${1:-}\" != '-c' ]] || exit 0\n"
+                "target=$3\n"
+                "mkdir -p \"$target/bin\"\n"
+                "touch \"$target/partial\"\n"
+                "exit 9\n"
+            )
+            python3.chmod(0o755)
+            systemctl = fake_bin / "systemctl"
+            systemctl.write_text("#!/usr/bin/env bash\nexit 0\n")
+            systemctl.chmod(0o755)
+            env = os.environ | {
+                "HOME": str(home),
+                "PATH": f"{fake_bin}:{os.environ['PATH']}",
+            }
+
+            result = subprocess.run(
+                [str(REPO / "scripts/dotfiles"), "feature-enable", "ai-remote-control"],
+                env=env,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual(current.resolve(), old_generation)
+            self.assertEqual(
+                subprocess.run(
+                    [str(current / "bin/python"), "-c", "pass"],
+                    check=False,
+                ).returncode,
+                0,
+            )
+            self.assertEqual(
+                list(share.glob("codex-config-sync-venv.generation.*")),
+                [old_generation],
+            )
+
+    def test_failed_venv_activation_cleans_staging_and_preserves_current(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            home = pathlib.Path(temporary)
+            dotfiles = home / ".dot_files"
+            wrapper = dotfiles / ".local/bin/codex-config-sync"
+            implementation = dotfiles / ".local/libexec/codex-config-sync.py"
+            wrapper.parent.mkdir(parents=True)
+            implementation.parent.mkdir(parents=True)
+            wrapper.write_text("#!/usr/bin/env bash\n")
+            implementation.write_text("# implementation\n")
+            share = home / ".local/share"
+            old_generation = share / "codex-config-sync-venv.generation.old"
+            (old_generation / "bin").mkdir(parents=True)
+            old_python = old_generation / "bin/python"
+            old_python.write_text("#!/usr/bin/env bash\nexit 0\n")
+            old_python.chmod(0o755)
+            current = share / "codex-config-sync-venv-current"
+            current.symlink_to(old_generation, target_is_directory=True)
+            fake_bin = home / "fake-bin"
+            fake_bin.mkdir()
+            python3 = fake_bin / "python3"
+            python3.write_text(
+                "#!/usr/bin/env bash\n"
+                "set -euo pipefail\n"
+                "[[ \"${1:-}\" != '-c' ]] || exit 0\n"
+                "target=$3\n"
+                "mkdir -p \"$target/bin\"\n"
+                "printf '#!/usr/bin/env bash\\nexit 0\\n' > \"$target/bin/python\"\n"
+                "printf '#!/usr/bin/env bash\\nexit 0\\n' > \"$target/bin/pip\"\n"
+                "chmod +x \"$target/bin/python\" \"$target/bin/pip\"\n"
+            )
+            python3.chmod(0o755)
+            mv = fake_bin / "mv"
+            mv.write_text("#!/usr/bin/env bash\nexit 9\n")
+            mv.chmod(0o755)
+            systemctl = fake_bin / "systemctl"
+            systemctl.write_text("#!/usr/bin/env bash\nexit 0\n")
+            systemctl.chmod(0o755)
+            env = os.environ | {
+                "HOME": str(home),
+                "PATH": f"{fake_bin}:{os.environ['PATH']}",
+            }
+
+            result = subprocess.run(
+                [str(REPO / "scripts/dotfiles"), "feature-enable", "ai-remote-control"],
+                env=env,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual(current.resolve(), old_generation)
+            self.assertEqual(
+                list(share.glob("codex-config-sync-venv.generation.*")),
+                [old_generation],
+            )
+            self.assertEqual(list(share.glob(".codex-config-sync-link.*")), [])
+
+    def test_signal_after_venv_activation_preserves_active_generation(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            home = pathlib.Path(temporary)
+            dotfiles = home / ".dot_files"
+            wrapper = dotfiles / ".local/bin/codex-config-sync"
+            implementation = dotfiles / ".local/libexec/codex-config-sync.py"
+            wrapper.parent.mkdir(parents=True)
+            implementation.parent.mkdir(parents=True)
+            wrapper.write_text("#!/usr/bin/env bash\n")
+            implementation.write_text("# implementation\n")
+            real_share = home / "real-share"
+            real_share.mkdir()
+            (home / ".local").mkdir()
+            share = home / ".local/share"
+            share.symlink_to(real_share, target_is_directory=True)
+            old_generation = share / "codex-config-sync-venv.generation.old"
+            (old_generation / "bin").mkdir(parents=True)
+            old_python = old_generation / "bin/python"
+            old_python.write_text("#!/usr/bin/env bash\nexit 0\n")
+            old_python.chmod(0o755)
+            current = share / "codex-config-sync-venv-current"
+            current.symlink_to(old_generation, target_is_directory=True)
+            fake_bin = home / "fake-bin"
+            fake_bin.mkdir()
+            python3 = fake_bin / "python3"
+            python3.write_text(
+                "#!/usr/bin/env bash\n"
+                "set -euo pipefail\n"
+                "[[ \"${1:-}\" != '-c' ]] || exit 0\n"
+                "target=$3\n"
+                "mkdir -p \"$target/bin\"\n"
+                "printf '#!/usr/bin/env bash\\nexit 0\\n' > \"$target/bin/python\"\n"
+                "printf '#!/usr/bin/env bash\\nexit 0\\n' > \"$target/bin/pip\"\n"
+                "chmod +x \"$target/bin/python\" \"$target/bin/pip\"\n"
+            )
+            python3.chmod(0o755)
+            rmdir = fake_bin / "rmdir"
+            rmdir.write_text(
+                "#!/usr/bin/env bash\n"
+                "kill -TERM \"$PPID\"\n"
+                "sleep 0.1\n"
+                "exit 0\n"
+            )
+            rmdir.chmod(0o755)
+            systemctl = fake_bin / "systemctl"
+            systemctl.write_text("#!/usr/bin/env bash\nexit 0\n")
+            systemctl.chmod(0o755)
+            env = os.environ | {
+                "HOME": str(home),
+                "PATH": f"{fake_bin}:{os.environ['PATH']}",
+            }
+
+            result = subprocess.run(
+                [str(REPO / "scripts/dotfiles"), "feature-enable", "ai-remote-control"],
+                env=env,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertTrue(current.is_symlink())
+            self.assertNotEqual(current.resolve(), old_generation)
+            self.assertTrue((current / "bin/python").is_file())
+            self.assertTrue((current / "bin/pip").is_file())
+            self.assertEqual(list(share.glob(".codex-config-sync-link.*")), [])
+
+    def test_feature_enable_atomically_points_to_a_stable_venv_generation(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            home = pathlib.Path(temporary)
+            dotfiles = home / ".dot_files"
+            wrapper = dotfiles / ".local/bin/codex-config-sync"
+            implementation = dotfiles / ".local/libexec/codex-config-sync.py"
+            wrapper.parent.mkdir(parents=True)
+            implementation.parent.mkdir(parents=True)
+            wrapper.write_text("#!/usr/bin/env bash\n")
+            implementation.write_text("# implementation\n")
+
+            share = home / ".local/share"
+            broken = share / "codex-config-sync-venv.generation.broken"
+            (broken / "bin").mkdir(parents=True)
+            (broken / "sentinel").write_text("broken environment\n")
+            broken_python = broken / "bin/python"
+            broken_python.write_text("#!/usr/bin/env bash\nexit 1\n")
+            broken_python.chmod(0o755)
+            current = share / "codex-config-sync-venv-current"
+            current.symlink_to(broken, target_is_directory=True)
+
+            fake_bin = home / "fake-bin"
+            fake_bin.mkdir()
+            fake_python = fake_bin / "python3"
+            fake_python.write_text(
+                "#!/usr/bin/env bash\n"
+                "set -euo pipefail\n"
+                "[[ \"${1:-}\" != '-c' ]] || exit 0\n"
+                "[[ \"${1:-} ${2:-}\" == '-m venv' ]]\n"
+                "target=$3\n"
+                "[[ \"$target\" == *'.generation.'* ]] || exit 9\n"
+                "mkdir -p \"$target/bin\"\n"
+                "printf '#!/usr/bin/env bash\\nexit 0\\n' > \"$target/bin/python\"\n"
+                "printf '#!/usr/bin/env bash\\nexit 0\\n' > \"$target/bin/pip\"\n"
+                "chmod +x \"$target/bin/python\" \"$target/bin/pip\"\n"
+            )
+            fake_python.chmod(0o755)
+            fake_systemctl = fake_bin / "systemctl"
+            fake_systemctl.write_text("#!/usr/bin/env bash\nexit 0\n")
+            fake_systemctl.chmod(0o755)
+            env = os.environ | {
+                "HOME": str(home),
+                "PATH": f"{fake_bin}:{os.environ['PATH']}",
+            }
+
+            result = subprocess.run(
+                [str(REPO / "scripts/dotfiles"), "feature-enable", "ai-remote-control"],
+                env=env,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertTrue(current.is_symlink())
+            generation = current.resolve()
+            self.assertIn(".generation.", generation.name)
+            self.assertTrue((generation / "bin/python").is_file())
+            self.assertTrue((generation / "bin/pip").is_file())
+            self.assertEqual((broken / "sentinel").read_text(), "broken environment\n")
+
+    def test_real_venv_entry_points_remain_valid_behind_generation_symlink(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            generation = root / "codex-config-sync-venv.generation.real"
+            subprocess.run(
+                [sys.executable, "-m", "venv", str(generation)], check=True
+            )
+            current = root / "codex-config-sync-venv-current"
+            current.symlink_to(generation, target_is_directory=True)
+
+            result = subprocess.run(
+                [str(current / "bin/pip"), "--version"],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            shebang = (generation / "bin/pip").read_text().splitlines()[0]
+            self.assertIn(str(generation), shebang)
+            self.assertTrue(generation.exists())
 
     def test_feature_enable_backs_up_conflicting_parent_paths(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -859,6 +1697,7 @@ print("tomlkit_fallback=plain-dict")
                 env=env,
                 capture_output=True,
                 text=True,
+                check=False,
             )
 
             self.assertEqual(result.returncode, 0, result.stderr)
@@ -891,6 +1730,7 @@ print("tomlkit_fallback=plain-dict")
                 env=env,
                 capture_output=True,
                 text=True,
+                check=False,
             )
 
             self.assertEqual(result.returncode, 0, result.stderr)

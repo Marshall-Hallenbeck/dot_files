@@ -6,4 +6,9 @@ CPUWeight=25
 IOWeight=25
 MemoryHigh=25%
 MemoryMax=35%
-TasksMax=1536
+# Raised from 1536. This slice caps every agent's workload, so it must stay
+# above the per-service TasksMax in claude-rc@.service. Nuclei alone spawns
+# thousands of goroutine-backed threads plus Chrome processes; at 1536 it died
+# with "pthread_create failed: Resource temporarily unavailable" and the kernel
+# logged "cgroup: fork rejected by pids controller".
+TasksMax=32768

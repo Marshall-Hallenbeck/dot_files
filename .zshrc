@@ -2,11 +2,11 @@
 alias q='exit'
 export ZSH=$HOME/.oh-my-zsh/
 # If you come from bash you might have to change your $PATH.
-# PATH setup — include OpenCode, Go-installed security tools, and nvm wrappers below.
+# PATH setup — include Go-installed security tools and nvm wrappers below.
 # $HOME/.local/bin must precede the inherited $PATH: under WSL that inherits the
 # Windows directories, and a Windows npm shim of the same name (ruler, claude)
 # would otherwise win and fail with "exec: node: not found".
-export PATH=$HOME/.opencode/bin:$HOME/bin:$HOME/go/bin:$HOME/.local/bin:/usr/local/bin:$HOME/.dot_files/scripts:$PATH:$HOME/.dotnet/
+export PATH=$HOME/bin:$HOME/go/bin:$HOME/.local/bin:/usr/local/bin:$HOME/.dot_files/scripts:$PATH:$HOME/.dotnet/
 
 # Path to your oh-my-zsh installation.
 # Path depends on my username on the box. I can probably make this dynamic but whatever
@@ -84,6 +84,12 @@ export CLAUDE_CODE_DISABLE_AUTO_MEMORY=0  # Force on as of 2026/2/9
 
 # for Tabby directory reporting https://github.com/Eugeny/tabby/wiki/Shell-working-directory-reporting
 precmd () { echo -n "\x1b]1337;CurrentDir=$(pwd)\x07" }
+
+# dotfiles-update stamps this file when a background pull changes
+# installer-managed state; a successful install_environment.sh run clears it.
+if [ -f "$HOME/.config/dotfiles/install-required" ]; then
+    echo ">>> dotfiles: upstream changes ($(cat "$HOME/.config/dotfiles/install-required")) require a re-run of ~/.dot_files/install_environment.sh <<<"
+fi
 
 # Per-host overrides (not in repo, not symlinked)
 [ -f "$HOME/.zshrc.local" ] && source "$HOME/.zshrc.local"

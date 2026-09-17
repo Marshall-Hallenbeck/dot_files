@@ -1,0 +1,31 @@
+#!/bin/bash
+# Reattach Remote Control sessions that a claude-rc@ instance dropped when it
+# died (e.g. the poll loop hard-exits on an expired OAuth access token instead
+# of refreshing). Runs as ExecStartPost of claude-rc@.service: after a restart,
+# scan the journal for sessions the previous instance failed and reattach each
+# one as a transient user unit.
+set -euo pipefail
+
+instance="${1:?usage: claude-rc-reattach <instance> [journalctl-since]}"
+since="${2:--10 minutes}"
+
+# Let the restarted daemon finish connecting before spawning reattach clients.
+sleep 15
+
+mapfile -t ids < <(
+    journalctl --user -u "claude-rc@${instance}.service" --since "$since" --no-pager -o cat 2>/dev/null |
+        grep -aoE 'Session failed: Process exited with error cse_[A-Za-z0-9]+' |
+        awk '{print $NF}' | sort -u
+)
+
+for id in "${ids[@]}"; do
+    if pgrep -f -- "--session-id ${id}" >/dev/null; then
+        echo "claude-rc-reattach: ${id} already has a runner, skipping"
+        continue
+    fi
+    echo "claude-rc-reattach: reattaching ${id}"
+    systemd-run --user --collect --slice=ai-agents.slice \
+        --unit="claude-rc-reattach-${id}" --property=Restart=no \
+        "$HOME/.local/bin/claude" remote-control --session-id "$id" \
+        --permission-mode bypassPermissions
+done

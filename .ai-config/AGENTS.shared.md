@@ -23,9 +23,36 @@ These principles apply to ALL projects. Project-specific instruction files (CLAU
 - Primary use cases: security tooling, full-stack web development, infrastructure automation
 - Shell scripts: bash (`#!/bin/bash` with `set -euo pipefail`)
 
-## Git Operations
+## Mandatory Operating Rules
 
-When resolving merge conflicts, ALWAYS preserve upstream/remote changes unless explicitly told otherwise. Never silently drop incoming changes.
+### Investigation and editing
+
+- Before any investigation, state internally in one sentence what the user asks and which system, binary, or file the request concerns.
+- If the request names a tool or command, run `zsh -lc 'which <tool>'` and read the resolved source or `<tool> --help` before you propose a cause. Do not guess.
+- Read every file before you edit it. This rule is strict for test files.
+- Diagnose an error from the actual response body, response headers, command output, logs, and current configuration. Do not assert a root cause without that evidence. Do not blame quota after the user says quota is available unless current provider evidence proves a quota error.
+
+### Error handling and removals
+
+- Hard-fail on every error. Do not add silent fallback paths, catches that swallow errors, success defaults, placeholder values, or “continue anyway” behavior.
+- If a required file, key, binary, service, or configuration is missing, throw or exit nonzero with a clear message that names the exact item.
+- When the user says to remove code or a TODO, delete it. Do not replace it with a pointer, explanatory comment, compatibility stub, or dead wrapper.
+- Never explain why something was removed in comments, if it's gone, it's gone.
+
+### Shell and project preflight
+
+- Use `zsh -lc '...'` for commands that depend on the user's PATH, including `node`, `nvm`, `claude`, `codex`, and review tools. A Bash login shell does not represent the user's interactive PATH.
+- If a project defines a preflight skill or command, every main session and subagent must run it before investigation or work. Any failure blocks work.
+
+### Merge conflicts and review scope
+
+- Never discard upstream or remote changes when you resolve a merge conflict. Integrate the intent of both sides.
+- Before a conflict-resolution commit, show the user the final resolution for every conflicted hunk and explain how each side was preserved.
+- When the user asks to fix review findings, fix every finding, including warnings. Do not declare a finding out of scope. Ask before you defer an item.
+
+### Direct infrastructure access
+
+- When SSH or API access exists for Home Assistant, homelab servers, Plex, Sonarr, Radarr, or GitLab, use that access to make and verify the requested change. Do not defer to manual UI steps.
 
 ## Debugging
 
@@ -37,23 +64,44 @@ When your own tooling breaks — e.g., the Bash tool returns exit code 1 or 2 wi
 
 ## Execution Style
 
-Always execute commands directly. Never provide manual steps for the user to run unless the command is destructive, requires credentials you don't have, or affects systems outside the current machine. Defer to the user only for irreversible actions (e.g., `git push --force`). Do the work — don't describe the work.
+Always execute commands directly. Never provide manual steps for the user to run unless the command is destructive, requires credentials you don't have, or affects systems outside the current machine. Defer to the user only for irreversible actions (e.g., `git push --force`). Do the work, don't describe the work.
 
 Never ask "want me to fix it?" or "should I fix this?" — if there's a bug, error, warning, or test failure, fix it immediately. The answer is always yes. This applies to everything: code bugs, lint errors, type errors, test failures, compilation warnings. Just fix them.
 
 ## Asking Questions
 
-Ask a clarifying question only when unresolved ambiguity would materially change the result and cannot be resolved from the repository, issue, prior user choices, or established project conventions. An explicit request to implement, build, fix, or change something authorizes in-scope execution; do not ask the user to approve that same work again.
+Use a collaborative decision style for requirements and design. Do not silently select between multiple reasonable outcomes when the choice affects the user.
 
-- Ambiguous requirements or feature scope
-- Unclear implementation approach (multiple reasonable options)
-- Uncertainty about intended behavior or edge cases
-- File placement, naming, or architectural decisions that aren't obvious
-- Whether to add defensive checks, guards, or safety measures
-- Whether to fix source code vs test assertions
-- Anything where a wrong assumption would waste effort or produce the wrong result
+Ask before implementation when a decision affects:
 
-Make repository-backed, reversible, in-scope decisions autonomously. Ask before destructive actions, meaningful scope expansion, or choices that remain genuinely blocking after investigation.
+- User-visible behavior or UX
+- Feature scope or acceptance criteria
+- API contracts, data models, or architecture
+- Security, permissions, privacy, or destructive operations
+- Compatibility, migration, or deployment behavior
+- Error behavior or important edge cases
+- A trade-off where two or more options are reasonable
+
+Ask even when one option is recommended. Mark the recommended option and briefly state why it is recommended.
+
+When the runtime provides a structured question tool, use it instead of asking the question in plain text:
+
+- Claude Code: `AskUserQuestion`
+- Codex: `request_user_input`
+- ChatGPT: the native structured-choice interface, when available
+
+Group related questions into one tool call. Give two to four distinct options. State the practical consequence of each option. Use multi-select only when the choices are independent.
+
+Do not ask for:
+
+- Information available from the repository, issue, logs, or current system
+- Approval for work the user already explicitly requested
+- Trivial, reversible implementation details with one conventional answer
+- Permission to fix an in-scope bug, warning, or failed test
+
+An explicit request to implement, build, fix, or change something authorizes in-scope execution. Approval of both a design and its implementation plan authorizes immediate implementation. Do not ask the user to approve the same work again.
+
+If the session is non-interactive, do not pretend that a question tool is available. For a reversible choice, use the recommended option and state the assumption. For a consequential or irreversible choice, stop and return `NEEDS_USER_INPUT` with the available options.
 
 ## Planning & Approach
 
@@ -81,18 +129,20 @@ When continuing a multi-phase plan from a prior session, resume execution direct
 
 When developing an API or web application, there should always be the most simple checks that each endpoint or page is responding at a basic level. For example, if you create a new API route, add a smoke test that hits the route and checks for a 200 response. This ensures the route is wired up correctly before adding more complex tests. Loading the homepage of a web app and checking for a 200 with no console errors is another example of a simple smoke test. For databases, ensure there is a test that can connect to the database and perform a simple query. These basic checks catch fundamental issues early.
 
+Set parallel validation from current host resources. Calculate `parallel_limit` as `max(1, min(4, floor(MemAvailableGiB / 4), floor((logical_cpu_count - ceil(load_average_1m)) / 2)))`. Recalculate it before each new command. Use the limit only for independent unit tests, lint checks, and type checks. Force the limit to 1 when commands share mutable state or when a project wrapper classifies a job as heavy. Do not stop an active command only because the limit later decreases.
+
 ### Test Coverage Requirements
 
 Every code change must include appropriate test coverage:
 
 - **Bug fixes**: Must include a regression test that reproduces the bug and verifies the fix. The test must fail without the fix and pass with it. A bug fix without a regression test is incomplete.
-- **New features/functions**: Must include unit tests covering happy path, error paths, and edge cases. New public functions, components, routes, and handlers all require tests.
+- **New features/functions**: Must include unit tests covering known good paths, error paths, and realistic edge cases. Start with good paths, then add error paths, and only add edge cases if they are likely to happen. New public functions, components, routes, and handlers all require tests.
 - **UI/frontend features**: Must include component render tests, user interaction tests (clicks, form submissions, keyboard), and conditional rendering tests. For multi-page workflows, consider E2E tests.
-- **Integration points**: When adding new API integrations, database queries, or service-to-service communication, add integration tests that verify the interaction works end-to-end (mocking external services where necessary).
+- **Integration points**: When adding new API integrations, database queries, or service-to-service communication, add integration tests that verify the interaction works end-to-end (mocking external services where necessary). Consider if data needs to exist in the database before running e2e tests, and add it via direct queries if necessary.
 
 ### Running Tests
 
-Always run the full test suite after multi-file changes and before committing. Verify 0 failures. If tests fail, fix them before proceeding — do not commit with known failures.
+Always run the tests related to the files you've changed before committing unless told otherwise. Verify 0 failures. If tests fail, fix them before proceeding — do not commit with known failures.
 
 ## Static Analysis
 
@@ -105,7 +155,7 @@ Fix issues from both tools, not just one. If a project's instruction file (CLAUD
 
 ## Committing
 
-Before committing, run the full validation pipeline: `pre-commit` hooks, Ruff, Pyright, and the test suite. Fix every failure before committing — including pre-existing config problems (e.g., a broken Ruff config) you hit along the way, not just failures you introduced. Then commit with logical grouping: split unrelated changes into separate commits rather than one mixed commit.
+Before committing, run the full validation pipeline: `pre-commit` hooks, Ruff, Pyright, and the relevant test suites, if applicable. If a change will affect the entire application or program, you can run a holistic test suite run, otherwise, just focus on running applicable tests to what was changed. Fix every failure before committing — including pre-existing config problems (e.g., a broken Ruff config) you hit along the way, not just failures you introduced. Then commit with logical grouping: split unrelated changes into separate commits rather than one mixed commit.
 
 For a branch with an open pull request, end each commit subject with `(#<PR>)` and add `Refs #<PR>` in the body. Add `Sentry-Issue: <SENTRY-ID>` for Sentry work. Add `Refs #<issue>` for each related GitHub issue, or use a closing keyword only when the commit resolves it. Use the same references on merge commits. Do not invent references. Agent commit commands must not use `--no-verify` or `git commit -n`.
 
@@ -114,6 +164,9 @@ For a branch with an open pull request, end each commit subject with `(#<PR>)` a
 Always prefer simple, minimal solutions first. Avoid over-engineering with unnecessary features like color output, complex abstractions, or multi-layered architectures unless explicitly requested. If you believe a more complex approach is genuinely needed, explain why BEFORE implementing it and let me decide.
 
 ## Safety / Dangerous Operations
+
+`/tmp` is an approved scratch area. Do not ask for permission to create,
+change, or delete content when every changed path stays below `/tmp`.
 
 Never modify shell config files (`.zshrc`, `.bashrc`, `.zshenv`) with `sed`. Use targeted `echo`/append or manual instructions instead. Always back up before any changes.
 

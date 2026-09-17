@@ -58,6 +58,30 @@ link_file() {
     ln -s "$src" "$dest"
 }
 
+link_directory() {
+    local src="$1" dest="$2"
+
+    if [ ! -d "$src" ]; then
+        echo "ERROR: source directory not found: $src" >&2
+        return 1
+    fi
+
+    if [ -L "$dest" ] && [ "$(readlink -f "$dest")" = "$(readlink -f "$src")" ]; then
+        return 0
+    fi
+
+    if [ -e "$dest" ] || [ -L "$dest" ]; then
+        mkdir -p "$BACKUP_DIR"
+        local backup_path
+        backup_path="$BACKUP_DIR/$(echo "$dest" | sed "s|$HOME/||; s|/|__|g")"
+        mv "$dest" "$backup_path"
+        echo "  backed up: $dest -> $backup_path"
+    fi
+
+    mkdir -p "$(dirname "$dest")"
+    ln -s "$src" "$dest"
+}
+
 # Install a shell wrapper that sources the tracked configuration. Tool installers
 # can safely append host-specific entries to ~/.zshrc.local.
 install_shell_wrapper() {
@@ -191,8 +215,9 @@ fi
 
 export NVM_DIR="$HOME/.nvm"
 if [ ! -d "$NVM_DIR" ]; then
-    echo "Installing nvm..."
-    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
+    git clone https://github.com/nvm-sh/nvm.git "$NVM_DIR"
+    cd "$NVM_DIR"
+    git checkout "$(git describe --abbrev=0 --tags --match "v[0-9]*" "$(git rev-list --tags --max-count=1)")"
 fi
 # load nvm for the rest of this script
 # shellcheck disable=SC1091
@@ -245,10 +270,17 @@ fi
 # under a per-platform vendor directory instead, so publish it at the path they
 # expect. Point at the native binary, not the npm shim: the shim spawns a child
 # node process, which would sit between systemd and the long-lived app server.
-codex_vendor_bin=$(find "$(npm prefix -g)/lib/node_modules/@openai/codex/node_modules/@openai" \
-    -type d -path '*/vendor/*/bin' -print -quit)
+# Match the codex binary at its exact depth. A wildcard search for any bin
+# directory under vendor/ also matches the vendored zsh in
+# codex-resources/zsh/bin, which holds no codex binary.
+codex_vendor_binaries=("$(npm prefix -g)"/lib/node_modules/@openai/codex/node_modules/@openai/codex-*/vendor/*/bin/codex)
+codex_vendor_bin="${codex_vendor_binaries[0]}"
+if [ ! -x "$codex_vendor_bin" ]; then
+    echo "ERROR: no Codex binary at @openai/codex-*/vendor/*/bin/codex under $(npm prefix -g)/lib/node_modules" >&2
+    exit 1
+fi
 mkdir -p ~/.codex/packages/standalone
-ln -sfn "$codex_vendor_bin" ~/.codex/packages/standalone/current
+ln -sfn "$(dirname "$codex_vendor_bin")" ~/.codex/packages/standalone/current
 
 link_file "$DOTFILES_DIR/.codex/AGENTS.md" ~/.codex/AGENTS.md
 link_file "$DOTFILES_DIR/.codex/hooks.json" ~/.codex/hooks.json
@@ -336,24 +368,6 @@ for hook_file in "$DOTFILES_DIR"/.claude/hooks/*; do
     link_file "$hook_file" ~/.claude/hooks/"$(basename "$hook_file")"
 done
 
-commit_reference_hook="$HOME/.claude/hooks/validate-commit-references.sh"
-bash "$commit_reference_hook" --install "$DOTFILES_DIR"
-codex_trust_checker="$DOTFILES_DIR/.codex/verify-hook-trust.py"
-if ! python3 "$codex_trust_checker" "$DOTFILES_DIR"; then
-    echo "Codex must trust the commit-reference hooks before setup can continue."
-    echo "Trust both hooks in /hooks. Then run /exit."
-    if [ -t 0 ] && [ -t 1 ]; then
-        codex --no-alt-screen -C "$DOTFILES_DIR"
-    else
-        echo "Run Codex, use /hooks, and run this installer again." >&2
-        exit 1
-    fi
-    if ! python3 "$codex_trust_checker" "$DOTFILES_DIR"; then
-        echo "Codex commit-reference hooks are not trusted. Setup stopped." >&2
-        exit 1
-    fi
-fi
-
 # Remove dangling symlinks left behind by hooks/settings deleted from the repo
 find ~/.claude/hooks -maxdepth 1 -xtype l -delete || true
 if [ -L ~/.claude/settings.local.json ] && [ ! -e ~/.claude/settings.local.json ]; then
@@ -374,6 +388,20 @@ if [ -d ~/.claude/skills ] && [ ! -L ~/.claude/skills ]; then
     rm -rf ~/.claude/skills
 fi
 link_file "$DOTFILES_DIR/.claude/skills" ~/.claude/skills
+
+# Codex discovers user skills under ~/.agents/skills. Keep this as a real
+# directory so community skills can coexist with links to tracked Claude skills.
+mkdir -p ~/.agents/skills
+agents_skills_root=$(readlink -f ~/.agents/skills)
+for skill_dir in "$DOTFILES_DIR"/.claude/skills/*/; do
+    [ -f "$skill_dir/SKILL.md" ] || continue
+    skill_source=$(readlink -f "$skill_dir")
+    case "$skill_source/" in
+        "$agents_skills_root/"*) continue ;;
+    esac
+    skill_name=$(basename "$skill_dir")
+    link_directory "$skill_dir" ~/.agents/skills/"$skill_name"
+done
 
 # Agents
 for agent_file in "$DOTFILES_DIR"/.claude/agents/*.md; do
@@ -398,6 +426,36 @@ done
 mkdir -p "$HOME/.local/bin"
 link_file "$DOTFILES_DIR/scripts/dotfiles" "$HOME/.local/bin/dotfiles"
 
+# ── Automatic Claude and Codex configuration sync ───────────────
+# Run one full sync now. Enable the timer only where systemd is the init system.
+if [ -d /run/systemd/system ]; then
+    "$DOTFILES_DIR/scripts/dotfiles" sync-enable
+else
+    DOTFILES_SKIP_SYSTEMD=1 "$DOTFILES_DIR/scripts/dotfiles" sync-enable
+fi
+
+# ── Commit-reference hooks and Codex trust gate ──────────────────
+# This gate exits nonzero when Codex has not trusted the hooks, so it runs after
+# every symlink above. An aborted run then leaves a fully configured machine
+# rather than the half-deployed state that ordering it earlier produced.
+commit_reference_hook="$HOME/.claude/hooks/validate-commit-references.sh"
+bash "$commit_reference_hook" --install "$DOTFILES_DIR"
+codex_trust_checker="$DOTFILES_DIR/.codex/verify-hook-trust.py"
+if ! python3 "$codex_trust_checker" "$DOTFILES_DIR"; then
+    echo "Codex must trust the commit-reference hooks before setup can continue."
+    echo "Trust both hooks in /hooks. Then run /exit."
+    if [ -t 0 ] && [ -t 1 ]; then
+        codex --no-alt-screen -C "$DOTFILES_DIR"
+    else
+        echo "Run Codex, use /hooks, and run this installer again." >&2
+        exit 1
+    fi
+    if ! python3 "$codex_trust_checker" "$DOTFILES_DIR"; then
+        echo "Codex commit-reference hooks are not trusted. Setup stopped." >&2
+        exit 1
+    fi
+fi
+
 # ── Community skills (windows-protocols is too large for git, lives in ~/.agents/) ──
 echo "Installing community skills..."
 
@@ -421,6 +479,10 @@ if [ -L ~/.claude/skills/windows-protocols ] && [ ! -e ~/.claude/skills/windows-
 fi
 
 # ── Summary ──────────────────────────────────────────────────────
+# A completed run satisfies any pending install-required stamp from
+# dotfiles-update or dotfiles pull.
+rm -f "$HOME/.config/dotfiles/install-required"
+
 if [ -d "$BACKUP_DIR" ]; then
     echo ""
     echo "Backed up files that differed from repo to: $BACKUP_DIR"

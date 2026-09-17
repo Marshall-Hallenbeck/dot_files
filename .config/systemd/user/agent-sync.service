@@ -1,9 +1,9 @@
 [Unit]
-Description=Synchronize canonical Ruler configuration to Claude Code and Codex
+Description=Synchronize shared Claude and Codex configuration
 
 [Service]
 Type=oneshot
-ExecStart=%h/.local/share/codex-config-sync-venv/bin/python %h/.local/bin/agent-sync --all --no-restart --quiet
+ExecStart=%h/.local/share/codex-config-sync-venv-current/bin/python %h/.local/bin/agent-sync --all --no-restart --quiet
 Slice=ai-agents.slice
 Nice=10
 CPUQuota=50%
