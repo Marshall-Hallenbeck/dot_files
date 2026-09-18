@@ -420,3 +420,8 @@ Accumulated knowledge from working across projects. Auto-maintained by Claude.
 - Build a Montoya extension without sudo: portable Temurin JDK tarball (adoptium API) for javac, `montoya-api.jar` as compile-only (Burp provides it at runtime, so no fat jar), hand-roll JSON/CSV parsing to avoid bundling deps. Register the entry class via `META-INF/services/burp.api.montoya.BurpExtension`.
 - Swing classes in an extension trigger `-Xlint:all` [serial] and [this-escape] warnings. These are noise (UI is never serialized). Suppress with `@SuppressWarnings({"serial","this-escape"})` on the class, do not add serialVersionUID.
 - Scope filtering via `api.scope().isInScope(url)` returns false for everything when Burp Target scope is empty. An extension that filters to in-scope-only will silently record nothing until the user sets Target scope.
+
+## tmux Scripting
+
+- `~/.tmux.conf` sets `base-index 1` and `pane-base-index 1`, so a new session's first pane is `session:1.1`, never `:0.0`. Scripts that hardcode `-t "$SESS:0.0"` fail with `can't find window: 0`. Capture the real target instead: `PANE=$(tmux new-session -d -s "$SESS" -P -F '#{pane_id}')`.
+- `tmux pipe-pane` format-expands its shell command, so `#{window_index}` and `#{pane_index}` can be embedded directly in the piped command string.
