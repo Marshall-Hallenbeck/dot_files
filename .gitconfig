@@ -8,6 +8,10 @@
 	smudge = git-lfs smudge -- %f
 	process = git-lfs filter-process
 	required = true
+[credential "https://github.com"]
+	helper = !gh auth git-credential
+[credential "https://gist.github.com"]
+	helper = !gh auth git-credential
 # Host-only state (credentials, safe.directory, work identities) lives here.
 # Last include wins, so anything in ~/.gitconfig.local overrides the defaults above.
 [include]

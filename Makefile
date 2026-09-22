@@ -1,4 +1,4 @@
-.PHONY: test-ubuntu test-debian test-kali test-all test-security-kali test-hooks test-clean
+.PHONY: test-ubuntu test-debian test-kali test-all test-security-kali test-hooks test-dotfiles-cli test-clean
 
 DOCKER_BUILD = docker build -f test/Dockerfile
 
@@ -21,7 +21,10 @@ test-security-kali:
 test-hooks:
 	bash test/verify-hooks.sh
 
-test-all: test-hooks test-ubuntu test-debian test-kali
+test-dotfiles-cli:
+	bash test/verify-dotfiles-cli.sh
+
+test-all: test-hooks test-dotfiles-cli test-ubuntu test-debian test-kali
 
 test-clean:
 	-docker rmi dotfiles-test:ubuntu dotfiles-test:debian dotfiles-test:kali dotfiles-test:kali-security

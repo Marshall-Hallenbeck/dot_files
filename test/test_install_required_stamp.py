@@ -64,7 +64,7 @@ class InstallRequiredStampTests(unittest.TestCase):
             "XDG_RUNTIME_DIR": self.tmp.name,
             "DOTFILES_DIR": str(self.dotfiles),
         }
-        return subprocess.run(argv, capture_output=True, text=True, env=env)
+        return subprocess.run(argv, capture_output=True, text=True, env=env, check=False)
 
     def test_updater_stamps_on_installer_change(self) -> None:
         self.push_upstream_change("install_environment.sh", "#!/bin/bash\necho v2\n")

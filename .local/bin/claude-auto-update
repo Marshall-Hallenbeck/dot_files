@@ -110,7 +110,7 @@ def cgroup_pids(cgroup_root: Path, control_group: str) -> set[int]:
 def active_agents(claude: str, timeout: float) -> bool:
     payload = json.loads(output([claude, "agents", "--json"], timeout))
     if not isinstance(payload, list):
-        raise RuntimeError("claude agents --json did not return an array")
+        raise TypeError("claude agents --json did not return an array")
     return bool(payload)
 
 

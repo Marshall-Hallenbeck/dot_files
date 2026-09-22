@@ -410,6 +410,25 @@ Accumulated knowledge from working across projects. Auto-maintained by Claude.
 - `IncompatiblePeer: Incompatible ssh peer (no acceptable host key)` is a key-exchange negotiation failure, not an authentication failure. NetExec renders it as a full rich traceback per credential attempt via `logger.exception()` in `nxc/protocols/ssh.py plaintext_login`, and those tracebacks contain no host address.
 - nmap `ssh2-enum-algos` writes the full algorithm name-lists into the XML `<table key="server_host_key_algorithms">` at any verbosity; only the `-oN` text rendering is gated behind `-v`.
 
+## JVM / GC Diagnosis
+
+- High load with low `%wa` and a single `java` process at high `%MEM` usually means G1 GC thrash, not application work. Confirm with `top -H -b -n1 -p <pid>` — if all `GC Thread#N` are in state `R`, the heap is full and the collector is spinning.
+- Per-thread CPU time without JVM tools: `for t in /proc/<pid>/task/*; do echo "$(awk '{print $14+$15}' $t/stat) $(cat $t/comm)"; done | sort -rn`. Values are jiffies (100/s). `/proc/<pid>/task/*/comm` truncates names to 15 characters.
+- Burp Suite Pro ships its own JRE and launches with `-XX:MaxRAMPercentage=50`. It has no `jcmd`/`jstat`/`jmap` in `BurpSuitePro/jre/bin`, so use `/proc` instead.
+
+## Burp Extension Development (Montoya)
+
+- Montoya `HttpHandler` fires BOTH `handleHttpRequestToBeSent` and `handleHttpResponseReceived` for the same message. If you record/count in both, hits double-count. Count on the request phase, only update status on the response phase (pass a countHit flag).
+- `api.proxy().history()` and `api.siteMap().requestResponses()` carry NO source-tool attribution. To distinguish Repeater/Intruder from Proxy in historical data you must parse the Logger++ CSV (column 0 = Tool). Live capture via `toolSource().toolType()` does have it.
+- Build a Montoya extension without sudo: portable Temurin JDK tarball (adoptium API) for javac, `montoya-api.jar` as compile-only (Burp provides it at runtime, so no fat jar), hand-roll JSON/CSV parsing to avoid bundling deps. Register the entry class via `META-INF/services/burp.api.montoya.BurpExtension`.
+- Swing classes in an extension trigger `-Xlint:all` [serial] and [this-escape] warnings. These are noise (UI is never serialized). Suppress with `@SuppressWarnings({"serial","this-escape"})` on the class, do not add serialVersionUID.
+- Scope filtering via `api.scope().isInScope(url)` returns false for everything when Burp Target scope is empty. An extension that filters to in-scope-only will silently record nothing until the user sets Target scope.
+
+## tmux Scripting
+
+- `~/.tmux.conf` sets `base-index 1` and `pane-base-index 1`, so a new session's first pane is `session:1.1`, never `:0.0`. Scripts that hardcode `-t "$SESS:0.0"` fail with `can't find window: 0`. Capture the real target instead: `PANE=$(tmux new-session -d -s "$SESS" -P -F '#{pane_id}')`.
+- `tmux pipe-pane` format-expands its shell command, so `#{window_index}` and `#{pane_index}` can be embedded directly in the piped command string.
+
 ## zsh Gotchas
 
 - In zsh `path` is a special array tied to `$PATH`. Using it as a loop variable (`for path in /a /b`) silently overwrites PATH, and every later command in that shell fails with "command not found" — including `sort`, `head`, `curl`. Symptom looks like a broken environment; cause is the variable name. Avoid `path`, `cdpath`, `fpath`, `manpath` as scratch variable names in zsh.

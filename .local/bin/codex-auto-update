@@ -91,7 +91,7 @@ def fetch_latest(url: str) -> str:
     with urllib.request.urlopen(url, timeout=30) as response:
         payload = json.load(response)
     if not isinstance(payload, dict) or not isinstance(payload.get("version"), str):
-        raise RuntimeError("Codex registry response did not contain a string version")
+        raise TypeError("Codex registry response did not contain a string version")
     return parse_semver(payload["version"])
 
 
@@ -240,7 +240,7 @@ def process_pending_restart(
     payload = json.loads(pending.read_text())
     pending_version = payload.get("installedVersion")
     if not isinstance(pending_version, str):
-        raise RuntimeError(f"Invalid pending restart marker: {pending}")
+        raise TypeError(f"Invalid pending restart marker: {pending}")
     pending_version = parse_semver(pending_version)
     if compare_versions(installed_version, pending_version) < 0:
         raise RuntimeError(
@@ -288,7 +288,7 @@ def reconcile_stale_server(
     payload = json.loads(output([codex, "app-server", "daemon", "version"]))
     app_version_value = payload.get("appServerVersion")
     if not isinstance(app_version_value, str):
-        raise RuntimeError("App Server did not report appServerVersion")
+        raise TypeError("App Server did not report appServerVersion")
     app_version = parse_semver(app_version_value)
     if compare_versions(app_version, installed_version) >= 0:
         return None
