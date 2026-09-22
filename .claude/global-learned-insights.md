@@ -28,6 +28,8 @@ Accumulated knowledge from working across projects. Auto-maintained by Claude.
 - Next.js `loading.tsx` creates Suspense boundaries that permanently mask client-side rendering failures. If a client component fails inside a loading.tsx Suspense, React silently shows the fallback forever with zero console errors. Remove loading.tsx from pages where the component handles its own loading state (`{!data && <Skeleton />}`).
 
 - `useSearchParams()` causes SSR suspension. Combined with Suspense boundaries in Turbopack dev mode, client-side resolution can fail silently. Replace with `useState(() => new URLSearchParams(window.location.search))` only when Suspense interaction is problematic (i.e., `loading.tsx` exists and masks failures).
+- `next start` snapshots the `public/` directory at server startup. A file written into `public/` while the server runs returns 404 until the process restarts, so runtime uploads need a route handler rather than static `public/` serving.
+- Two `next build` runs in the same project directory corrupt each other: one wipes `.next/types/**` while the other type-checks it, giving `Type error: File '.next/types/app/<route>/page.ts' not found` or an ENOENT on `*.nft.json` during trace collection. Serialize builds, or build in a copied tree with a symlinked `node_modules`.
 - Conversely, `useState(() => window.location.search)` breaks on client-side navigation — the initializer only runs on mount, so navigating between the same route with different query params (e.g., `/findings` → `/findings?scan_run_id=447`) leaves state stale. Use `useSearchParams()` when the component needs to react to URL param changes without remounting. Safe in pages without `loading.tsx` / `Suspense` boundaries.
 
 ## PostgreSQL Large Table Performance
@@ -82,6 +84,7 @@ Accumulated knowledge from working across projects. Auto-maintained by Claude.
 ## Background Tasks / Polling
 
 - Never use unbounded `until <condition>; do sleep N; done` in `run_in_background` commands. These run forever invisibly if the condition is never met. Use a bounded loop: `for i in $(seq 1 N); do <check> && break; sleep 5; done`.
+- A `sleep N` launched with `run_in_background: true` does NOT pause the turn — the tool returns a task ID immediately. Polling a log in the very next tool call reads it seconds later, not N seconds later, which looks like a hung build. To actually wait, run the wait loop in the FOREGROUND with a high Bash `timeout` (up to 600000 ms), or wait for the task-completion notification before polling.
 
 ## CLI Tool Behavior
 
@@ -406,3 +409,7 @@ Accumulated knowledge from working across projects. Auto-maintained by Claude.
 - paramiko 5.0.0 removed `ssh-rsa` and `ssh-dss` from `Transport._key_info` entirely (`dsskey.py` is gone). `_preferred_keys` is only ssh-ed25519, ecdsa-sha2-nistp256/384/521, rsa-sha2-512, rsa-sha2-256. `disabled_algorithms` can only subtract, so a server offering only SHA-1 host keys cannot be reached by any paramiko-based tool (nxc ssh included) without patching paramiko itself.
 - `IncompatiblePeer: Incompatible ssh peer (no acceptable host key)` is a key-exchange negotiation failure, not an authentication failure. NetExec renders it as a full rich traceback per credential attempt via `logger.exception()` in `nxc/protocols/ssh.py plaintext_login`, and those tracebacks contain no host address.
 - nmap `ssh2-enum-algos` writes the full algorithm name-lists into the XML `<table key="server_host_key_algorithms">` at any verbosity; only the `-oN` text rendering is gated behind `-v`.
+
+## zsh Gotchas
+
+- In zsh `path` is a special array tied to `$PATH`. Using it as a loop variable (`for path in /a /b`) silently overwrites PATH, and every later command in that shell fails with "command not found" — including `sort`, `head`, `curl`. Symptom looks like a broken environment; cause is the variable name. Avoid `path`, `cdpath`, `fpath`, `manpath` as scratch variable names in zsh.
