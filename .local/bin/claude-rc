@@ -51,7 +51,10 @@ project=""
 unit=""
 if [[ "$action" != "list" ]]; then
   project="$(select_project)"
-  unit="$(systemd-escape --template=claude-rc@.service -- "$project")"
+  # No systemd-escape: it turns "-" into "\x2d", which mismatches the already
+  # enabled claude-rc@<project>.service units and the %i-based WorkingDirectory.
+  # Project names are symlink basenames, so they never contain "/".
+  unit="claude-rc@${project}.service"
 fi
 
 wait_state() {
