@@ -52,7 +52,19 @@
       "Bash(git checkout -- *)",
       "Bash(git checkout . *)",
       "Bash(git checkout .)",
-      "Bash(git checkout * -- *)"
+      "Bash(git checkout * -- *)",
+      "Bash(git checkout -f*)",
+      "Bash(git checkout --force*)",
+      "Bash(git switch -C*)",
+      "Bash(git switch -f*)",
+      "Bash(git switch --force*)",
+      "Bash(git switch --discard-changes*)",
+      "Bash(git switch * --discard-changes*)",
+      "Bash(git branch -D*)",
+      "Bash(git branch * -D*)",
+      "Bash(git branch -f*)",
+      "Bash(git branch --force*)",
+      "Bash(git branch -M*)"
     ],
     "defaultMode": "auto"
   },
@@ -154,7 +166,10 @@
     "pyright-lsp@claude-plugins-official": true,
     "claude-md-management@claude-plugins-official": true,
     "claude-code-setup@claude-plugins-official": true,
-    "mattpocock-skills@claude-plugins-official": true
+    "mattpocock-skills@claude-plugins-official": true,
+    "desktop-commander@synced": false,
+    "data@synced": false,
+    "productivity@synced": false
   },
   "outputStyle": "Concise",
   "feedbackDrafts": "notify",
