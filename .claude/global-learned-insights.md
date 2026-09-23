@@ -432,3 +432,7 @@ Accumulated knowledge from working across projects. Auto-maintained by Claude.
 ## zsh Gotchas
 
 - In zsh `path` is a special array tied to `$PATH`. Using it as a loop variable (`for path in /a /b`) silently overwrites PATH, and every later command in that shell fails with "command not found" — including `sort`, `head`, `curl`. Symptom looks like a broken environment; cause is the variable name. Avoid `path`, `cdpath`, `fpath`, `manpath` as scratch variable names in zsh.
+
+## Systemd User Units
+
+- `systemd-escape` turns `-` into `\x2d` (systemd reserves `-` as the `/` separator), so an escaped instance name mismatches units enabled with the literal name, and `%i` then resolves the escaped string verbatim (CHDIR failures). For instance names that can never contain `/` (e.g. symlink basenames), skip systemd-escape and keep `%i`; otherwise use `%I` everywhere consistently.
