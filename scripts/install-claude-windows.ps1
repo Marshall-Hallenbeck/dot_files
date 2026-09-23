@@ -100,13 +100,12 @@ if (-not $jqInBash) {
 }
 
 # ── File-based config (straight copy) ────────────────────────────
-Copy-File "$ClaudeSrc\global-CLAUDE.md"           "$ClaudeDest\CLAUDE.md"
+Copy-File (Join-Path $DotfilesDir 'global-AGENTS.md') "$ClaudeDest\CLAUDE.md"
 Seed-File "$ClaudeSrc\global-learned-insights.md" "$ClaudeDest\global-learned-insights.md"
 Copy-File "$ClaudeSrc\statusline.sh"              "$ClaudeDest\statusline.sh"
 Copy-File "$ClaudeSrc\hooks.json"                 "$ClaudeDest\hooks.json"
 
 Get-ChildItem "$ClaudeSrc\hooks" -File -ErrorAction SilentlyContinue | ForEach-Object { Copy-File $_.FullName "$ClaudeDest\hooks\$($_.Name)" }
-Get-ChildItem "$ClaudeSrc\rules" -Filter *.md -ErrorAction SilentlyContinue | ForEach-Object { Copy-File $_.FullName "$ClaudeDest\rules\$($_.Name)" }
 Get-ChildItem "$ClaudeSrc\agents" -Filter *.md -ErrorAction SilentlyContinue | ForEach-Object { Copy-File $_.FullName "$ClaudeDest\agents\$($_.Name)" }
 Get-ChildItem $ClaudeSrc -Filter 'hookify.*.local.md' -ErrorAction SilentlyContinue | ForEach-Object { Copy-File $_.FullName "$ClaudeDest\$($_.Name)" }
 

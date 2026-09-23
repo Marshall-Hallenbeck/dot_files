@@ -28,7 +28,7 @@ Use when skills/agents drift, overlap, or routing behavior becomes confusing.
    - Skills (`.claude/skills/*/SKILL.md`)
    - Agents (`.claude/agents/*.md`)
    - Hooks (`.claude/hooks.json`, `hookify*.md`)
-   - Global rules (`.claude/rules/*.md`)
+   - Global instructions (`global-AGENTS.md`)
 2. **Detect overlaps**
    - Multiple skills trying to own the same command intent
    - Test workflows mixing unit/integration/full-gate responsibilities

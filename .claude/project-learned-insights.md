@@ -9,7 +9,7 @@
 ## dotfiles CLI
 
 - `AI_REMOTE_CONTROL_PATHS` in `scripts/dotfiles` is hand-maintained and read by both `cmd_status` and `cmd_feature_enable`. A tracked Remote Control file left out of it is reported MISSING on hosts that never enabled the feature, and `feature-enable` never deploys it. `test/verify-dotfiles-cli.sh` now enforces set-equality against `git ls-files .config/systemd .local`.
-- `~/.codex/config.toml` is live per-host state that Codex and `codex-config-sync.py` rewrite in place; it is never symlinked from the repo. `codex-config-sync.py:351` also writes `<project-root>/.codex/config.toml`, so running it inside dot_files creates a repo-side file.
+- `~/.codex/config.toml` is live per-host state that Codex and `codex-config-sync.py` rewrite in place; it is never symlinked from the repo.
 
 ## Docs tracking
 

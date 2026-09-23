@@ -26,7 +26,8 @@ class DotfilesStatusTests(unittest.TestCase):
             ".config/systemd/user/agent-sync.timer": "[Timer]\n",
             ".config/systemd/user/claude-rc@.service.d/40-reattach.conf": "[Service]\n",
             ".gitattributes": ".codex/config.toml filter=codex-projects\n",
-            ".local/bin/agent-sync": "#!/usr/bin/env python3\n",
+            "AGENTS.md": "# project\n",
+            "global-AGENTS.md": "# global\n",
             ".local/bin/claude-rc-reattach": "#!/bin/bash\n",
             ".local/bin/codex-config-sync": "#!/bin/bash\n",
             ".local/libexec/codex-config-sync.py": "# implementation\n",
@@ -56,13 +57,16 @@ class DotfilesStatusTests(unittest.TestCase):
             ".config/systemd/user/ai-agents.slice",
             ".config/systemd/user/agent-sync.service",
             ".config/systemd/user/agent-sync.timer",
-            ".local/bin/agent-sync",
             ".local/bin/codex-config-sync",
             ".local/libexec/codex-config-sync.py",
         ):
             target = self.home / relative
             target.parent.mkdir(parents=True, exist_ok=True)
             target.symlink_to(self.dotfiles / relative)
+        for instructions in (".claude/CLAUDE.md", ".codex/AGENTS.md"):
+            target = self.home / instructions
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.symlink_to(self.dotfiles / "global-AGENTS.md")
 
     def run_status(self) -> subprocess.CompletedProcess[str]:
         return subprocess.run(
@@ -79,7 +83,7 @@ class DotfilesStatusTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertNotIn("NOT LINK", result.stdout)
         self.assertNotIn("MISSING", result.stdout)
-        self.assertIn("Status: 7 linked, 0 issues, 0 missing", result.stdout)
+        self.assertIn("Status: 8 linked, 0 issues, 0 missing", result.stdout)
 
     def test_status_checks_all_remote_control_assets_when_enabled(self) -> None:
         marker = self.home / ".config/dotfiles/features/ai-remote-control"
@@ -97,7 +101,33 @@ class DotfilesStatusTests(unittest.TestCase):
             f"MISSING:  {self.home}/.local/bin/claude-rc-reattach",
             result.stdout,
         )
-        self.assertIn("Status: 7 linked, 0 issues, 2 missing", result.stdout)
+        self.assertIn("Status: 8 linked, 0 issues, 2 missing", result.stdout)
+
+    def test_status_reports_global_instructions_that_are_not_linked(self) -> None:
+        (self.home / ".codex/AGENTS.md").unlink()
+        (self.home / ".codex/AGENTS.md").write_text("# stale copy\n")
+        (self.home / ".claude/CLAUDE.md").unlink()
+
+        result = self.run_status()
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn(f"NOT LINK: {self.home}/.codex/AGENTS.md", result.stdout)
+        self.assertIn(f"MISSING:  {self.home}/.claude/CLAUDE.md", result.stdout)
+        self.assertIn("Status: 6 linked, 1 issues, 1 missing", result.stdout)
+
+    def test_status_reports_global_instructions_linked_elsewhere(self) -> None:
+        other = self.dotfiles / "AGENTS.md"
+        (self.home / ".claude/CLAUDE.md").unlink()
+        (self.home / ".claude/CLAUDE.md").symlink_to(other)
+
+        result = self.run_status()
+
+        self.assertIn(
+            f"WRONG:   {self.home}/.claude/CLAUDE.md -> {other} "
+            f"(expected {self.dotfiles}/global-AGENTS.md)",
+            result.stdout,
+        )
+        self.assertIn("Status: 7 linked, 1 issues, 0 missing", result.stdout)
 
 
 if __name__ == "__main__":

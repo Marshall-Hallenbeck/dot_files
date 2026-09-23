@@ -16,7 +16,7 @@ fail() {
 reconcile_enabled_remote_control() {
     if [ -e "$HOME/.config/dotfiles/features/ai-remote-control" ]; then
         "$DOTFILES_DIR/scripts/dotfiles" feature-enable ai-remote-control >/dev/null
-        "$HOME/.local/bin/agent-sync" --all --no-restart --quiet
+        "$HOME/.local/bin/codex-config-sync" --quiet
     fi
 }
 

@@ -110,23 +110,11 @@ case "$action" in
     printf '\nProject link: %s\n' "$projects_dir/$project"
     printf 'Working directory: %s\n' "$root"
     ;;
-  sync)
-    root="$(resolve_project_root "$project")"
-    exec "$HOME/.local/bin/agent-sync" --root "$root"
-    ;;
-  sync-force)
-    root="$(resolve_project_root "$project")"
-    exec "$HOME/.local/bin/agent-sync" --root "$root" --force
-    ;;
-  sync-status)
-    root="$(resolve_project_root "$project")"
-    exec "$HOME/.local/bin/agent-sync" status --root "$root"
-    ;;
   list)
     systemctl --user list-units 'claude-rc@*.service' --all --no-pager
     ;;
   *)
-    echo "Usage: claude-rc {start|stop|restart|status|logs|enable|disable|config|list|sync|sync-force|sync-status} [project]" >&2
+    echo "Usage: claude-rc {start|stop|restart|status|logs|enable|disable|config|list} [project]" >&2
     exit 2
     ;;
 esac

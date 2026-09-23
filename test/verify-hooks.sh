@@ -35,6 +35,23 @@ check "MultiEdit fallback -> agent context, no prompt (regression)" "context" "$
 out=$(echo '{"tool_input":{"new_string":"x = compute(a)"}}' | bash "$HOOKS_DIR/guard-fallback-patterns.sh")
 check "clean content -> allow (silent)" "" "$out"
 
+echo "── reinject-on-compact.sh ──"
+compact_home=$(mktemp -d)
+compact_project=$(mktemp -d)
+mkdir -p "$compact_home/.claude"
+printf 'GLOBAL-MARKER\n' > "$compact_home/.claude/CLAUDE.md"
+git -C "$compact_project" init -q
+printf 'PROJECT-AGENTS-MARKER\n' > "$compact_project/AGENTS.md"
+printf 'PROJECT-CLAUDE-MARKER\n' > "$compact_project/CLAUDE.md"
+compact_out=$(cd "$compact_project" && echo '{"source":"compact"}' | HOME="$compact_home" bash "$HOOKS_DIR/reinject-on-compact.sh")
+for marker in GLOBAL-MARKER PROJECT-CLAUDE-MARKER PROJECT-AGENTS-MARKER; do
+    if grep -q "$marker" <<<"$compact_out"; then res=present; else res=missing; fi
+    check "compaction re-injects $marker" "present" "$res"
+done
+out=$(cd "$compact_project" && echo '{"source":"startup"}' | HOME="$compact_home" bash "$HOOKS_DIR/reinject-on-compact.sh")
+check "non-compaction start -> silent" "" "$out"
+rm -rf "$compact_home" "$compact_project"
+
 echo "── post-edit-lint.sh ──"
 tmpdir=$(mktemp -d)
 # A bash file with an unquoted var (SC2086) so shellcheck has something to flag.
@@ -1219,13 +1236,16 @@ else
     res=missing
 fi
 check "installer links Codex hook configuration" "linked" "$res"
-installer_pattern="link_file \"\$DOTFILES_DIR/.codex/AGENTS.md\" ~/.codex/AGENTS.md"
-if grep -Fq "$installer_pattern" "$dotfiles_root/install_environment.sh"; then
-    res=linked
-else
-    res=missing
-fi
-check "installer links Codex global instructions" "linked" "$res"
+# shellcheck disable=SC2088  # literal ~ paths, matched as text in the installer
+for instructions_target in "~/.codex/AGENTS.md" "~/.claude/CLAUDE.md"; do
+    installer_pattern="link_file \"\$DOTFILES_DIR/global-AGENTS.md\" $instructions_target"
+    if grep -Fq "$installer_pattern" "$dotfiles_root/install_environment.sh"; then
+        res=linked
+    else
+        res=missing
+    fi
+    check "installer links $instructions_target to global-AGENTS.md" "linked" "$res"
+done
 
 # Regression: `skills add -g` links a community skill into ~/.claude/skills with
 # a relative path. That directory is a symlink into the dotfiles repo, so the
@@ -1365,42 +1385,7 @@ else
 fi
 check "installer publishes the Codex binary, not the vendored zsh" "published" "$res"
 
-# The tracked instruction files are Ruler output: shared half, overlay marker,
-# then the per-agent overlay. If a hand edit lands in the output instead of the
-# source, the next agent-sync silently reverts it.
-ruler_regen_matches() {
-    local shared="$1" marker="$2" overlay="$3" generated="$4" regen
-    regen="$(mktemp)"
-    {
-        cat "$dotfiles_root/$shared"
-        printf '\n%s\n\n' "$marker"
-        cat "$dotfiles_root/$overlay"
-    } >"$regen"
-    if diff -q "$regen" "$dotfiles_root/$generated" >/dev/null 2>&1; then
-        rm -f "$regen"
-        return 0
-    fi
-    rm -f "$regen"
-    return 1
-}
-
-if ruler_regen_matches .ai-config/CLAUDE.shared.md '<!-- Claude-specific overlay -->' \
-    .ai-config/AGENTS.claude.md .claude/global-CLAUDE.md; then
-    res=matches
-else
-    res=drifted
-fi
-check "Ruler sources regenerate global-CLAUDE.md exactly" "matches" "$res"
-
-if ruler_regen_matches .ai-config/AGENTS.shared.md '<!-- Codex-specific overlay -->' \
-    .ai-config/AGENTS.codex.md .codex/AGENTS.md; then
-    res=matches
-else
-    res=drifted
-fi
-check "Ruler sources regenerate Codex AGENTS.md exactly" "matches" "$res"
-
-# CLAUDE.md sends agents to docs/agents/*.md, but docs/ is gitignored, so a file
+# AGENTS.md sends agents to docs/agents/*.md, but docs/ is gitignored, so a file
 # there reaches the repo only through `git add -f`. Guard both the files and the warning.
 if git -C "$dotfiles_root" ls-files --error-unmatch \
     docs/agents/issue-tracker.md docs/agents/triage-labels.md docs/agents/domain.md \
@@ -1409,15 +1394,15 @@ if git -C "$dotfiles_root" ls-files --error-unmatch \
 else
     res=untracked
 fi
-check "agent docs referenced by CLAUDE.md are tracked despite the docs/ ignore" "tracked" "$res"
+check "agent docs referenced by AGENTS.md are tracked despite the docs/ ignore" "tracked" "$res"
 
 # shellcheck disable=SC2016  # backticks are Markdown in the gotcha text, not substitution
-if grep -Fq 'Add them with `git add -f`' "$dotfiles_root/.claude/CLAUDE.md"; then
+if grep -Fq 'Add them with `git add -f`' "$dotfiles_root/AGENTS.md"; then
     res=present
 else
     res=missing
 fi
-check "CLAUDE.md warns that docs/ files need git add -f" "present" "$res"
+check "AGENTS.md warns that docs/ files need git add -f" "present" "$res"
 
 if grep -Fq 'Refs #<PR>' "$dotfiles_root/.claude/skills/fix-tests/SKILL.md" &&
     grep -Fq 'Sentry-Issue: <SENTRY-ID>' "$dotfiles_root/.claude/skills/fix-tests/SKILL.md"; then

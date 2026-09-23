@@ -33,8 +33,8 @@ If there are no changes at all, say so and stop.
 ### 2. Read Project Error Handling Rules
 
 Read the project's error handling rules for context:
-- `~/.claude/rules/error-handling.md`
-- Root `CLAUDE.md` (error handling sections)
+- `~/.claude/CLAUDE.md` ("Error Handling" and "Hard Behavioral Constraints" sections)
+- Root `AGENTS.md` or `CLAUDE.md` (error handling sections)
 
 These define what IS and ISN'T allowed.
 

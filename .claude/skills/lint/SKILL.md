@@ -64,7 +64,7 @@ ruff format --check <changed-py-files>
 ruff format <changed-py-files>
 ```
 
-If the project uses `uv`, prefix with `uv run` (check for `uv.lock` or project CLAUDE.md instructions).
+If the project uses `uv`, prefix with `uv run` (check for `uv.lock` or project AGENTS.md / CLAUDE.md instructions).
 
 Stage any fixes:
 ```bash

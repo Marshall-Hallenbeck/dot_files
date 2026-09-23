@@ -31,9 +31,9 @@ git diff HEAD -- <path>
 
 If there are no uncommitted changes, say so and stop.
 
-### 2. Read CLAUDE.md Files
+### 2. Read Project Instruction Files
 
-Read the root `CLAUDE.md` and any `CLAUDE.md` files in directories touched by the diff. These contain project conventions that inform the review.
+Read the root `AGENTS.md` / `CLAUDE.md` and any `AGENTS.md` / `CLAUDE.md` files in directories touched by the diff. These contain project conventions that inform the review.
 
 ### 3. Review the Diff
 
@@ -135,7 +135,7 @@ If there are zero findings:
 
 Reviewed N files with uncommitted changes.
 
-No issues found. Checked for bugs, security issues, and CLAUDE.md compliance.
+No issues found. Checked for bugs, security issues, and project-instruction compliance.
 
 ### Verdict: PASS
 ```

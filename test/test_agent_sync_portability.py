@@ -8,23 +8,11 @@ import pathlib
 import subprocess
 import sys
 import tempfile
-import types
 import unittest
 from unittest import mock
 
 REPO = pathlib.Path(__file__).resolve().parents[1]
-AGENT_SYNC = REPO / ".local/bin/agent-sync"
 CODEX_CONFIG_SYNC = REPO / ".local/libexec/codex-config-sync.py"
-
-
-def load_agent_sync():
-    loader = importlib.machinery.SourceFileLoader("agent_sync", str(AGENT_SYNC))
-    spec = importlib.util.spec_from_loader(loader.name, loader)
-    if spec is None:
-        raise RuntimeError("could not create module spec for agent-sync")
-    module = importlib.util.module_from_spec(spec)
-    loader.exec_module(module)
-    return module
 
 
 def load_codex_config_sync():
@@ -38,38 +26,6 @@ def load_codex_config_sync():
 
 
 class AgentSyncPortabilityTests(unittest.TestCase):
-    def test_agent_sync_uses_tomlkit_when_stdlib_tomllib_is_unavailable(self) -> None:
-        code = r'''
-import builtins
-import runpy
-import sys
-
-real_import = builtins.__import__
-
-
-def import_without_tomllib(name, *args, **kwargs):
-    if name == "tomllib":
-        raise ModuleNotFoundError("No module named 'tomllib'", name="tomllib")
-    return real_import(name, *args, **kwargs)
-
-
-builtins.__import__ = import_without_tomllib
-module = runpy.run_path(sys.argv[1], run_name="agent_sync_fallback")
-parsed = module["tomllib"].loads('[instructions]\nclaude = ".claude/global-CLAUDE.md"\n')
-assert type(parsed) is dict
-assert parsed == {"instructions": {"claude": ".claude/global-CLAUDE.md"}}
-print("tomlkit_fallback=plain-dict")
-'''
-        result = subprocess.run(
-            [sys.executable, "-c", code, str(AGENT_SYNC)],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("tomlkit_fallback=plain-dict", result.stdout)
-
     def test_codex_config_sync_enables_managed_global_settings(self) -> None:
         codex_config_sync = load_codex_config_sync()
         with tempfile.TemporaryDirectory() as temporary:
@@ -156,100 +112,6 @@ print("tomlkit_fallback=plain-dict")
                 config.read_text(),
             )
 
-    def test_aggregate_return_code_preserves_failures_and_signals(self) -> None:
-        agent_sync = load_agent_sync()
-        self.assertEqual(agent_sync.aggregate_return_code(0, 3), 3)
-        self.assertEqual(agent_sync.aggregate_return_code(0, -9), 137)
-        self.assertEqual(agent_sync.aggregate_return_code(3, 0), 3)
-        self.assertEqual(agent_sync.aggregate_return_code(3, 5), 3)
-
-    def test_all_sync_runs_global_compat_once_before_project_children(self) -> None:
-        agent_sync = load_agent_sync()
-        roots = [pathlib.Path("/projects/a"), pathlib.Path("/projects/b")]
-        compat_calls: list[tuple[list[str], bool]] = []
-        child_commands: list[list[str]] = []
-
-        def fake_checked(command: list[str], quiet: bool) -> None:
-            compat_calls.append((command, quiet))
-
-        def fake_run(command, *args, **kwargs):
-            child_commands.append(list(command))
-            return types.SimpleNamespace(returncode=0)
-
-        with (
-            mock.patch.object(agent_sync, "discover_roots", return_value=roots),
-            mock.patch.object(agent_sync, "run_checked", side_effect=fake_checked),
-            mock.patch.object(agent_sync.subprocess, "run", side_effect=fake_run),
-            mock.patch.object(agent_sync.sys, "argv", ["agent-sync", "--all", "--no-restart", "--quiet"]),
-        ):
-            self.assertEqual(agent_sync.main(), 0)
-
-        self.assertEqual(len(compat_calls), 1)
-        self.assertIn("--compat-only", compat_calls[0][0])
-        self.assertEqual(len(child_commands), 2)
-        for command in child_commands:
-            self.assertIn("--skip-compat", command)
-            self.assertIn("--no-restart", command)
-
-    def test_all_sync_runs_global_compat_when_no_projects_are_registered(self) -> None:
-        agent_sync = load_agent_sync()
-        compat_calls: list[tuple[list[str], bool]] = []
-
-        def fake_checked(command: list[str], quiet: bool) -> None:
-            compat_calls.append((command, quiet))
-
-        with (
-            mock.patch.object(agent_sync, "discover_roots", return_value=[]),
-            mock.patch.object(agent_sync, "run_checked", side_effect=fake_checked),
-            mock.patch.object(agent_sync.sys, "argv", ["agent-sync", "--all", "--no-restart", "--quiet"]),
-        ):
-            self.assertEqual(agent_sync.main(), 0)
-
-        self.assertEqual(len(compat_calls), 1)
-        self.assertIn("--compat-only", compat_calls[0][0])
-
-    def test_discover_roots_only_returns_unique_ruler_projects(self) -> None:
-        agent_sync = load_agent_sync()
-        with tempfile.TemporaryDirectory() as temporary:
-            root = pathlib.Path(temporary)
-            projects = root / "projects"
-            projects.mkdir()
-
-            ruler_project = root / "ruler-project"
-            (ruler_project / ".ruler").mkdir(parents=True)
-            (ruler_project / ".ruler/ruler.toml").write_text("[agents]\n")
-            plain_project = root / "plain-project"
-            plain_project.mkdir()
-
-            (projects / "alpha").symlink_to(ruler_project, target_is_directory=True)
-            (projects / "alpha-alias").symlink_to(ruler_project, target_is_directory=True)
-            (projects / "plain").symlink_to(plain_project, target_is_directory=True)
-            (projects / "broken").symlink_to(root / "missing", target_is_directory=True)
-
-            self.assertEqual(
-                agent_sync.discover_roots(
-                    projects,
-                    global_root=root / "missing-dotfiles",
-                ),
-                [ruler_project.resolve()],
-            )
-
-    def test_discover_roots_includes_global_dotfiles_without_registered_projects(self) -> None:
-        agent_sync = load_agent_sync()
-        with tempfile.TemporaryDirectory() as temporary:
-            root = pathlib.Path(temporary)
-            dotfiles = root / ".dot_files"
-            (dotfiles / ".ruler").mkdir(parents=True)
-            (dotfiles / ".ruler/ruler.toml").write_text("[agents]\n")
-
-            self.assertEqual(
-                agent_sync.discover_roots(
-                    root / "missing-projects",
-                    global_root=dotfiles,
-                ),
-                [dotfiles.resolve()],
-            )
-
     def test_sync_skills_never_mirrors_a_community_skill_onto_itself(self) -> None:
         codex_config_sync = load_codex_config_sync()
         with tempfile.TemporaryDirectory() as temporary:
@@ -282,111 +144,8 @@ print("tomlkit_fallback=plain-dict")
             self.assertEqual((community / "SKILL.md").read_text(), "# community skill\n")
             self.assertTrue((claude_skills / "windows-protocols/SKILL.md").is_file())
 
-    def test_instruction_paths_default_to_ruler_outputs_without_a_sync_config(self) -> None:
-        agent_sync = load_agent_sync()
-        with tempfile.TemporaryDirectory() as temporary:
-            root = pathlib.Path(temporary)
-            (root / ".ruler").mkdir()
-            (root / ".ruler/ruler.toml").write_text(
-                '[agents.codex]\noutput_path = ".ai-config/AGENTS.shared.md"\n'
-            )
-
-            paths = agent_sync.instruction_paths(root)
-
-            # Claude has no override, so Ruler writes its final file directly.
-            self.assertEqual(paths["claude"]["shared"], root / "CLAUDE.md")
-            self.assertEqual(paths["claude"]["output"], root / "CLAUDE.md")
-            # Codex keeps the shared/final split the overlay composition needs.
-            self.assertEqual(paths["codex"]["shared"], root / ".ai-config/AGENTS.shared.md")
-            self.assertEqual(paths["codex"]["output"], root / "AGENTS.md")
-
-    def test_instruction_paths_publish_into_the_files_named_by_the_sync_config(self) -> None:
-        agent_sync = load_agent_sync()
-        with tempfile.TemporaryDirectory() as temporary:
-            root = pathlib.Path(temporary)
-            (root / ".ruler").mkdir()
-            (root / ".ruler/ruler.toml").write_text(
-                '[agents.claude]\noutput_path = ".ai-config/CLAUDE.shared.md"\n'
-                '[agents.codex]\noutput_path = ".ai-config/AGENTS.shared.md"\n'
-            )
-            (root / ".ai-config").mkdir()
-            (root / ".ai-config/agent-sync.toml").write_text(
-                '[instructions]\nclaude = ".claude/global-CLAUDE.md"\n'
-                'codex = ".codex/AGENTS.md"\n'
-            )
-
-            paths = agent_sync.instruction_paths(root)
-
-            self.assertEqual(paths["claude"]["shared"], root / ".ai-config/CLAUDE.shared.md")
-            self.assertEqual(paths["claude"]["output"], root / ".claude/global-CLAUDE.md")
-            self.assertEqual(paths["codex"]["shared"], root / ".ai-config/AGENTS.shared.md")
-            self.assertEqual(paths["codex"]["output"], root / ".codex/AGENTS.md")
-            self.assertEqual(
-                agent_sync.output_paths(root)["claude-instructions"],
-                root / ".claude/global-CLAUDE.md",
-            )
-
-    def test_build_instructions_composes_every_tool_that_has_an_overlay(self) -> None:
-        agent_sync = load_agent_sync()
-        with tempfile.TemporaryDirectory() as temporary:
-            root = pathlib.Path(temporary)
-            (root / ".ruler").mkdir()
-            (root / ".ruler/ruler.toml").write_text(
-                '[agents.claude]\noutput_path = ".ai-config/CLAUDE.shared.md"\n'
-                '[agents.codex]\noutput_path = ".ai-config/AGENTS.shared.md"\n'
-            )
-            (root / ".ai-config").mkdir()
-            (root / ".ai-config/CLAUDE.shared.md").write_text("shared text\n")
-            (root / ".ai-config/AGENTS.shared.md").write_text("shared text\n")
-            (root / ".ai-config/AGENTS.claude.md").write_text("claude only\n")
-            (root / ".ai-config/agent-sync.toml").write_text(
-                '[instructions]\nclaude = ".claude/global-CLAUDE.md"\n'
-                'codex = ".codex/AGENTS.md"\n'
-            )
-
-            agent_sync.build_instructions(root)
-
-            claude_output = (root / ".claude/global-CLAUDE.md").read_text()
-            self.assertIn("shared text", claude_output)
-            self.assertIn("claude only", claude_output)
-            self.assertIn("<!-- Claude-specific overlay -->", claude_output)
-            # Codex has no overlay here, so Ruler's output stands unmodified and
-            # no empty final file is invented.
-            self.assertFalse((root / ".codex/AGENTS.md").exists())
-
-    def test_claude_units_for_root_matches_all_project_aliases_without_fixed_names(self) -> None:
-        agent_sync = load_agent_sync()
-        with tempfile.TemporaryDirectory() as temporary:
-            root = pathlib.Path(temporary)
-            projects = root / "projects"
-            projects.mkdir()
-            target = root / "target"
-            target.mkdir()
-            other = root / "other"
-            other.mkdir()
-            (projects / "fabius").symlink_to(target, target_is_directory=True)
-            (projects / "research env").symlink_to(target, target_is_directory=True)
-            (projects / "-dash").symlink_to(target, target_is_directory=True)
-            (projects / "other").symlink_to(other, target_is_directory=True)
-
-            units = agent_sync.claude_units_for_root(
-                target,
-                projects_dir=projects,
-                active=lambda unit: not unit.startswith("claude-rc@other"),
-            )
-
-            self.assertEqual(
-                units,
-                [
-                    "claude-rc@\\x2ddash.service",
-                    "claude-rc@fabius.service",
-                    "claude-rc@research\\x20env.service",
-                ],
-            )
-
     def test_runtime_assets_have_no_user_or_project_specific_paths(self) -> None:
         runtime_assets = [
-            REPO / ".local/bin/agent-sync",
             REPO / ".local/bin/claude-rc",
             REPO / ".local/bin/codex",
             REPO / ".local/bin/codex-auto-update",
@@ -465,7 +224,8 @@ print("tomlkit_fallback=plain-dict")
         self.assertIn("merge --ff-only", updater)
         self.assertIn("sync-agent-config-windows.ps1", updater)
         self.assertIn("install-claude-windows.ps1", sync)
-        self.assertIn("ruler apply", sync)
+        self.assertIn("global-AGENTS.md", sync)
+        self.assertNotIn("ruler", sync.lower())
         self.assertIn("codex-config-sync.py", sync)
         self.assertIn("uv.Source venv", sync)
         self.assertIn("uv.Source pip install", sync)
@@ -495,13 +255,12 @@ print("tomlkit_fallback=plain-dict")
         codex_service = (REPO / ".config/systemd/user/codex-app-server.service").read_text()
         updater_service = (REPO / ".config/systemd/user/dotfiles-update.service").read_text()
         self.assertNotIn("WorkingDirectory=", agent_service)
-        self.assertIn("agent-sync --all --no-restart --quiet", agent_service)
+        self.assertIn("ExecStart=%h/.local/bin/codex-config-sync --quiet", agent_service)
         self.assertNotIn("dotfiles-update", agent_service)
         self.assertIn("ExecStartPre=%h/.local/bin/dotfiles-update", maintenance)
         self.assertIn("ExecStartPost=%h/.local/bin/codex-auto-update", maintenance)
         self.assertIn("ExecStartPost=%h/.local/bin/claude-auto-update", maintenance)
-        self.assertIn("codex-config-sync --compat-only --quiet", codex_service)
-        self.assertNotIn("agent-sync --all", codex_service)
+        self.assertIn("ExecStartPre=%h/.local/bin/codex-config-sync --quiet", codex_service)
         self.assertIn("%h/.local/bin/dotfiles-update", updater_service)
         self.assertNotIn("ExecStart=%h/.local/bin/dotfiles-update", agent_service)
 
@@ -531,7 +290,7 @@ print("tomlkit_fallback=plain-dict")
         self.assertNotIn("OnUnitActiveSec=", timer)
         self.assertIn("Slice=ai-agents.slice", service)
         self.assertIn(
-            "ExecStart=%h/.local/share/codex-config-sync-venv-current/bin/python %h/.local/bin/agent-sync --all --no-restart --quiet",
+            "ExecStart=%h/.local/bin/codex-config-sync --quiet",
             service,
         )
         self.assertEqual(service.count("ExecStart="), 1)
@@ -575,24 +334,24 @@ print("tomlkit_fallback=plain-dict")
                 ".config/systemd/user/ai-agents.slice": "[Slice]\n",
                 ".config/systemd/user/agent-sync.service": "[Service]\nType=oneshot\n",
                 ".config/systemd/user/agent-sync.timer": "[Timer]\n",
-                ".local/bin/agent-sync": "#!/usr/bin/env python3\n",
-                ".local/bin/codex-config-sync": "#!/usr/bin/env bash\n",
+                ".local/bin/codex-config-sync": "#!/usr/bin/env bash\nprintf '%s\\n' \"$*\" > \"$SYNC_LOG\"\n",
                 ".local/libexec/codex-config-sync.py": "# implementation\n",
             }
             for relative, content in core_assets.items():
                 source = dotfiles / relative
                 source.parent.mkdir(parents=True, exist_ok=True)
                 source.write_text(content)
+            (dotfiles / ".local/bin/codex-config-sync").chmod(0o755)
 
             fake_bin = home / "fake-bin"
             fake_bin.mkdir()
-            python_log = home / "python.log"
+            sync_log = home / "sync.log"
             fake_python = fake_bin / "python"
             fake_python.write_text(
                 "#!/usr/bin/env bash\n"
                 "set -euo pipefail\n"
                 "[[ \"${1:-}\" == '-c' ]] && exit 0\n"
-                "printf '%s\\n' \"$*\" > \"$PYTHON_LOG\"\n"
+                "exit 1\n"
             )
             fake_python.chmod(0o755)
             systemctl_log = home / "systemctl.log"
@@ -606,7 +365,7 @@ print("tomlkit_fallback=plain-dict")
                 "HOME": str(home),
                 "PATH": f"{fake_bin}:{os.environ['PATH']}",
                 "CODEX_CONFIG_SYNC_PYTHON": str(fake_python),
-                "PYTHON_LOG": str(python_log),
+                "SYNC_LOG": str(sync_log),
                 "SYSTEMCTL_LOG": str(systemctl_log),
             }
 
@@ -626,10 +385,7 @@ print("tomlkit_fallback=plain-dict")
             self.assertFalse(
                 (home / ".config/dotfiles/features/ai-remote-control").exists()
             )
-            self.assertEqual(
-                python_log.read_text().strip(),
-                f"{home}/.local/bin/agent-sync sync --root {dotfiles} --no-restart --quiet",
-            )
+            self.assertEqual(sync_log.read_text().strip(), "--quiet")
             self.assertEqual(
                 systemctl_log.read_text().splitlines(),
                 ["--user daemon-reload", "--user enable --now agent-sync.timer"],
@@ -643,7 +399,6 @@ print("tomlkit_fallback=plain-dict")
                 ".config/systemd/user/ai-agents.slice",
                 ".config/systemd/user/agent-sync.service",
                 ".config/systemd/user/agent-sync.timer",
-                ".local/bin/agent-sync",
                 ".local/bin/codex-config-sync",
                 ".local/libexec/codex-config-sync.py",
             )
@@ -655,8 +410,6 @@ print("tomlkit_fallback=plain-dict")
                 if relative.startswith(".local/bin/"):
                     target.chmod(0o755)
 
-            (dotfiles / ".ruler").mkdir()
-            (dotfiles / ".ruler/ruler.toml").write_text("[agents]\n")
             subprocess.run(
                 ["git", "init", "--quiet", str(dotfiles)],
                 check=True,
@@ -673,19 +426,6 @@ print("tomlkit_fallback=plain-dict")
             for name in ("reinject-on-compact.sh", "save-insights-reminder.sh"):
                 (hooks / name).write_text("#!/bin/bash\nset -euo pipefail\n")
             (claude / "settings.json").write_text("{}\n")
-
-            ruler = home / ".local/bin/ruler"
-            ruler.parent.mkdir(parents=True)
-            ruler.write_text(
-                "#!/bin/bash\n"
-                "set -euo pipefail\n"
-                "if [ \"${1:-}\" = '--version' ]; then\n"
-                "    printf '%s\\n' '0.3.44'\n"
-                "    exit 0\n"
-                "fi\n"
-                "[ \"${1:-}\" = 'apply' ]\n"
-            )
-            ruler.chmod(0o755)
 
             fake_bin = home / "fake-bin"
             fake_bin.mkdir()
@@ -729,7 +469,7 @@ print("tomlkit_fallback=plain-dict")
             }
 
             result = subprocess.run(
-                [str(REPO / ".local/bin/codex-config-sync"), "--compat-only", "--quiet"],
+                [str(REPO / ".local/bin/codex-config-sync"), "--quiet"],
                 env=env,
                 capture_output=True,
                 text=True,
@@ -739,88 +479,8 @@ print("tomlkit_fallback=plain-dict")
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(
                 log.read_text().strip(),
-                f"{libexec} --compat-only --quiet",
+                f"{libexec} --quiet",
             )
-
-    def test_claude_rc_sync_resolves_named_project_link(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            home = pathlib.Path(temporary)
-            root = home / "src/project"
-            root.mkdir(parents=True)
-            projects = home / ".config/claude-rc/projects"
-            projects.mkdir(parents=True)
-            (projects / "alpha").symlink_to(root, target_is_directory=True)
-            log = home / "sync.log"
-            helper = home / ".local/bin/agent-sync"
-            helper.parent.mkdir(parents=True)
-            helper.write_text("#!/usr/bin/env bash\nprintf '%s\\n' \"$*\" > \"$SYNC_LOG\"\n")
-            helper.chmod(0o755)
-            env = os.environ | {"HOME": str(home), "SYNC_LOG": str(log)}
-
-            result = subprocess.run(
-                [str(REPO / ".local/bin/claude-rc"), "sync-status", "alpha"],
-                env=env,
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-
-            self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertEqual(log.read_text().strip(), f"status --root {root}")
-
-    def test_codex_rc_sync_accepts_explicit_root(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            home = pathlib.Path(temporary)
-            root = home / "src/project"
-            root.mkdir(parents=True)
-            log = home / "sync.log"
-            helper = home / ".local/bin/agent-sync"
-            helper.parent.mkdir(parents=True)
-            helper.write_text("#!/usr/bin/env bash\nprintf '%s\\n' \"$*\" > \"$SYNC_LOG\"\n")
-            helper.chmod(0o755)
-            env = os.environ | {"HOME": str(home), "SYNC_LOG": str(log)}
-
-            result = subprocess.run(
-                [str(REPO / ".local/bin/codex-rc"), "sync-status", str(root)],
-                env=env,
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-
-            self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertEqual(log.read_text().strip(), f"status --root {root}")
-
-    def test_codex_rc_prefers_registered_name_over_relative_directory(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            home = pathlib.Path(temporary)
-            registered_root = home / "registered"
-            registered_root.mkdir()
-            projects = home / ".config/claude-rc/projects"
-            projects.mkdir(parents=True)
-            (projects / "alpha").symlink_to(registered_root, target_is_directory=True)
-
-            cwd = home / "work"
-            cwd.mkdir()
-            (cwd / "alpha").mkdir()
-            log = home / "sync.log"
-            helper = home / ".local/bin/agent-sync"
-            helper.parent.mkdir(parents=True)
-            helper.write_text("#!/usr/bin/env bash\nprintf '%s\\n' \"$*\" > \"$SYNC_LOG\"\n")
-            helper.chmod(0o755)
-            env = os.environ | {"HOME": str(home), "SYNC_LOG": str(log)}
-
-            result = subprocess.run(
-                [str(REPO / ".local/bin/codex-rc"), "sync-status", "alpha"],
-                cwd=cwd,
-                env=env,
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-
-            self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertEqual(log.read_text().strip(), f"status --root {registered_root}")
 
     def test_dotfiles_update_reconciles_enabled_feature_when_already_current(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -848,13 +508,13 @@ print("tomlkit_fallback=plain-dict")
             marker = home / ".config/dotfiles/features/ai-remote-control"
             marker.parent.mkdir(parents=True)
             marker.touch()
-            agent_sync = home / ".local/bin/agent-sync"
-            agent_sync.parent.mkdir(parents=True)
-            agent_sync.write_text(
+            codex_config_sync = home / ".local/bin/codex-config-sync"
+            codex_config_sync.parent.mkdir(parents=True)
+            codex_config_sync.write_text(
                 "#!/usr/bin/env bash\n"
                 "printf 'sync %s\\n' \"$*\" >> \"$RECONCILE_LOG\"\n"
             )
-            agent_sync.chmod(0o755)
+            codex_config_sync.chmod(0o755)
             log = root / "reconcile.log"
             env = os.environ | {
                 "HOME": str(home),
@@ -874,7 +534,7 @@ print("tomlkit_fallback=plain-dict")
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(
                 log.read_text().splitlines(),
-                ["feature feature-enable ai-remote-control", "sync --all --no-restart --quiet"],
+                ["feature feature-enable ai-remote-control", "sync --quiet"],
             )
 
     def test_parent_pull_is_reconciled_by_current_head_maintenance(self) -> None:
@@ -923,12 +583,12 @@ print("tomlkit_fallback=plain-dict")
             local_bin = home / ".local/bin"
             local_bin.mkdir(parents=True)
             (local_bin / "dotfiles-update").symlink_to(checkout / ".local/bin/dotfiles-update")
-            agent_sync = local_bin / "agent-sync"
-            agent_sync.write_text(
+            codex_config_sync = local_bin / "codex-config-sync"
+            codex_config_sync.write_text(
                 "#!/usr/bin/env bash\n"
                 "printf 'sync %s\\n' \"$*\" >> \"$RECONCILE_LOG\"\n"
             )
-            agent_sync.chmod(0o755)
+            codex_config_sync.chmod(0o755)
             log = root / "reconcile.log"
             runtime = root / "run"
             env = os.environ | {
@@ -959,7 +619,7 @@ print("tomlkit_fallback=plain-dict")
             self.assertEqual(reconciled.returncode, 0, reconciled.stderr)
             self.assertEqual(
                 log.read_text().splitlines(),
-                ["feature feature-enable ai-remote-control", "sync --all --no-restart --quiet"],
+                ["feature feature-enable ai-remote-control", "sync --quiet"],
             )
 
     def test_dotfiles_update_fast_forwards_and_preserves_non_overlapping_changes(self) -> None:
@@ -1079,46 +739,21 @@ print("tomlkit_fallback=plain-dict")
                 old_head,
             )
 
-    def test_dotfiles_status_ignores_repo_internal_ruler_sources(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            home = pathlib.Path(temporary)
-            dotfiles = home / ".dot_files"
-            (dotfiles / ".ruler").mkdir(parents=True)
-            (dotfiles / ".ai-config").mkdir()
-            (dotfiles / ".codex").mkdir()
-            (dotfiles / ".zshrc").write_text("# shared\n")
-            # Ruler source and generated intermediates feed agent-sync; they are
-            # never deployed to $HOME, so status must not audit them.
-            (dotfiles / ".ruler/AGENTS.md").write_text("# shared\n")
-            (dotfiles / ".ruler/ruler.toml").write_text("[agents.claude]\n")
-            (dotfiles / ".ai-config/agent-sync.toml").write_text("[instructions]\n")
-            (dotfiles / ".ai-config/CLAUDE.shared.md").write_text("# generated\n")
-            (dotfiles / ".codex/verify-hook-trust.py").write_text("# helper\n")
-            subprocess.run(["git", "init", "-q", str(dotfiles)], check=True)
-            subprocess.run(["git", "-C", str(dotfiles), "add", "."], check=True)
-
-            result = subprocess.run(
-                [str(REPO / "scripts/dotfiles"), "status"],
-                env=os.environ | {"HOME": str(home)},
-                capture_output=True,
-                text=True,
-                check=True,
-            )
-
-            self.assertIn("Status: 0 linked, 0 issues, 0 missing", result.stdout)
-            for absent in (".ruler", ".ai-config", "verify-hook-trust.py"):
-                self.assertNotIn(absent, result.stdout)
-
     def test_dotfiles_status_always_requires_core_sync_assets(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             home = pathlib.Path(temporary)
             dotfiles = home / ".dot_files"
             (dotfiles / ".local/bin").mkdir(parents=True)
+            (dotfiles / ".config/systemd/user").mkdir(parents=True)
             (dotfiles / ".zshrc").write_text("# shared\n")
-            (dotfiles / ".local/bin/agent-sync").write_text("#!/usr/bin/env python3\n")
+            (dotfiles / "global-AGENTS.md").write_text("# global\n")
+            (dotfiles / ".config/systemd/user/agent-sync.timer").write_text("[Timer]\n")
             (dotfiles / ".local/bin/claude-rc").write_text("#!/usr/bin/env bash\n")
             subprocess.run(["git", "init", "-q", str(dotfiles)], check=True)
             subprocess.run(["git", "-C", str(dotfiles), "add", "."], check=True)
+            for instructions in (home / ".claude/CLAUDE.md", home / ".codex/AGENTS.md"):
+                instructions.parent.mkdir(parents=True)
+                instructions.symlink_to(dotfiles / "global-AGENTS.md")
             env = os.environ | {"HOME": str(home)}
 
             without_feature = subprocess.run(
@@ -1128,13 +763,13 @@ print("tomlkit_fallback=plain-dict")
                 text=True,
                 check=True,
             )
-            self.assertIn(str(home / ".local/bin/agent-sync"), without_feature.stdout)
+            self.assertIn(str(home / ".config/systemd/user/agent-sync.timer"), without_feature.stdout)
             self.assertNotIn(str(home / ".local/bin/claude-rc"), without_feature.stdout)
-            self.assertIn("Status: 0 linked, 0 issues, 1 missing", without_feature.stdout)
+            self.assertIn("Status: 2 linked, 0 issues, 1 missing", without_feature.stdout)
 
-            target = home / ".local/bin/agent-sync"
+            target = home / ".config/systemd/user/agent-sync.timer"
             target.parent.mkdir(parents=True)
-            target.symlink_to(dotfiles / ".local/bin/agent-sync")
+            target.symlink_to(dotfiles / ".config/systemd/user/agent-sync.timer")
             core_installed = subprocess.run(
                 [str(REPO / "scripts/dotfiles"), "status"],
                 env=env,
@@ -1142,7 +777,7 @@ print("tomlkit_fallback=plain-dict")
                 text=True,
                 check=True,
             )
-            self.assertIn("Status: 1 linked, 0 issues, 0 missing", core_installed.stdout)
+            self.assertIn("Status: 3 linked, 0 issues, 0 missing", core_installed.stdout)
 
             marker = home / ".config/dotfiles/features/ai-remote-control"
             marker.parent.mkdir(parents=True)
@@ -1155,13 +790,13 @@ print("tomlkit_fallback=plain-dict")
                 check=True,
             )
             self.assertIn(str(home / ".local/bin/claude-rc"), with_feature.stdout)
-            self.assertIn("Status: 1 linked, 0 issues, 1 missing", with_feature.stdout)
+            self.assertIn("Status: 3 linked, 0 issues, 1 missing", with_feature.stdout)
 
     def test_feature_enable_links_and_reloads_without_restarting_services(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             home = pathlib.Path(temporary)
             dotfiles = home / ".dot_files"
-            source_script = dotfiles / ".local/bin/agent-sync"
+            source_script = dotfiles / ".local/bin/claude-rc"
             source_unit = dotfiles / ".config/systemd/user/agent-sync.service"
             source_slice = dotfiles / ".config/systemd/user/ai-agents.slice"
             source_script.parent.mkdir(parents=True)
@@ -1175,7 +810,7 @@ print("tomlkit_fallback=plain-dict")
             target_unit.write_text("legacy unit\n")
             legacy_timer = home / ".config/systemd/user/dotfiles-update.timer"
             legacy_timer.symlink_to(dotfiles / ".config/systemd/user/dotfiles-update.timer")
-            target_script = home / ".local/bin/agent-sync"
+            target_script = home / ".local/bin/claude-rc"
             target_script.mkdir(parents=True)
             (target_script / "legacy.txt").write_text("legacy directory\n")
 
@@ -1214,7 +849,7 @@ print("tomlkit_fallback=plain-dict")
             )
             self.assertEqual(second_result.returncode, 0, second_result.stderr)
 
-            self.assertTrue((home / ".local/bin/agent-sync").is_symlink())
+            self.assertTrue((home / ".local/bin/claude-rc").is_symlink())
             target_slice = home / ".config/systemd/user/ai-agents.slice"
             self.assertTrue(target_slice.is_symlink())
             self.assertEqual(target_slice.resolve(), source_slice.resolve())
@@ -1227,7 +862,7 @@ print("tomlkit_fallback=plain-dict")
                 sorted(path.read_text() for path in backups),
                 ["legacy unit\n", "second legacy unit\n"],
             )
-            directory_backups = list(home.glob(".dotfiles-backup-ai-remote-control-*/.local/bin/agent-sync/legacy.txt"))
+            directory_backups = list(home.glob(".dotfiles-backup-ai-remote-control-*/.local/bin/claude-rc/legacy.txt"))
             self.assertEqual(len(directory_backups), 1)
             self.assertEqual(directory_backups[0].read_text(), "legacy directory\n")
             self.assertEqual(
@@ -1321,7 +956,7 @@ print("tomlkit_fallback=plain-dict")
             subprocess.run(["git", "init", "-b", "main", str(seed)], check=True, capture_output=True)
             subprocess.run(["git", "-C", str(seed), "config", "user.email", "test@example.com"], check=True)
             subprocess.run(["git", "-C", str(seed), "config", "user.name", "Test"], check=True)
-            source = seed / ".local/bin/agent-sync"
+            source = seed / ".local/bin/claude-rc"
             source.parent.mkdir(parents=True)
             source.write_text("#!/usr/bin/env python3\n")
             subprocess.run(["git", "-C", str(seed), "add", "."], check=True)
@@ -1353,7 +988,7 @@ print("tomlkit_fallback=plain-dict")
             )
 
             self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertTrue((home / ".local/bin/agent-sync").is_symlink())
+            self.assertTrue((home / ".local/bin/claude-rc").is_symlink())
 
     def test_feature_enable_rebuilds_when_managed_pip_is_missing(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -1680,7 +1315,7 @@ print("tomlkit_fallback=plain-dict")
     def test_feature_enable_backs_up_conflicting_parent_paths(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             home = pathlib.Path(temporary)
-            source = home / ".dot_files/.local/bin/agent-sync"
+            source = home / ".dot_files/.local/bin/claude-rc"
             source.parent.mkdir(parents=True)
             source.write_text("#!/usr/bin/env python3\n")
             (home / ".local").write_text("legacy parent\n")
@@ -1701,7 +1336,7 @@ print("tomlkit_fallback=plain-dict")
             )
 
             self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertTrue((home / ".local/bin/agent-sync").is_symlink())
+            self.assertTrue((home / ".local/bin/claude-rc").is_symlink())
             backups = list(home.glob(".dotfiles-backup-ai-remote-control-*/.local"))
             self.assertEqual(len(backups), 1)
             self.assertEqual(backups[0].read_text(), "legacy parent\n")
@@ -1709,7 +1344,7 @@ print("tomlkit_fallback=plain-dict")
     def test_feature_enable_backs_up_symlinked_parent_directories(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             home = pathlib.Path(temporary)
-            source = home / ".dot_files/.local/bin/agent-sync"
+            source = home / ".dot_files/.local/bin/claude-rc"
             source.parent.mkdir(parents=True)
             source.write_text("#!/usr/bin/env python3\n")
             outside = home / "outside"
@@ -1735,9 +1370,9 @@ print("tomlkit_fallback=plain-dict")
 
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertFalse((home / ".local").is_symlink())
-            self.assertTrue((home / ".local/bin/agent-sync").is_symlink())
+            self.assertTrue((home / ".local/bin/claude-rc").is_symlink())
             self.assertEqual(sentinel.read_text(), "untouched\n")
-            self.assertFalse((outside / "bin/agent-sync").exists())
+            self.assertFalse((outside / "bin/claude-rc").exists())
             backups = list(home.glob(".dotfiles-backup-ai-remote-control-*/.local"))
             self.assertEqual(len(backups), 1)
             self.assertTrue(backups[0].is_symlink())

@@ -515,9 +515,7 @@ class CodexAutoUpdateTests(unittest.TestCase):
             / ".config/systemd/user/agent-sync.service.d/40-maintenance.conf"
         ).read_text()
         updater_exec = "ExecStartPost=%h/.local/bin/codex-auto-update"
-        sync_exec = (
-            "ExecStart=%h/.local/share/codex-config-sync-venv-current/bin/python"
-        )
+        sync_exec = "ExecStart=%h/.local/bin/codex-config-sync --quiet"
 
         self.assertIn(".local/bin/codex-auto-update", deployer)
         self.assertIn(sync_exec, service)

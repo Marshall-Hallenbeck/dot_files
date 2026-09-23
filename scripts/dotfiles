@@ -8,7 +8,6 @@ AGENT_SYNC_PATHS=(
     .config/systemd/user/ai-agents.slice
     .config/systemd/user/agent-sync.service
     .config/systemd/user/agent-sync.timer
-    .local/bin/agent-sync
     .local/bin/codex-config-sync
     .local/libexec/codex-config-sync.py
 )
@@ -58,7 +57,7 @@ usage() {
     echo "  pull                                   Pull latest changes from remote"
     echo ""
     echo "Examples:"
-    echo "  dotfiles promote ~/.claude/rules/my-rule.md"
+    echo "  dotfiles promote ~/.claude/agents/my-agent.md"
     echo "  dotfiles status"
     echo "  dotfiles pull"
 }
@@ -97,6 +96,36 @@ cmd_promote() {
     echo "  cd $DOTFILES_DIR && git add '$rel_path' && git commit -m 'feat: add $rel_path'"
 }
 
+# Updates the ok/broken/missing counters of the calling cmd_status.
+check_link() {
+    local target="$1" expected="$2"
+    if [ -L "$target" ]; then
+        local link_dest expected_resolved
+        if ! link_dest=$(readlink -f "$target") || [ ! -e "$link_dest" ]; then
+            echo "  BROKEN:  $target (symlink target does not exist)"
+            broken=$((broken + 1))
+            return
+        fi
+        if ! expected_resolved=$(readlink -f "$expected") || [ ! -e "$expected_resolved" ]; then
+            echo "  BROKEN:  $expected (repo file does not exist)"
+            broken=$((broken + 1))
+            return
+        fi
+        if [ "$link_dest" = "$expected_resolved" ]; then
+            ok=$((ok + 1))
+        else
+            echo "  WRONG:   $target -> $link_dest (expected $expected)"
+            broken=$((broken + 1))
+        fi
+    elif [ -f "$target" ]; then
+        echo "  NOT LINK: $target (regular file, not symlinked)"
+        broken=$((broken + 1))
+    else
+        echo "  MISSING:  $target"
+        missing=$((missing + 1))
+    fi
+}
+
 cmd_status() {
     local ok=0 broken=0 missing=0
     local ai_remote_control_enabled=false
@@ -107,26 +136,12 @@ cmd_status() {
         .gitignore
         .gitattributes
         .dockerignore
-        .claude/CLAUDE.md
         .claude/project-learned-insights.md
         .gitconfig
         .zshrc
         .codex/config.toml
         .codex/verify-hook-trust.py
     )
-
-    # Directories whose contents are repo-internal. The Ruler source and the
-    # generated intermediates are inputs to agent-sync, which publishes the
-    # tracked global files; nothing under them is deployed to $HOME, so a
-    # matching ~/.ruler or ~/.ai-config would be wrong rather than missing.
-    local -a repo_only_prefixes=(
-        .ruler/
-        .ai-config/
-    )
-
-    # Files deployed to a different name: repo_path -> home_path
-    # global-CLAUDE.md is deployed as ~/.claude/CLAUDE.md
-    local -A renames=([.claude/global-CLAUDE.md]=.claude/CLAUDE.md)
 
     # Read managed file list from the repo
     while IFS= read -r rel_path; do
@@ -146,48 +161,13 @@ cmd_status() {
                 break
             fi
         done
-        for prefix in "${repo_only_prefixes[@]}"; do
-            if [ "${rel_path#"$prefix"}" != "$rel_path" ]; then
-                skip=true
-                break
-            fi
-        done
         $skip && continue
 
-        # Handle renamed deployments
-        local deploy_path="$rel_path"
-        if [[ -v "renames[$rel_path]" ]]; then
-            deploy_path="${renames[$rel_path]}"
-        fi
-
-        local target="$HOME/$deploy_path"
-        if [ -L "$target" ]; then
-            local link_dest expected_resolved
-            if ! link_dest=$(readlink -f "$target") || [ ! -e "$link_dest" ]; then
-                echo "  BROKEN:  $target (symlink target does not exist)"
-                broken=$((broken + 1))
-                continue
-            fi
-            local expected="$DOTFILES_DIR/$rel_path"
-            if ! expected_resolved=$(readlink -f "$expected") || [ ! -e "$expected_resolved" ]; then
-                echo "  BROKEN:  $expected (repo file does not exist)"
-                broken=$((broken + 1))
-                continue
-            fi
-            if [ "$link_dest" = "$expected_resolved" ]; then
-                ok=$((ok + 1))
-            else
-                echo "  WRONG:   $target -> $link_dest (expected $expected)"
-                broken=$((broken + 1))
-            fi
-        elif [ -f "$target" ]; then
-            echo "  NOT LINK: $target (regular file, not symlinked)"
-            broken=$((broken + 1))
-        else
-            echo "  MISSING:  $target"
-            missing=$((missing + 1))
-        fi
+        check_link "$HOME/$rel_path" "$DOTFILES_DIR/$rel_path"
     done < <(cd "$DOTFILES_DIR" && git ls-files | grep -E '^\.' | grep -vE '^\.(gitignore|gitmodules|claude/(skills|plugins|memory|projects|worktrees))')
+
+    check_link "$HOME/.claude/CLAUDE.md" "$DOTFILES_DIR/global-AGENTS.md"
+    check_link "$HOME/.codex/AGENTS.md" "$DOTFILES_DIR/global-AGENTS.md"
 
     echo ""
     echo "Status: $ok linked, $broken issues, $missing missing"
@@ -367,8 +347,7 @@ cmd_sync_enable() {
 
     provision_codex_config_sync
     deploy_managed_paths "agent-sync" "${AGENT_SYNC_PATHS[@]}"
-    "$MANAGED_SYNC_PYTHON" "$HOME/.local/bin/agent-sync" sync \
-        --root "$DOTFILES_DIR" --no-restart --quiet
+    "$HOME/.local/bin/codex-config-sync" --quiet
     enable_agent_sync_timer
 
     echo "Enabled automatic agent configuration sync: $DEPLOY_CHANGED link(s) updated."

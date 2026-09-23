@@ -2,9 +2,6 @@
 set -euo pipefail
 
 NODE_VERSION=24
-# Pinned: .local/bin/agent-sync refuses to run against any other release
-# (EXPECTED_RULER_VERSION). Change both together.
-RULER_VERSION=0.3.44
 DOTFILES_DIR="$HOME/.dot_files"
 DOTFILES_REPO="https://github.com/Marshall-Hallenbeck/dot_files.git"
 BACKUP_DIR="$HOME/.dotfiles-backup/$(date +%Y%m%d-%H%M%S)"
@@ -12,7 +9,7 @@ BACKUP_DIR="$HOME/.dotfiles-backup/$(date +%Y%m%d-%H%M%S)"
 # ── Helper functions ─────────────────────────────────────────────
 
 # Report whether a command is installed on the Linux side. WSL inherits the
-# Windows PATH, where extensionless npm global shims (codex, ruler) resolve but
+# Windows PATH, where extensionless npm global shims (codex) resolve but
 # cannot run — they exec `node`, which exists only as node.exe on that side. A
 # plain `command -v` guard sees those and skips the install, leaving the tool
 # permanently broken, so treat anything under /mnt as absent.
@@ -282,7 +279,7 @@ fi
 mkdir -p ~/.codex/packages/standalone
 ln -sfn "$(dirname "$codex_vendor_bin")" ~/.codex/packages/standalone/current
 
-link_file "$DOTFILES_DIR/.codex/AGENTS.md" ~/.codex/AGENTS.md
+link_file "$DOTFILES_DIR/global-AGENTS.md" ~/.codex/AGENTS.md
 link_file "$DOTFILES_DIR/.codex/hooks.json" ~/.codex/hooks.json
 link_file "$DOTFILES_DIR/.claude/global-learned-insights.md" ~/.codex/global-learned-insights.md
 
@@ -299,18 +296,6 @@ if ! have_command gemini; then
     npm install -g @google/gemini-cli
     sudo ln -sf "$(npm prefix -g)/bin/gemini" /usr/local/bin/gemini
 fi
-
-# ── Ruler (canonical agent configuration) ────────────────────────
-# agent-sync calls ~/.local/bin/ruler by absolute path and verifies the version,
-# so link both that path and /usr/local/bin (which precedes the Windows npm
-# directory inherited into WSL PATH, where a same-named shim would win).
-if [ "$("$(npm prefix -g)/bin/ruler" --version 2>/dev/null)" != "$RULER_VERSION" ]; then
-    echo "Installing Ruler $RULER_VERSION..."
-    npm install -g "@intellectronica/ruler@$RULER_VERSION"
-fi
-sudo ln -sf "$(npm prefix -g)/bin/ruler" /usr/local/bin/ruler
-mkdir -p "$HOME/.local/bin"
-ln -sfn "$(npm prefix -g)/bin/ruler" "$HOME/.local/bin/ruler"
 
 # ── Claude Code LSP servers ─────────────────────────────────────
 echo "Installing Claude Code LSP servers..."
@@ -352,7 +337,8 @@ echo "Symlinking Claude Code configuration..."
 mkdir -p ~/.claude/rules ~/.claude/agents
 
 # Top-level config files
-link_file "$DOTFILES_DIR/.claude/global-CLAUDE.md" ~/.claude/CLAUDE.md
+# Claude Code reads no user-level AGENTS.md, so the shared file is linked under its CLAUDE.md name.
+link_file "$DOTFILES_DIR/global-AGENTS.md" ~/.claude/CLAUDE.md
 link_file "$DOTFILES_DIR/.claude/settings.json" ~/.claude/settings.json
 link_file "$DOTFILES_DIR/.claude/statusline.sh" ~/.claude/statusline.sh
 link_file "$DOTFILES_DIR/.claude/global-learned-insights.md" ~/.claude/global-learned-insights.md
@@ -377,11 +363,8 @@ if [ -L ~/.claude/hooks.json ] && [ ! -e ~/.claude/hooks.json ]; then
     rm ~/.claude/hooks.json
 fi
 
-# Rules
-for rule_file in "$DOTFILES_DIR"/.claude/rules/*.md; do
-    [ -f "$rule_file" ] || continue
-    link_file "$rule_file" ~/.claude/rules/"$(basename "$rule_file")"
-done
+# ~/.claude/rules holds only host-local files; drop links to repo files that no longer exist.
+find ~/.claude/rules -maxdepth 1 -xtype l -delete
 
 # Skills — symlink entire directory (previous installs used per-file symlinks)
 if [ -d ~/.claude/skills ] && [ ! -L ~/.claude/skills ]; then

@@ -109,6 +109,13 @@ check "zsh is default shell" grep -q "testuser.*/zsh" /etc/passwd
 
 echo "── Claude Code config ──"
 check_link "CLAUDE.md" ~/.claude/CLAUDE.md
+check_link "Codex AGENTS.md" ~/.codex/AGENTS.md
+# shellcheck disable=SC2016
+check "Claude and Codex share global-AGENTS.md" bash -c '
+    expected=$(readlink -f "$HOME/.dot_files/global-AGENTS.md") &&
+    [ "$(readlink -f "$HOME/.claude/CLAUDE.md")" = "$expected" ] &&
+    [ "$(readlink -f "$HOME/.codex/AGENTS.md")" = "$expected" ]
+'
 check_link "statusline.sh" ~/.claude/statusline.sh
 check "statusline.sh executable" test -x ~/.claude/statusline.sh
 check_link "settings.json" ~/.claude/settings.json
@@ -120,11 +127,6 @@ check "learned insights share the tracked file" bash -c '
     [ "$(readlink -f "$HOME/.claude/global-learned-insights.md")" = "$expected" ] &&
     [ "$(readlink -f "$HOME/.codex/global-learned-insights.md")" = "$expected" ]
 '
-
-echo "── Claude Code rules ──"
-for rule in verification coding-practices git-conventions web-dev error-handling docker; do
-    check_link "rule: $rule" ~/.claude/rules/$rule.md
-done
 
 echo "── Claude Code skills ──"
 # skills/ is deployed as a whole-directory symlink, so individual SKILL.md files
@@ -169,7 +171,6 @@ for sync_path in \
     ~/.config/systemd/user/ai-agents.slice \
     ~/.config/systemd/user/agent-sync.service \
     ~/.config/systemd/user/agent-sync.timer \
-    ~/.local/bin/agent-sync \
     ~/.local/bin/codex-config-sync \
     ~/.local/libexec/codex-config-sync.py; do
     check_link "agent sync: ${sync_path#"$HOME/"}" "$sync_path"

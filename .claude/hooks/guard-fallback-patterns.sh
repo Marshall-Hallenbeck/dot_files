@@ -3,7 +3,7 @@
 # fallback / graceful-degradation / silent-default patterns, inject a reminder
 # to the agent (additionalContext) instead of prompting the user. The edit
 # proceeds; the agent must confirm the fallback is required by the user's ask,
-# not added by instinct. See rules/error-handling.md.
+# not added by instinct. See "Error Handling" in global-AGENTS.md.
 
 command -v jq >/dev/null 2>&1 || { echo "guard-fallback-patterns: jq unavailable, guard disabled" >&2; exit 0; }
 

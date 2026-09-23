@@ -159,11 +159,16 @@ def main() -> int:
     else:
         checks.append(f"all {len(RETAINED_MCPS)} retained Hermes MCPs connected")
 
-    sync = run([str(HOME / ".local/bin/agent-sync"), "check", "--all", "--no-restart", "--quiet"])
-    if sync.returncode:
-        findings.append("Ruler/agent-sync check reported drift")
+    shared_instructions = (HOME / ".dot_files/global-AGENTS.md").resolve()
+    stale_links = [
+        str(link)
+        for link in (HOME / ".claude/CLAUDE.md", HOME / ".codex/AGENTS.md")
+        if link.resolve() != shared_instructions
+    ]
+    if stale_links:
+        findings.append(f"not linked to {shared_instructions}: {', '.join(stale_links)}")
     else:
-        checks.append("Ruler/agent-sync outputs current")
+        checks.append("Claude and Codex share global-AGENTS.md")
 
     timer = run(["systemctl", "--user", "is-active", "agent-sync.timer"])
     if timer.returncode:
