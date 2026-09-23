@@ -156,6 +156,8 @@ Accumulated knowledge from working across projects. Auto-maintained by Claude.
 ## Codex Config Layering
 
 - Codex CLI (0.153.x) has no include/local-override mechanism for `~/.codex/config.toml` — no `config.toml.local`, no `config.d`. Only `-p <name>` layers `$CODEX_HOME/<name>.config.toml` on top, and profile files must match that exact `<name>.config.toml` pattern. Codex writes `[projects]` trust entries directly into the base config.toml.
+- Codex (0.155) ignores a project's `.codex/config.toml` (MCP servers included) until `~/.codex/config.toml` has `[projects."<abs path>"] trust_level = "trusted"`. `codex mcp list` shows project servers only with `codex -C <dir> mcp list`; plain `cd <dir> && codex mcp list` shows global ones only.
+- `codex exec` with an inherited open stdin prints "Reading additional input from stdin..." and hangs; redirect `</dev/null`. Do not test MCP loading by asking `codex exec` to list its tools — MCP tools are deferred and the model reports none.
 
 ## Git Credential Helpers
 
@@ -164,6 +166,11 @@ Accumulated knowledge from working across projects. Auto-maintained by Claude.
 ## Bash TSV Parsing
 
 - Tab is an "IFS whitespace" character, so `IFS=$'\t' read` collapses consecutive tabs into one delimiter — an empty field in `jq @tsv` output silently shifts all later variables left. When extracting optional JSON fields into TSV, emit a non-empty sentinel (`// "none"`) and filter it out in bash.
+
+## Claude Code Instruction Files
+
+- Claude Code reads project `AGENTS.md` (and `.claude/AGENTS.md`, nested ones on file access) only from 2.1.277; the stable channel lagged behind (2.1.267 ignored it). There is no user-level `~/.claude/AGENTS.md`: share one global file with Codex by linking it as `~/.claude/CLAUDE.md` and `~/.codex/AGENTS.md`.
+- `pluginConfigs["agents-md@builtin"].options.instructionFiles`: `claude-md-or-agents-md` (default, CLAUDE.md wins), `claude-md-and-agents-md` (both, CLAUDE.md first), `claude-md`, `managed-only`.
 
 ## Claude Code Output Styles
 
