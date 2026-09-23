@@ -45,6 +45,19 @@ if [ ! -e "$HOME/.gitconfig" ]; then
 EOF
 fi
 
+# Repair instruction links left dangling when their repo target moved to global-AGENTS.md.
+for instructions in "$HOME/.claude/CLAUDE.md" "$HOME/.codex/AGENTS.md"; do
+    if [ -L "$instructions" ] && [ ! -e "$instructions" ]; then
+        ln -sfn "$DOTFILES_DIR/global-AGENTS.md" "$instructions"
+    fi
+done
+if [ -d "$HOME/.claude/rules" ]; then
+    find "$HOME/.claude/rules" -maxdepth 1 -xtype l -delete
+fi
+if [ -L "$HOME/.local/bin/agent-sync" ] && [ ! -e "$HOME/.local/bin/agent-sync" ]; then
+    rm "$HOME/.local/bin/agent-sync"
+fi
+
 if [ -d "$BACKUP_DIR" ]; then
     printf 'migrate-local-state: backups: %s\n' "$BACKUP_DIR"
 fi
