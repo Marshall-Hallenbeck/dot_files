@@ -56,7 +56,6 @@
     ],
     "defaultMode": "auto"
   },
-  "model": "opus[1m]",
   "hooks": {
     "SessionStart": [
       {
@@ -137,6 +136,10 @@
       }
     ]
   },
+  "worktree": {
+    "baseRef": "fresh"
+  },
+  "workflowKeywordTriggerEnabled": false,
   "statusLine": {
     "type": "command",
     "command": "~/.claude/statusline.sh"
@@ -153,6 +156,8 @@
     "claude-code-setup@claude-plugins-official": true,
     "mattpocock-skills@claude-plugins-official": true
   },
+  "outputStyle": "Concise",
+  "feedbackDrafts": "notify",
   "alwaysThinkingEnabled": true,
   "effortLevel": "high",
   "modelSettings": {
@@ -163,14 +168,28 @@
       "effortLevel": "high"
     }
   },
+  "dialogExpiry": "never",
+  "pluginConfigs": {
+    "agents-md@builtin": {
+      "options": {
+        "instructionFiles": "claude-md-and-agents-md"
+      }
+    }
+  },
+  "autoUpdatesChannel": "stable",
   "tui": "fullscreen",
+  "timeFormat": "12-hour",
   "showThinkingSummaries": true,
   "skipDangerousModePermissionPrompt": true,
   "theme": "dark",
   "editorMode": "normal",
   "verbose": false,
+  "preferredNotifChannel": "auto",
+  "autoCompactEnabled": true,
+  "switchModelsOnFlag": true,
   "teammateMode": "tmux",
   "remoteControlAtStartup": true,
+  "crossSessionInbound": "accept",
   "inputNeededNotifEnabled": true,
   "agentPushNotifEnabled": true,
   "autoMode": {
@@ -200,7 +219,5 @@
       "**Org-specific CLIs**: None configured",
       "routine under ~/.dot_files/ prefix: dotfiles install/promote scripts, Makefile test targets (test-all, test-clean, test-debian, test-hooks, test-kali, test-security-kali, test-ubuntu), security-tooling CLIs (nxc, ldapsearch, smbclientng, smbcrawler, ntlmrelayx.py, nuclei, bloodhound-cli/bhcli, searchsploit) observed in shell history are routine personal usage, not org-specific"
     ]
-  },
-  "switchModelsOnFlag": true,
-  "outputStyle": "Concise"
+  }
 }
