@@ -8,8 +8,8 @@ import os
 import re
 import signal
 import subprocess
+import tempfile
 import time
-import urllib.request
 from pathlib import Path
 
 SEMVER_NUMBER = r"(?:0|[1-9][0-9]*)"
@@ -26,7 +26,9 @@ CLI_VERSION = re.compile(
     rf"(?<![0-9A-Za-z.+-])({SEMVER_SOURCE})(?![0-9A-Za-z.+-])"
 )
 UNIT = "codex-app-server.service"
-DEFAULT_REGISTRY_URL = "https://registry.npmjs.org/@openai%2Fcodex/latest"
+# The release channel the official installer resolves "latest" from.
+DEFAULT_REGISTRY_URL = "https://releases.openai.com/codex/channels/latest"
+DEFAULT_INSTALLER_URL = "https://chatgpt.com/codex/install.sh"
 DEFAULT_COMMAND_TIMEOUT = 30.0
 DEFAULT_UPDATE_TIMEOUT = 300.0
 
@@ -87,38 +89,23 @@ def compare_versions(left: str, right: str) -> int:
     return compare_prerelease(left_prerelease, right_prerelease)
 
 
+# OpenAI's Cloudflare front rejects Python's default HTTP client with 403; curl is
+# what the official installer and `codex update` use.
+def download(url: str) -> bytes:
+    return subprocess.run(
+        ["curl", "-fsSL", url],
+        check=True,
+        capture_output=True,
+        timeout=DEFAULT_COMMAND_TIMEOUT,
+    ).stdout
+
+
 def fetch_latest(url: str) -> str:
-    with urllib.request.urlopen(url, timeout=30) as response:
-        payload = json.load(response)
-    if not isinstance(payload, dict) or not isinstance(payload.get("version"), str):
-        raise TypeError("Codex registry response did not contain a string version")
-    return parse_semver(payload["version"])
-
-
-def discover_npm(home: Path) -> str:
-    current_binary = home / ".codex/packages/standalone/current/codex"
-    current_target = current_binary.resolve() if current_binary.exists() else None
-    candidates: list[tuple[Path, Path]] = []
-    for package in sorted(
-        (home / ".nvm/versions/node").glob(
-            "*/lib/node_modules/@openai/codex"
-        )
-    ):
-        npm = package.parents[3] / "bin/npm"
-        if npm.is_file() and os.access(npm, os.X_OK):
-            candidates.append((package.resolve(), npm))
-    if current_target is not None:
-        for package, npm in candidates:
-            if current_target.is_relative_to(package):
-                return str(npm)
-        raise RuntimeError(
-            f"Active Codex binary {current_target} does not belong to a discovered NVM package"
-        )
-    if len(candidates) == 1:
-        return str(candidates[0][1])
-    raise RuntimeError(
-        "Could not identify the NVM npm installation that owns @openai/codex"
-    )
+    payload = json.loads(download(url))
+    tag = payload.get("tag_name") if isinstance(payload, dict) else None
+    if not isinstance(tag, str) or not tag.startswith("rust-v"):
+        raise TypeError(f"Codex release channel returned no rust-v tag_name: {tag!r}")
+    return parse_semver(tag.removeprefix("rust-v"))
 
 
 def positive_timeout(name: str, default: float) -> float:
@@ -132,10 +119,27 @@ def positive_timeout(name: str, default: float) -> float:
     return value
 
 
-def update_npm_package(npm: str, target_version: str, timeout: float) -> None:
-    environment = os.environ.copy()
-    environment["PATH"] = f"{Path(npm).parent}:{environment.get('PATH', '')}"
-    command = [npm, "install", "--global", f"@openai/codex@{target_version}"]
+def run_installer(
+    installer_url: str, home: Path, target_version: str, timeout: float
+) -> None:
+    script = download(installer_url)
+    # The installer's own `codex` link goes to ~/.codex/bin, not ~/.local/bin, which
+    # holds the Remote Control wrapper; having that directory on PATH stops it editing
+    # shell profiles. A pinned release also stands down Codex's own scheduled updater.
+    bin_dir = home / ".codex/bin"
+    environment = os.environ | {
+        "CODEX_NON_INTERACTIVE": "1",
+        "CODEX_RELEASE": target_version,
+        "CODEX_INSTALL_DIR": str(bin_dir),
+        "PATH": f"{bin_dir}:{os.environ.get('PATH', '')}",
+    }
+    with tempfile.TemporaryDirectory() as temporary:
+        installer = Path(temporary) / "install.sh"
+        installer.write_bytes(script)
+        run_bounded(["sh", str(installer)], environment, timeout)
+
+
+def run_bounded(command: list[str], environment: dict[str, str], timeout: float) -> None:
     process = subprocess.Popen(
         command,
         env=environment,
@@ -313,7 +317,9 @@ def main() -> int:
         "CODEX_AUTO_UPDATE_CODEX_BIN", str(home / ".local/bin/codex")
     )
     systemctl = os.environ.get("CODEX_AUTO_UPDATE_SYSTEMCTL_BIN", "systemctl")
-    npm = os.environ.get("CODEX_AUTO_UPDATE_NPM_BIN")
+    installer_url = os.environ.get(
+        "CODEX_AUTO_UPDATE_INSTALLER_URL", DEFAULT_INSTALLER_URL
+    )
     registry_url = os.environ.get(
         "CODEX_AUTO_UPDATE_REGISTRY_URL", DEFAULT_REGISTRY_URL
     )
@@ -357,7 +363,7 @@ def main() -> int:
         )
         return 0
 
-    update_npm_package(npm or discover_npm(home), latest, update_timeout)
+    run_installer(installer_url, home, latest, update_timeout)
     installed = parse_cli_version(output([codex, "--version"]))
     if compare_versions(installed, current) <= 0:
         raise RuntimeError(

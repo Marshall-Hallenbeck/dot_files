@@ -43,7 +43,7 @@ class CodexAutoUpdateTests(unittest.TestCase):
         service_state.write_text(active_state)
         calls = root / "calls"
         registry = root / "registry.json"
-        registry.write_text(json.dumps({"version": latest}))
+        registry.write_text(json.dumps({"tag_name": f"rust-v{latest}"}))
         update_target = update_to or latest
 
         codex = bin_dir / "codex"
@@ -100,19 +100,19 @@ class CodexAutoUpdateTests(unittest.TestCase):
             esac
             """,
         )
-        npm = bin_dir / "npm"
+        installer = root / "install.sh"
         self.make_executable(
-            npm,
+            installer,
             f"""
-            #!/usr/bin/env bash
-            set -euo pipefail
-            printf 'npm %s\\n' "$*" >> {calls!s}
-            if [[ -e {root!s}/term-resistant-child ]]; then
+            #!/bin/sh
+            set -eu
+            printf 'installer %s %s %s %s\\n' "$CODEX_RELEASE" "$CODEX_NON_INTERACTIVE" "$CODEX_INSTALL_DIR" "${{PATH%%:*}}" >> {calls!s}
+            if [ -e {root!s}/term-resistant-child ]; then
               /usr/bin/python3 -c 'import os, signal, sys, time; signal.signal(signal.SIGTERM, signal.SIG_IGN); open(sys.argv[1], "w").write(str(os.getpid())); time.sleep(60)' {root!s}/term-resistant-child.pid &
               wait "$!"
             fi
-            [[ ! -e {root!s}/hang-npm ]] || sleep 5
-            [[ "$*" == "install --global @openai/codex@{latest}" ]]
+            [ ! -e {root!s}/hang-installer ] || sleep 5
+            [ "$CODEX_RELEASE" = "{latest}" ]
             printf '{update_target}' > {installed!s}
             """,
         )
@@ -121,7 +121,7 @@ class CodexAutoUpdateTests(unittest.TestCase):
             "XDG_RUNTIME_DIR": str(root / "run"),
             "XDG_STATE_HOME": str(root / "state"),
             "CODEX_AUTO_UPDATE_CODEX_BIN": str(codex),
-            "CODEX_AUTO_UPDATE_NPM_BIN": str(npm),
+            "CODEX_AUTO_UPDATE_INSTALLER_URL": installer.as_uri(),
             "CODEX_AUTO_UPDATE_SYSTEMCTL_BIN": str(systemctl),
             "CODEX_AUTO_UPDATE_REGISTRY_URL": registry.as_uri(),
             "CODEX_AUTO_UPDATE_READY_TIMEOUT": "0.5",
@@ -179,8 +179,9 @@ class CodexAutoUpdateTests(unittest.TestCase):
             self.assertEqual(installed.read_text(), "0.149.1")
             self.assertEqual(server.read_text(), "0.147.0")
             self.assertTrue(pending.exists())
+            install_dir = root / "home/.codex/bin"
             self.assertIn(
-                "npm install --global @openai/codex@0.149.1", calls.read_text()
+                f"installer 0.149.1 1 {install_dir} {install_dir}", calls.read_text()
             )
             self.assertNotIn("codex update", calls.read_text())
             self.assertIn(
@@ -217,7 +218,7 @@ class CodexAutoUpdateTests(unittest.TestCase):
 
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertEqual(installed.read_text(), current)
-                self.assertNotIn("npm install", calls.read_text())
+                self.assertNotIn("installer", calls.read_text())
 
     def test_matching_prerelease_updates_to_stable(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -230,7 +231,7 @@ class CodexAutoUpdateTests(unittest.TestCase):
 
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(installed.read_text(), "0.149.1")
-            self.assertIn("npm install --global @openai/codex@0.149.1", calls.read_text())
+            self.assertIn("installer 0.149.1 1", calls.read_text())
 
     def test_current_cli_restarts_a_stale_active_app_server_without_marker(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -250,7 +251,7 @@ class CodexAutoUpdateTests(unittest.TestCase):
             self.assertIn("try-restart --no-block", calls.read_text())
             self.assertTrue(pending.exists())
 
-    def test_concurrent_newer_install_is_preserved_before_npm_update(self) -> None:
+    def test_concurrent_newer_install_is_preserved_before_installer_update(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = pathlib.Path(temporary)
             env, installed, _, _, calls, pending = self.make_environment(
@@ -262,7 +263,7 @@ class CodexAutoUpdateTests(unittest.TestCase):
 
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(installed.read_text(), "0.150.0")
-            self.assertNotIn("npm install", calls.read_text())
+            self.assertNotIn("installer", calls.read_text())
             self.assertTrue(pending.exists())
 
     def test_registry_race_accepts_newer_installed_version(self) -> None:
@@ -371,6 +372,18 @@ class CodexAutoUpdateTests(unittest.TestCase):
             self.assertTrue(pending.exists())
             self.assertIn("timed out after", result.stderr)
 
+    def test_release_channel_tag_is_required(self) -> None:
+        updater = self.load_updater_module()
+        with tempfile.TemporaryDirectory() as temporary:
+            channel = pathlib.Path(temporary) / "channel.json"
+            channel.write_text(json.dumps({"tag_name": "rust-v0.156.1"}))
+            self.assertEqual(updater.fetch_latest(channel.as_uri()), "0.156.1")
+            for payload in ({"version": "0.156.1"}, {"tag_name": "v0.156.1"}, ["rust-v0.156.1"]):
+                with self.subTest(payload=payload):
+                    channel.write_text(json.dumps(payload))
+                    with self.assertRaisesRegex(TypeError, "rust-v tag_name"):
+                        updater.fetch_latest(channel.as_uri())
+
     def test_malformed_semver_values_are_rejected(self) -> None:
         updater = self.load_updater_module()
         for value in (
@@ -386,14 +399,14 @@ class CodexAutoUpdateTests(unittest.TestCase):
                 with self.assertRaises(RuntimeError):
                     updater.parse_cli_version(f"codex-cli {value}")
 
-    def test_blocked_npm_install_is_bounded_and_later_retry_succeeds(self) -> None:
+    def test_blocked_installer_is_bounded_and_later_retry_succeeds(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = pathlib.Path(temporary)
             env, installed, server, _, _, pending = self.make_environment(
                 root, "0.147.0", "0.149.1", active_state="active"
             )
             env["CODEX_AUTO_UPDATE_UPDATE_TIMEOUT"] = "0.1"
-            (root / "hang-npm").touch()
+            (root / "hang-installer").touch()
 
             failed = subprocess.run(
                 [str(UPDATER)],
@@ -407,7 +420,7 @@ class CodexAutoUpdateTests(unittest.TestCase):
             self.assertNotEqual(failed.returncode, 0)
             self.assertEqual(installed.read_text(), "0.147.0")
             self.assertFalse(pending.exists())
-            (root / "hang-npm").unlink()
+            (root / "hang-installer").unlink()
 
             recovered = self.run_updater(env)
 
@@ -416,7 +429,7 @@ class CodexAutoUpdateTests(unittest.TestCase):
             self.assertEqual(server.read_text(), "0.147.0")
             self.assertTrue(pending.exists())
 
-    def test_term_resistant_npm_descendant_is_killed_after_timeout(self) -> None:
+    def test_term_resistant_installer_descendant_is_killed_after_timeout(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = pathlib.Path(temporary)
             env, *_ = self.make_environment(root, "0.147.0", "0.149.1")
@@ -455,58 +468,6 @@ class CodexAutoUpdateTests(unittest.TestCase):
                 self.assertNotEqual(result.returncode, 0)
                 self.assertIn("finite positive number", result.stderr)
 
-    def test_discover_npm_selects_owner_and_rejects_ambiguity(self) -> None:
-        updater = self.load_updater_module()
-        with tempfile.TemporaryDirectory() as temporary:
-            home = pathlib.Path(temporary)
-            packages = []
-            for node_version in ("v20.1.0", "v24.1.0"):
-                prefix = home / ".nvm/versions/node" / node_version
-                package = prefix / "lib/node_modules/@openai/codex"
-                vendor = package / "node_modules/@openai/codex-linux-x64/vendor"
-                vendor.mkdir(parents=True)
-                (vendor / "codex").write_text("binary")
-                npm = prefix / "bin/npm"
-                npm.parent.mkdir(parents=True)
-                npm.write_text("#!/usr/bin/env bash\n")
-                npm.chmod(0o755)
-                packages.append((vendor, npm))
-            current = home / ".codex/packages/standalone/current"
-            current.parent.mkdir(parents=True)
-            current.symlink_to(packages[1][0], target_is_directory=True)
-
-            self.assertEqual(updater.discover_npm(home), str(packages[1][1]))
-            current.unlink()
-            with self.assertRaisesRegex(RuntimeError, "Could not identify"):
-                updater.discover_npm(home)
-
-        with tempfile.TemporaryDirectory() as temporary:
-            home = pathlib.Path(temporary)
-            prefix = home / ".nvm/versions/node/v24.1.0"
-            package = prefix / "lib/node_modules/@openai/codex"
-            package.mkdir(parents=True)
-            npm = prefix / "bin/npm"
-            npm.parent.mkdir(parents=True)
-            npm.write_text("#!/usr/bin/env bash\n")
-            npm.chmod(0o755)
-            current = home / ".codex/packages/standalone/current"
-            outside = home / "outside"
-            outside.mkdir()
-            (outside / "codex").write_text("binary")
-            current.parent.mkdir(parents=True)
-            current.symlink_to(outside, target_is_directory=True)
-
-            with self.assertRaisesRegex(RuntimeError, "does not belong"):
-                updater.discover_npm(home)
-            current.unlink()
-            self.assertEqual(updater.discover_npm(home), str(npm))
-
-        with (
-            tempfile.TemporaryDirectory() as temporary,
-            self.assertRaisesRegex(RuntimeError, "Could not identify"),
-        ):
-            updater.discover_npm(pathlib.Path(temporary))
-
     def test_updater_is_deployed_after_configuration_sync(self) -> None:
         deployer = (REPO / "scripts/dotfiles").read_text()
         service = (REPO / ".config/systemd/user/agent-sync.service").read_text()
@@ -521,8 +482,11 @@ class CodexAutoUpdateTests(unittest.TestCase):
         self.assertIn(sync_exec, service)
         self.assertIn(updater_exec, maintenance)
         updater = UPDATER.read_text()
-        self.assertIn('f"@openai/codex@{target_version}"', updater)
-        self.assertNotIn("@openai/codex@latest", updater)
+        self.assertIn('"CODEX_RELEASE": target_version', updater)
+        self.assertIn('DEFAULT_INSTALLER_URL = "https://chatgpt.com/codex/install.sh"', updater)
+        self.assertNotIn("npm", updater)
+        self.assertIn('["curl", "-fsSL", url]', updater)
+        self.assertNotIn("urllib", updater)
         self.assertNotIn('subprocess.run([codex, "update"]', updater)
 
     def test_app_server_service_never_force_kills_a_draining_turn(self) -> None:

@@ -253,31 +253,22 @@ if ! have_command claude; then
     curl -fsSL https://claude.ai/install.sh | bash
 fi
 
-# ── OpenAI Codex ─────────────────────────────────────────────────
-# Guard on the package, not the command: once Remote Control is enabled,
-# ~/.local/bin/codex is a dotfiles wrapper that delegates to the real binary, so
-# a command-name check would report Codex present and skip installing it.
-if [ ! -d "$(npm prefix -g)/lib/node_modules/@openai/codex" ]; then
+# ── OpenAI Codex (official standalone installer) ─────────────────
+# OpenAI documents the standalone installer as the Codex install method. An npm
+# copy would compete with it on PATH, so remove any that older installs left.
+if [ -d "$(npm prefix -g)/lib/node_modules/@openai/codex" ]; then
+    echo "Removing npm-managed OpenAI Codex..."
+    npm uninstall -g @openai/codex
+fi
+if [ -L /usr/local/bin/codex ] && [ ! -e /usr/local/bin/codex ]; then
+    sudo rm /usr/local/bin/codex
+fi
+# Guard on the release, not the command: once Remote Control is enabled,
+# ~/.local/bin/codex is a dotfiles wrapper that delegates to this binary.
+if [ ! -x ~/.codex/packages/standalone/current/codex ]; then
     echo "Installing OpenAI Codex..."
-    npm install -g @openai/codex
-    sudo ln -sf "$(npm prefix -g)/bin/codex" /usr/local/bin/codex
+    curl -fsSL https://chatgpt.com/codex/install.sh | CODEX_NON_INTERACTIVE=1 PATH="$HOME/.local/bin:$PATH" sh
 fi
-# The Remote Control wrapper (.local/bin/codex) and codex-app-server.service both
-# run ~/.codex/packages/standalone/current/codex. npm installs the native binary
-# under a per-platform vendor directory instead, so publish it at the path they
-# expect. Point at the native binary, not the npm shim: the shim spawns a child
-# node process, which would sit between systemd and the long-lived app server.
-# Match the codex binary at its exact depth. A wildcard search for any bin
-# directory under vendor/ also matches the vendored zsh in
-# codex-resources/zsh/bin, which holds no codex binary.
-codex_vendor_binaries=("$(npm prefix -g)"/lib/node_modules/@openai/codex/node_modules/@openai/codex-*/vendor/*/bin/codex)
-codex_vendor_bin="${codex_vendor_binaries[0]}"
-if [ ! -x "$codex_vendor_bin" ]; then
-    echo "ERROR: no Codex binary at @openai/codex-*/vendor/*/bin/codex under $(npm prefix -g)/lib/node_modules" >&2
-    exit 1
-fi
-mkdir -p ~/.codex/packages/standalone
-ln -sfn "$(dirname "$codex_vendor_bin")" ~/.codex/packages/standalone/current
 
 link_file "$DOTFILES_DIR/global-AGENTS.md" ~/.codex/AGENTS.md
 link_file "$DOTFILES_DIR/.codex/hooks.json" ~/.codex/hooks.json

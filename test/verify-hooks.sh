@@ -1359,31 +1359,52 @@ else
 fi
 check "Codex trust gate runs after every symlink is deployed" "after" "$res"
 
-# The Codex npm package ships a vendored zsh under codex-resources/zsh/bin. A
-# wildcard search for any bin directory below vendor/ matched that directory
-# first and published it as packages/standalone/current, so the Remote Control
-# wrapper and codex-app-server.service ran a path with no codex binary.
-codex_publish_home=$(mktemp -d "$commit_tmp/codex-publish.XXXXXX")
-codex_fake_prefix="$codex_publish_home/prefix"
-codex_fake_vendor="$codex_fake_prefix/lib/node_modules/@openai/codex/node_modules/@openai/codex-linux-x64/vendor/x86_64-unknown-linux-musl"
-mkdir -p "$codex_fake_vendor/bin" "$codex_fake_vendor/codex-resources/zsh/bin" "$codex_publish_home/bin"
-printf '#!/bin/bash\nprintf codex-cli\n' >"$codex_fake_vendor/bin/codex"
-printf '#!/bin/bash\nprintf zsh\n' >"$codex_fake_vendor/codex-resources/zsh/bin/zsh"
-chmod +x "$codex_fake_vendor/bin/codex" "$codex_fake_vendor/codex-resources/zsh/bin/zsh"
-# shellcheck disable=SC2016  # $FAKE_NPM_PREFIX must stay literal in the generated script
-printf '#!/bin/bash\nprintf "%%s\\n" "$FAKE_NPM_PREFIX"\n' >"$codex_publish_home/bin/npm"
-chmod +x "$codex_publish_home/bin/npm"
-{
-    echo 'set -euo pipefail'
-    sed -n '/^# ── OpenAI Codex/,/standalone\/current$/p' "$dotfiles_root/install_environment.sh"
-} | HOME="$codex_publish_home" FAKE_NPM_PREFIX="$codex_fake_prefix" \
-    PATH="$codex_publish_home/bin:$PATH" bash >/dev/null 2>&1
-if [ -x "$codex_publish_home/.codex/packages/standalone/current/codex" ]; then
+# The Codex block must drop an npm copy, install through OpenAI's standalone
+# installer non-interactively, and skip the installer once a release is current.
+codex_install_home=$(mktemp -d "$commit_tmp/codex-install.XXXXXX")
+codex_fake_prefix="$codex_install_home/prefix"
+mkdir -p "$codex_fake_prefix/lib/node_modules/@openai/codex" "$codex_install_home/bin"
+codex_install_log="$codex_install_home/calls"
+cat >"$codex_install_home/bin/npm" <<'NPM'
+#!/bin/bash
+case "$1" in
+    prefix) printf '%s\n' "$FAKE_NPM_PREFIX" ;;
+    *) printf 'npm %s\n' "$*" >>"$CALL_LOG"; rm -rf "$FAKE_NPM_PREFIX/lib/node_modules/@openai/codex" ;;
+esac
+NPM
+cat >"$codex_install_home/bin/curl" <<'CURL'
+#!/bin/bash
+printf 'curl %s\n' "$*" >>"$CALL_LOG"
+cat <<'INSTALLER'
+printf 'installer %s\n' "$CODEX_NON_INTERACTIVE" >>"$CALL_LOG"
+release="$HOME/.codex/packages/standalone/releases/1.0.0"
+mkdir -p "$release"
+printf '#!/bin/sh\n' >"$release/codex"
+chmod +x "$release/codex"
+ln -sfn "$release" "$HOME/.codex/packages/standalone/current"
+INSTALLER
+CURL
+chmod +x "$codex_install_home/bin/npm" "$codex_install_home/bin/curl"
+run_codex_install_block() {
+    {
+        echo 'set -euo pipefail'
+        sed -n '/^# ── OpenAI Codex/,/^link_file/p' "$dotfiles_root/install_environment.sh" | sed '$d'
+    } | HOME="$codex_install_home" FAKE_NPM_PREFIX="$codex_fake_prefix" CALL_LOG="$codex_install_log" \
+        PATH="$codex_install_home/bin:$PATH" bash >/dev/null 2>&1
+}
+run_codex_install_block
+run_codex_install_block
+check "installer removes an npm-managed Codex" "npm uninstall -g @openai/codex" \
+    "$(grep '^npm ' "$codex_install_log")"
+check "installer runs the official Codex installer non-interactively, once" \
+    "curl -fsSL https://chatgpt.com/codex/install.sh|installer 1" \
+    "$(grep -E '^(curl|installer) ' "$codex_install_log" | paste -sd'|')"
+if [ -x "$codex_install_home/.codex/packages/standalone/current/codex" ]; then
     res=published
 else
-    res=broken
+    res=missing
 fi
-check "installer publishes the Codex binary, not the vendored zsh" "published" "$res"
+check "installer publishes the standalone Codex release" "published" "$res"
 
 # AGENTS.md sends agents to docs/agents/*.md, but docs/ is gitignored, so a file
 # there reaches the repo only through `git add -f`. Guard both the files and the warning.
