@@ -191,7 +191,7 @@
       }
     }
   },
-  "autoUpdatesChannel": "stable",
+  "autoUpdatesChannel": "latest",
   "tui": "fullscreen",
   "timeFormat": "12-hour",
   "showThinkingSummaries": true,
