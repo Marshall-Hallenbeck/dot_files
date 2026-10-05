@@ -197,7 +197,7 @@ def sync_hook_scripts() -> list[str]:
     target_root = HOME / ".codex/hooks"
     target_root.mkdir(parents=True, exist_ok=True)
     changed: list[str] = []
-    for name in ("reinject-on-compact.sh", "save-insights-reminder.sh"):
+    for name in ("reinject-on-compact.sh",):
         source = HOME / ".claude/hooks" / name
         target = target_root / name
         if not source.is_file():

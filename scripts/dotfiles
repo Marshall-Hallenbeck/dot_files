@@ -136,7 +136,6 @@ cmd_status() {
         .gitignore
         .gitattributes
         .dockerignore
-        .claude/project-learned-insights.md
         .gitconfig
         .zshrc
         .codex/config.toml

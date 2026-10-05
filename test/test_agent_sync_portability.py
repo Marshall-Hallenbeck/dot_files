@@ -188,27 +188,8 @@ class AgentSyncPortabilityTests(unittest.TestCase):
         self.assertIn("install_git_wrapper", installer)
 
         windows = (REPO / "scripts/install-claude-windows.ps1").read_text()
-        self.assertNotIn(
-            'Copy-File "$ClaudeSrc\\global-learned-insights.md" "$ClaudeDest\\global-learned-insights.md"',
-            windows,
-        )
-        self.assertIn("Seed-File", windows)
         self.assertIn('Test-Path "$ClaudeSrc\\settings.local.json"', windows)
         self.assertIn("PSObject.Properties['permissions']", windows)
-
-    def test_linux_installer_links_shared_learned_insights(self) -> None:
-        installer = (REPO / "install_environment.sh").read_text()
-        source = '$DOTFILES_DIR/.claude/global-learned-insights.md'
-
-        self.assertIn(
-            f'link_file "{source}" ~/.claude/global-learned-insights.md',
-            installer,
-        )
-        self.assertIn(
-            f'link_file "{source}" ~/.codex/global-learned-insights.md',
-            installer,
-        )
-        self.assertNotIn("seed_runtime_file", installer)
 
     def test_linux_installer_enables_core_agent_sync(self) -> None:
         installer = (REPO / "install_environment.sh").read_text()
@@ -423,8 +404,7 @@ class AgentSyncPortabilityTests(unittest.TestCase):
             (skill / "SKILL.md").write_text("# Full review\n")
             hooks = claude / "hooks"
             hooks.mkdir()
-            for name in ("reinject-on-compact.sh", "save-insights-reminder.sh"):
-                (hooks / name).write_text("#!/bin/bash\nset -euo pipefail\n")
+            (hooks / "reinject-on-compact.sh").write_text("#!/bin/bash\nset -euo pipefail\n")
             (claude / "settings.json").write_text("{}\n")
 
             fake_bin = home / "fake-bin"

@@ -40,26 +40,13 @@ Read the memory index (`MEMORY.md`) and each referenced memory file. For each en
 
 1. **Check staleness** — Is the memory still accurate? Has the code/behavior it references changed?
 2. **Check relevance** — Is this still useful for future sessions, or was it session-specific?
-3. **Check duplication** — Is this information already in CLAUDE.md, project-learned-insights, or derivable from the code?
+3. **Check duplication** — Is this information already in CLAUDE.md or derivable from the code?
 
 Remove or update stale entries. Do NOT remove memories the user explicitly asked to save — flag those for user review instead.
 
 Report: N memories reviewed, N updated, N removed, N flagged for user review.
 
-### Phase 5: Refresh Learned Insights
-
-Read both insight files:
-- `~/.claude/global-learned-insights.md`
-- `<project-root>/.claude/project-learned-insights.md`
-
-For each insight:
-1. **Verify** — Is the insight still true? Spot-check claims about file paths, function names, or behavior against current code.
-2. **Deduplicate** — Are any insights redundant with each other or with CLAUDE.md?
-3. **Prune** — Remove insights that are now obvious from the code or documented elsewhere.
-
-Do not expand or add insights in this phase — that happens organically during work sessions.
-
-### Phase 6: Review Settings & Hooks
+### Phase 5: Review Settings & Hooks
 
 Read the current settings files:
 - `.claude/settings.json` (project)
@@ -73,7 +60,7 @@ Check for:
 
 Propose changes but do NOT modify settings without user approval — use `AskUserQuestion` for any setting changes.
 
-### Phase 7: Check for New Capabilities
+### Phase 6: Check for New Capabilities
 
 Search for recent Claude Code updates that the current setup isn't using:
 
@@ -105,14 +92,10 @@ Report findings as suggestions, not changes.
 - Removed: N
 - Flagged for review: N
 
-### Phase 5: Insights Refresh
-- Verified: N insights
-- Pruned: N (stale or redundant)
-
-### Phase 6: Settings & Hooks
+### Phase 5: Settings & Hooks
 - [recommendations]
 
-### Phase 7: New Capabilities
+### Phase 6: New Capabilities
 - [findings]
 ```
 

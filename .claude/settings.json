@@ -31,7 +31,6 @@
       "Bash(tee:*)",
       "Bash(uv run:*)",
       "Bash(wc:*)",
-      "Edit(**/*learned-insights.md)",
       "Edit(/tmp/**)",
       "Read(/tmp/**)",
       "mcp__ide__*",
@@ -86,14 +85,6 @@
             "command": "$HOME/.claude/hooks/reinject-on-compact.sh"
           }
         ]
-      },
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "$HOME/.claude/hooks/inject-insights-index.sh"
-          }
-        ]
       }
     ],
     "PreToolUse": [
@@ -132,17 +123,6 @@
           {
             "type": "command",
             "command": "$HOME/.claude/hooks/post-edit-lint.sh"
-          }
-        ]
-      }
-    ],
-    "Stop": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "$HOME/.claude/hooks/save-insights-reminder.sh"
           }
         ]
       }
