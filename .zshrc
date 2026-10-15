@@ -83,7 +83,16 @@ fi
 export CLAUDE_CODE_DISABLE_AUTO_MEMORY=0  # Force on as of 2026/2/9
 
 # for Tabby directory reporting https://github.com/Eugeny/tabby/wiki/Shell-working-directory-reporting
-precmd () { echo -n "\x1b]1337;CurrentDir=$(pwd)\x07" }
+tabby_report_cwd() {
+  if [[ -n "$TMUX" ]]; then
+    printf '\033]7;%s\007' "$PWD"
+  else
+    printf '\033]1337;CurrentDir=%s\007' "$PWD"
+  fi
+}
+
+autoload -Uz add-zsh-hook
+add-zsh-hook precmd tabby_report_cwd
 
 # dotfiles-update stamps this file when a background pull changes
 # installer-managed state; a successful install_environment.sh run clears it.
