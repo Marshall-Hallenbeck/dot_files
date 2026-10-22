@@ -418,9 +418,9 @@ class AgentSyncPortabilityTests(unittest.TestCase):
             )
 
             claude = home / ".claude"
-            skill = claude / "skills/full-review"
+            skill = claude / "skills/ship"
             skill.mkdir(parents=True)
-            (skill / "SKILL.md").write_text("# Full review\n")
+            (skill / "SKILL.md").write_text("# Ship\n")
             hooks = claude / "hooks"
             hooks.mkdir()
             for name in ("reinject-on-compact.sh", "save-insights-reminder.sh"):
@@ -437,7 +437,7 @@ class AgentSyncPortabilityTests(unittest.TestCase):
                 "PATH": f"{fake_bin}:{os.environ['PATH']}",
                 "CODEX_CONFIG_SYNC_PYTHON": sys.executable,
             }
-            codex_skill = home / ".agents/skills/full-review"
+            codex_skill = home / ".agents/skills/ship"
             self.assertFalse(codex_skill.exists())
 
             result = subprocess.run(

@@ -1441,17 +1441,17 @@ else
 fi
 check "empty checkpoint workflow requires the open PR reference" "present" "$res"
 
-create_pr_skill="$dotfiles_root/.claude/skills/create-pr/SKILL.md"
-if grep -Fq 'gh label list --limit 200 --json name,description' "$create_pr_skill" &&
-    grep -Fq -- '--label "<label>"' "$create_pr_skill" &&
-    grep -Fq 'gh pr view <PR-NUMBER> --json labels' "$create_pr_skill" &&
-    grep -Fq 'Verification must show every selected label.' "$create_pr_skill" &&
-    grep -Fq 'omits a selected label' "$create_pr_skill"; then
+ship_skill="$dotfiles_root/.claude/skills/ship/SKILL.md"
+if grep -Fq 'gh label list --limit 200 --json name,description' "$ship_skill" &&
+    grep -Fq -- '--label "<label>"' "$ship_skill" &&
+    grep -Fq 'gh pr view <PR-NUMBER> --json labels' "$ship_skill" &&
+    grep -Fq 'Verification must show every selected label.' "$ship_skill" &&
+    grep -Fq 'omits a selected label' "$ship_skill"; then
     res=present
 else
     res=missing
 fi
-check "create-pr discovers, applies, and verifies labels" "present" "$res"
+check "ship discovers, applies, and verifies PR labels" "present" "$res"
 
 create_issue_skill="$dotfiles_root/.claude/skills/create-github-issue/SKILL.md"
 if [ -f "$create_issue_skill" ] &&

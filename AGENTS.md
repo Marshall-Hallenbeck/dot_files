@@ -26,9 +26,9 @@ shellcheck install_environment.sh security.sh
 - `global-AGENTS.md` — Global instructions for all projects. Linked to both `~/.claude/CLAUDE.md` and `~/.codex/AGENTS.md`; edit only this file.
 - `AGENTS.md` — This repo's project instructions (Claude Code and Codex both read it).
 - `.claude/` — Claude Code global config (symlinked to `~/.claude/` by install script)
-  - `skills/` — Custom slash commands (/commit, /review, /fix-tests, etc.)
+  - `skills/` — Custom slash commands (/ship, /commit, /review, /fix-tests, etc.)
   - `agents/` — Custom agents (test-writer, code-reviewer, debugger)
-  - `commands/` — Custom slash commands (/preflight, /review-and-commit)
+  - `commands/` — Custom slash commands (/preflight)
   - `hooks/` — Hook scripts (per-file symlinked); hook config lives in `settings.json`
 - `.local/libexec/codex-config-sync.py` — Mirrors Claude skills, hooks, plugin flags and managed settings into Codex. Runs from `agent-sync.timer` and before `codex-app-server.service` starts.
 - `test/` — Docker-based verification (Dockerfile + verify scripts)
@@ -47,8 +47,7 @@ shellcheck install_environment.sh security.sh
 
 - Never create `-team`, `-max`, or model-variant copies of skills. Subagents inherit the parent session's model and effort level. Variant skills drift silently from the canonical version.
 - Agent frontmatter `model: haiku` (or any explicit model) overrides session inheritance. Omit the `model` field to inherit from the session.
-- `/full-review` phases are numbered and cross-referenced. When inserting/removing a phase, update ALL phase number references (forward refs in earlier phases, "Phases 1-N" in final review, output template).
-- `/full-review` composes: `/simplify`, `/review`, `/security-review`, `/overcautious-check`, `/run-quality-gate`, `/fix-tests`, `/test-coverage-review`, `/summarize-changes`. When adding behavior, add it to the composed skill — not to `/full-review` directly.
+- `/ship` is the review-to-merge pipeline. Its phases are numbered and cross-referenced (`until` targets, "returns to Phase 4 or Phase 6"); when inserting or removing a phase, update every phase reference. It orchestrates project procedures (`run-tests`, `safe-commit`, `create-pr`) when a repository ships them; add project-specific mechanics to those project files, not to `/ship`.
 - Multiple skills use the same test runner detection table (fix-tests, write-tests, run-unit-tests, review). Keep them in sync when adding runners.
 - Docker tests need `.dockerignore` (excludes `.git`) and `COPY --chown=testuser:testuser` in the Dockerfile — `git init` inside the container fails without correct ownership.
 - Plugins are declared in `settings.json` (`enabledPlugins`) but NOT yet installed by the script — `claude plugin install` commands are still needed.

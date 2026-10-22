@@ -15,7 +15,7 @@ Autonomous test-driven debugging pipeline. Runs the full test suite, diagnoses e
 /fix-tests [optional: specific test file or pattern]
 ```
 
-If called from a composite skill (e.g., `/full-review`) that already has test failure output, accept that output and skip Step 1 -- go directly to Step 2 (Parse Failures).
+If called from a composite skill (e.g., `/ship`) that already has test failure output, accept that output and skip Step 1 -- go directly to Step 2 (Parse Failures).
 
 ## Behavior
 
@@ -119,7 +119,7 @@ After the suite is green:
 
 ### 6. Commit (only if ALL tests pass AND /fix-tests was invoked directly)
 
-**Skip this step entirely when /fix-tests is composed by another skill or pipeline (e.g. /full-review)** — that caller owns whether and when to commit. Only when the user invoked /fix-tests directly and the full suite is green, create a commit:
+**Skip this step entirely when /fix-tests is composed by another skill or pipeline (e.g. /ship)** — that caller owns whether and when to commit. Only when the user invoked /fix-tests directly and the full suite is green, create a commit:
 
 Resolve the open pull request and all verified Sentry and GitHub issue references before committing. On a branch with an open pull request, end the subject with `(#<PR>)` and add `Refs #<PR>`. Add `Sentry-Issue: <SENTRY-ID>` and related GitHub issue trailers when applicable. Do not invent a reference.
 

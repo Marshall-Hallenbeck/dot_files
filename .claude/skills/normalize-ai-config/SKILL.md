@@ -36,7 +36,7 @@ Use when skills/agents drift, overlap, or routing behavior becomes confusing.
 3. **Normalize boundaries**
    - Commit group: `/safe-commit`, `/safe-commit-all`
    - Test group: `/run-unit-tests`, `/run-integration-tests`, `/run-quality-gate`, `/run-tests`
-   - Review group: `/full-review` + `/overcautious_check` + `/review`
+   - Review group: `/ship` (review-to-merge pipeline) + `/review` + `/security-review` + `/overcautious-check`
 4. **Validate install wiring (dotfiles repo)**
    - Ensure `install_environment.sh` includes every canonical skill in `SKILL_DIRS`.
 5. **Report**
