@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import importlib.machinery
 import importlib.util
+import json
 import os
 import pathlib
 import subprocess
@@ -39,12 +40,24 @@ class AgentSyncPortabilityTests(unittest.TestCase):
 
             self.assertEqual(
                 codex_config_sync.sync_global_settings(config),
-                ["default_mode_request_user_input:true", "writable_root:/tmp"],
+                [
+                    "default_mode_request_user_input:true",
+                    "writable_root:/tmp",
+                    "tui_notifications:agent-turn-complete,approval-requested",
+                    "tui_notification_method:bel",
+                    "tui_notification_condition:always",
+                ],
             )
             rendered = config.read_text()
             self.assertIn("default_mode_request_user_input = true", rendered)
             self.assertIn('writable_roots = ["/var/tmp/existing", "/tmp"]', rendered)
             self.assertIn('status_line = ["model-name"]', rendered)
+            self.assertIn(
+                'notifications = ["agent-turn-complete", "approval-requested"]',
+                rendered,
+            )
+            self.assertIn('notification_method = "bel"', rendered)
+            self.assertIn('notification_condition = "always"', rendered)
             self.assertEqual(rendered.count('"/tmp"'), 1)
             self.assertEqual(codex_config_sync.sync_global_settings(config), [])
 
@@ -57,7 +70,11 @@ class AgentSyncPortabilityTests(unittest.TestCase):
                 '[sandbox_workspace_write]\n'
                 'writable_roots = [\n'
                 '    "/var/tmp/existing", # keep this root\n'
-                ']\n'
+                ']\n\n'
+                '[tui]\n'
+                'notifications = ["agent-turn-complete", "approval-requested"]\n'
+                'notification_method = "bel"\n'
+                'notification_condition = "always"\n'
             )
 
             self.assertEqual(
@@ -105,7 +122,13 @@ class AgentSyncPortabilityTests(unittest.TestCase):
 
             self.assertEqual(
                 codex_config_sync.sync_global_settings(config),
-                ["default_mode_request_user_input:true", "writable_root:/tmp"],
+                [
+                    "default_mode_request_user_input:true",
+                    "writable_root:/tmp",
+                    "tui_notifications:agent-turn-complete,approval-requested",
+                    "tui_notification_method:bel",
+                    "tui_notification_condition:always",
+                ],
             )
             self.assertIn(
                 '[sandbox_workspace_write]\nwritable_roots = ["/tmp"]',
@@ -297,6 +320,19 @@ class AgentSyncPortabilityTests(unittest.TestCase):
     def test_claude_tool_concurrency_is_bounded(self) -> None:
         settings = (REPO / ".claude/settings.json").read_text()
         self.assertIn('"CLAUDE_CODE_MAX_TOOL_USE_CONCURRENCY": "4"', settings)
+
+    def test_claude_attention_hooks_emit_a_terminal_bell(self) -> None:
+        settings = json.loads((REPO / ".claude/settings.json").read_text())
+        for event in ("PermissionRequest", "Notification", "Stop"):
+            command = settings["hooks"][event][0]["hooks"][0]["command"]
+            result = subprocess.run(
+                command,
+                shell=True,
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(json.loads(result.stdout), {"terminalSequence": "\a"})
 
     def test_sync_enable_provisions_pinned_codex_sync_dependency(self) -> None:
         deployer = (REPO / "scripts/dotfiles").read_text()
