@@ -14,7 +14,7 @@
 - Never create, rename, guess, or remove repository labels.
 - Select all clearly applicable work-type and affected-area labels.
 - If no existing label clearly applies, continue and report that no match exists.
-- Preserve unrelated changes in `.claude/global-learned-insights.md` and `.gitconfig`.
+- Preserve unrelated changes in `.gitconfig`.
 - Complete RED, GREEN, and fresh-agent verification for one skill before changing the next skill.
 
 ---
@@ -302,4 +302,4 @@ git status --short
 git log --oneline -5
 ```
 
-Expected: only the pre-existing changes to `.claude/global-learned-insights.md` and `.gitconfig` remain uncommitted. All session files are committed in the task commits.
+Expected: only the pre-existing changes to `.gitconfig` remain uncommitted. All session files are committed in the task commits.

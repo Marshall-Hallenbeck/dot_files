@@ -119,14 +119,6 @@ check "Claude and Codex share global-AGENTS.md" bash -c '
 check_link "statusline.sh" ~/.claude/statusline.sh
 check "statusline.sh executable" test -x ~/.claude/statusline.sh
 check_link "settings.json" ~/.claude/settings.json
-check_link "Claude learned insights" ~/.claude/global-learned-insights.md
-check_link "Codex learned insights" ~/.codex/global-learned-insights.md
-# shellcheck disable=SC2016
-check "learned insights share the tracked file" bash -c '
-    expected=$(readlink -f "$HOME/.dot_files/.claude/global-learned-insights.md") &&
-    [ "$(readlink -f "$HOME/.claude/global-learned-insights.md")" = "$expected" ] &&
-    [ "$(readlink -f "$HOME/.codex/global-learned-insights.md")" = "$expected" ]
-'
 
 echo "── Claude Code skills ──"
 # skills/ is deployed as a whole-directory symlink, so individual SKILL.md files

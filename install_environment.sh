@@ -272,7 +272,6 @@ fi
 
 link_file "$DOTFILES_DIR/global-AGENTS.md" ~/.codex/AGENTS.md
 link_file "$DOTFILES_DIR/.codex/hooks.json" ~/.codex/hooks.json
-link_file "$DOTFILES_DIR/.claude/global-learned-insights.md" ~/.codex/global-learned-insights.md
 
 # ── GitHub Copilot ───────────────────────────────────────────────
 if ! have_command copilot; then
@@ -332,7 +331,6 @@ mkdir -p ~/.claude/rules ~/.claude/agents
 link_file "$DOTFILES_DIR/global-AGENTS.md" ~/.claude/CLAUDE.md
 link_file "$DOTFILES_DIR/.claude/settings.json" ~/.claude/settings.json
 link_file "$DOTFILES_DIR/.claude/statusline.sh" ~/.claude/statusline.sh
-link_file "$DOTFILES_DIR/.claude/global-learned-insights.md" ~/.claude/global-learned-insights.md
 chmod +x ~/.claude/statusline.sh
 
 # Hooks — remove stale directory symlink from older installs
