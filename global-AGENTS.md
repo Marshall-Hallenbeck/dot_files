@@ -12,6 +12,15 @@ These instructions apply to all projects. Project instructions add to or overrid
 - Give concise progress updates during tool work. State failures, causes, and fixes directly.
 - Do not agree only to be polite. State corrections with evidence.
 
+## Codex Questions
+
+These rules apply to Codex in all projects and collaboration modes.
+
+- Never include `autoResolutionMs` or `auto_resolution_ms` when calling `request_user_input` or another user-question tool. Omit the parameter entirely; do not set it to zero or another value.
+- Do not set a timeout, deadline, or automatic answer for a user question. Wait for the user's explicit answer or cancellation, regardless of elapsed time.
+- Do not treat an empty response, a timeout, or a preselected option as the user's answer or approval. Keep the decision unresolved and do not perform work that depends on it.
+- Do not cancel or replace an unanswered question unless the user explicitly asks to cancel or replace it.
+
 ## Environment
 
 - The primary OS is Ubuntu or Kali Linux. The shell is zsh with oh-my-zsh.
