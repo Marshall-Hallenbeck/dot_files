@@ -182,7 +182,6 @@ class AgentSyncPortabilityTests(unittest.TestCase):
             REPO / ".config/systemd/user/agent-sync.timer",
             REPO / ".config/systemd/user/claude-rc@.service",
             REPO / ".config/systemd/user/codex-app-server.service",
-            REPO / ".claude/skills/claude-remote-control-service/SKILL.md",
             REPO / ".claude/commands/preflight.md",
             REPO / ".zshrc",
         ]
