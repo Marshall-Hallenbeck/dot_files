@@ -177,7 +177,6 @@
     "pyright-lsp@claude-plugins-official": true,
     "claude-md-management@claude-plugins-official": true,
     "claude-code-setup@claude-plugins-official": true,
-    "mattpocock-skills@claude-plugins-official": true,
     "desktop-commander@synced": false,
     "data@synced": false,
     "productivity@synced": false

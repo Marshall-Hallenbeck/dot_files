@@ -182,7 +182,6 @@ class AgentSyncPortabilityTests(unittest.TestCase):
             REPO / ".config/systemd/user/agent-sync.timer",
             REPO / ".config/systemd/user/claude-rc@.service",
             REPO / ".config/systemd/user/codex-app-server.service",
-            REPO / ".claude/skills/claude-remote-control-service/SKILL.md",
             REPO / ".claude/commands/preflight.md",
             REPO / ".zshrc",
         ]
@@ -202,6 +201,12 @@ class AgentSyncPortabilityTests(unittest.TestCase):
                 if value in text:
                     violations.append(f"{path.relative_to(REPO)} contains {value}")
         self.assertEqual(violations, [])
+
+    def test_linux_installer_does_not_install_unrequested_community_skills(self) -> None:
+        installer = (REPO / "install_environment.sh").read_text()
+
+        self.assertNotIn("npx skills add", installer)
+        self.assertNotIn("awakecoding/openspecs", installer)
 
     def test_installers_keep_mutable_runtime_files_outside_git_checkout(self) -> None:
         installer = (REPO / "install_environment.sh").read_text()

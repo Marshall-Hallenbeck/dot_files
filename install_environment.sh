@@ -447,28 +447,6 @@ if ! python3 "$codex_trust_checker" "$DOTFILES_DIR"; then
     fi
 fi
 
-# ── Community skills (windows-protocols is too large for git, lives in ~/.agents/) ──
-echo "Installing community skills..."
-
-# --agent is required. Left to auto-detect, the tool aborts the whole install
-# when any detected agent rejects a global install ("PromptScript does not
-# support global skill installation") and the skill is silently never added.
-# The skill lands in ~/.agents/skills or ~/.claude/skills depending on the
-# release, so accept either as already-installed.
-if [ ! -d ~/.agents/skills/windows-protocols ] && [ ! -d ~/.claude/skills/windows-protocols ]; then
-    npx skills add awakecoding/openspecs --skill windows-protocols --agent claude-code -y -g
-else
-    echo "  windows-protocols already installed"
-fi
-
-# Some releases link the skill into ~/.claude/skills with a relative path. That
-# directory is itself a symlink into this repo, so the path resolves against the
-# repo root instead of the home directory and the link dangles. Repair only that
-# case: a working link, or content installed directly, is already correct.
-if [ -L ~/.claude/skills/windows-protocols ] && [ ! -e ~/.claude/skills/windows-protocols ]; then
-    ln -sfn "$HOME/.agents/skills/windows-protocols" ~/.claude/skills/windows-protocols
-fi
-
 # ── Summary ──────────────────────────────────────────────────────
 # A completed run satisfies any pending install-required stamp from
 # dotfiles-update or dotfiles pull.
