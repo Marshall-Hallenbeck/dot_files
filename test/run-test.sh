@@ -38,9 +38,6 @@ if [ "$MODE" = "environment" ]; then
     # Patch DOTFILES_REPO to point to local git repo
     sed -i 's|^DOTFILES_REPO=.*|DOTFILES_REPO="/repo"|' /tmp/install_environment.sh
 
-    # Strip community skills section if present (npx skills add blocks download 200MB+)
-    sed -i '/Community skills/,/Summary/{/Summary/!d}' /tmp/install_environment.sh
-
     echo "=== Running install_environment.sh ==="
     bash /tmp/install_environment.sh
 

@@ -22,10 +22,6 @@ __pycache__/
 # dont include docs
 docs/
 
-# Community skills are installed, not vendored. They land in this directory
-# because ~/.claude/skills symlinks here, but the content lives in ~/.agents.
-.claude/skills/windows-protocols
-
 # Secrets — never commit (defense-in-depth; nothing sensitive is tracked today)
 *.pem
 *.key

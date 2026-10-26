@@ -39,7 +39,6 @@ shellcheck install_environment.sh security.sh
 - `link_file()` creates symlinks from `~/.dot_files/` to destinations, backing up existing non-symlink files. Safe to re-run.
 - Per-host overrides via `.local` files (`.zshrc.local`, `.bash_aliases.local`, etc.) — gitignored, never symlinked.
 - `dotfiles promote <path>` moves a local file into the repo and symlinks it back.
-- Community skills are installed via `npx skills add` (not vendored).
 - Tests use a parameterized Dockerfile with `BASE_IMAGE` build arg for multi-distro support.
 - The install script MUST be idempotent — every block should check before acting.
 
