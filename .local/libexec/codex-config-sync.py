@@ -188,6 +188,26 @@ def sync_global_settings(path: pathlib.Path) -> list[str]:
         writable_roots.append("/tmp")
         changed.append("writable_root:/tmp")
 
+    tui = doc.get("tui")
+    if tui is None:
+        tui = tomlkit.table()
+        doc["tui"] = tui
+    notification_events = ["agent-turn-complete", "approval-requested"]
+    notifications = tui.get("notifications")
+    if (
+        not isinstance(notifications, tomlkit.items.Array)
+        or list(notifications) != notification_events
+    ):
+        tui["notifications"] = tomlkit.array().multiline(False)
+        tui["notifications"].extend(notification_events)
+        changed.append("tui_notifications:agent-turn-complete,approval-requested")
+    if tui.get("notification_method") != "bel":
+        tui["notification_method"] = "bel"
+        changed.append("tui_notification_method:bel")
+    if tui.get("notification_condition") != "always":
+        tui["notification_condition"] = "always"
+        changed.append("tui_notification_condition:always")
+
     if changed:
         path.write_text(tomlkit.dumps(doc))
     return changed
