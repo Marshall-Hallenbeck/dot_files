@@ -1,19 +1,15 @@
 [Unit]
-Description=Codex App Server with Remote Control
+Description=Start the Codex managed daemon with Remote Control
 After=network-online.target
 Wants=network-online.target
 
 [Service]
-Type=simple
+Type=oneshot
+RemainAfterExit=yes
 Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin
-ExecStartPre=/usr/bin/rm -f %h/.codex/remote-control-stopped
 ExecStartPre=%h/.local/bin/codex-config-sync --quiet
-ExecStart=%h/.codex/packages/standalone/current/codex app-server --remote-control --listen unix://
-ExecStopPost=%h/.local/libexec/codex-rc-cleanup
-Restart=on-failure
-RestartSec=10
-# App Server drains running assistant turns after SIGTERM. Never let systemd
-# convert an unattended update into SIGKILL while a turn is still running.
+ExecStart=%h/.codex/packages/standalone/current/bin/codex remote-control start
+ExecStop=%h/.codex/packages/standalone/current/bin/codex remote-control stop
 TimeoutStopSec=infinity
 TimeoutStartSec=300
 Slice=ai-agents.slice

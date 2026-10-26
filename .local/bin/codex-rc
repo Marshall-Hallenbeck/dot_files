@@ -3,6 +3,12 @@ set -euo pipefail
 
 unit=codex-app-server.service
 action="${1:-status}"
+codex_bin="$HOME/.codex/packages/standalone/current/bin/codex"
+
+[[ -x "$codex_bin" ]] || {
+  echo "Missing packaged Codex CLI: $codex_bin" >&2
+  exit 1
+}
 
 wait_ready() {
   local socket="$HOME/.codex/app-server-control/app-server-control.sock"
@@ -22,9 +28,8 @@ case "$action" in
     echo "Codex App Server is ready."
     ;;
   stop)
-    echo "Stopping Codex App Server (graceful MCP shutdown can take about 30 seconds)..."
+    echo "Stopping the Codex managed daemon..."
     systemctl --user stop "$unit"
-    "$HOME/.local/libexec/codex-rc-cleanup"
     echo "Codex App Server is stopped."
     ;;
   restart)
@@ -35,17 +40,17 @@ case "$action" in
     ;;
   enable)
     systemctl --user enable --now "$unit" agent-sync.timer
+    wait_ready
     ;;
   disable)
     systemctl --user disable --now "$unit" agent-sync.timer
-    "$HOME/.local/libexec/codex-rc-cleanup"
     ;;
   logs)
     exec journalctl --user -u "$unit" -n "${2:-100}" --no-pager
     ;;
   status)
     systemctl --user status "$unit" --no-pager || true
-    "$HOME/.codex/packages/standalone/current/codex" doctor --json | python3 -c 'import json,sys; x=json.load(sys.stdin); print(json.dumps(x["checks"].get("app_server.status"),indent=2))'
+    "$codex_bin" app-server daemon version
     ;;
   *)
     echo "Usage: codex-rc {start|stop|restart|status|logs|enable|disable}" >&2

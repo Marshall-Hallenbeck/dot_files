@@ -1335,9 +1335,9 @@ printf 'curl %s\n' "$*" >>"$CALL_LOG"
 cat <<'INSTALLER'
 printf 'installer %s\n' "$CODEX_NON_INTERACTIVE" >>"$CALL_LOG"
 release="$HOME/.codex/packages/standalone/releases/1.0.0"
-mkdir -p "$release"
-printf '#!/bin/sh\n' >"$release/codex"
-chmod +x "$release/codex"
+mkdir -p "$release/bin"
+printf '#!/bin/sh\n' >"$release/bin/codex"
+chmod +x "$release/bin/codex"
 ln -sfn "$release" "$HOME/.codex/packages/standalone/current"
 INSTALLER
 CURL
@@ -1356,7 +1356,7 @@ check "installer removes an npm-managed Codex" "npm uninstall -g @openai/codex" 
 check "installer runs the official Codex installer non-interactively, once" \
     "curl -fsSL https://chatgpt.com/codex/install.sh|installer 1" \
     "$(grep -E '^(curl|installer) ' "$codex_install_log" | paste -sd'|')"
-if [ -x "$codex_install_home/.codex/packages/standalone/current/codex" ]; then
+if [ -x "$codex_install_home/.codex/packages/standalone/current/bin/codex" ]; then
     res=published
 else
     res=missing

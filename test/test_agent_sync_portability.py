@@ -262,9 +262,11 @@ class AgentSyncPortabilityTests(unittest.TestCase):
         self.assertIn("ExecStart=%h/.local/bin/codex-config-sync --quiet", agent_service)
         self.assertNotIn("dotfiles-update", agent_service)
         self.assertIn("ExecStartPre=%h/.local/bin/dotfiles-update", maintenance)
-        self.assertIn("ExecStartPost=%h/.local/bin/codex-auto-update", maintenance)
+        self.assertNotIn("codex-auto-update", maintenance)
         self.assertIn("ExecStartPost=%h/.local/bin/claude-auto-update", maintenance)
         self.assertIn("ExecStartPre=%h/.local/bin/codex-config-sync --quiet", codex_service)
+        self.assertIn("remote-control start", codex_service)
+        self.assertNotIn("app-server --remote-control", codex_service)
         self.assertIn("%h/.local/bin/dotfiles-update", updater_service)
         self.assertNotIn("ExecStart=%h/.local/bin/dotfiles-update", agent_service)
 

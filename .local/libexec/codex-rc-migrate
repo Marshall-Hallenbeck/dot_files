@@ -1,0 +1,26 @@
+#!/bin/bash
+set -euo pipefail
+
+marker="$HOME/.codex/app-server-daemon-migrating"
+clear_marker() {
+    [ ! -e "$marker" ] || unlink -- "$marker"
+}
+mkdir -p "$(dirname "$marker")"
+: > "$marker"
+trap clear_marker EXIT
+
+sleep 3
+systemctl --user stop --no-block codex-app-server.service
+"$HOME/.local/libexec/codex-rc-cleanup" --force
+systemctl --user reset-failed codex-app-server.service
+
+codex_bin="$HOME/.codex/packages/standalone/current/bin/codex"
+daemon_bin="$HOME/.codex/packages/app-server-daemon/current/bin/codex"
+if [ -x "$daemon_bin" ]; then
+    "$codex_bin" app-server daemon enable-remote-control
+else
+    "$codex_bin" app-server daemon bootstrap --remote-control
+fi
+
+systemctl --user daemon-reload
+systemctl --user enable --now codex-app-server.service

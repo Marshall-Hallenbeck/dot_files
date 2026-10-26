@@ -1,17 +1,44 @@
 #!/usr/bin/env bash
 set -euo pipefail
-REAL="$HOME/.codex/packages/standalone/current/codex"
-MARKER="$HOME/.codex/remote-control-stopped"
-if [[ "${1:-}" == "app-server" && "${2:-}" == "daemon" ]]; then
-    case "${3:-status}" in
-        start|enable-remote-control) exec "$HOME/.local/bin/codex-rc" start ;;
-        stop|disable-remote-control) exec "$HOME/.local/bin/codex-rc" stop ;;
-        status) exec "$HOME/.local/bin/codex-rc" status ;;
-        bootstrap) exec "$HOME/.local/bin/codex-rc" enable ;;
-    esac
-fi
-if [[ "${1:-}" == "app-server" && "${2:-}" == "proxy" && -e "$MARKER" ]]; then
-    echo "Codex Remote Control is deliberately stopped; run: codex-rc start" >&2
+REAL="$HOME/.codex/packages/standalone/current/bin/codex"
+MIGRATION_MARKER="$HOME/.codex/app-server-daemon-migrating"
+REMOTE_CONTROL_MARKER="$HOME/.config/dotfiles/features/ai-remote-control"
+MANAGED="$HOME/.codex/packages/app-server-daemon/current/bin/codex"
+[[ -x "$REAL" ]] || {
+    echo "Missing packaged Codex CLI: $REAL" >&2
+    exit 1
+}
+arguments=("$@")
+is_proxy=false
+is_code_mode_host=false
+is_default_control_server=false
+for ((index = 0; index < ${#arguments[@]}; index++)); do
+    if [[ "${arguments[index]}" == "-c" && \
+          "${arguments[index + 1]:-}" == "features.code_mode_host=true" ]]; then
+        is_code_mode_host=true
+    fi
+    if [[ "${arguments[index]}" == "app-server" && \
+          "${arguments[index + 1]:-}" == "proxy" ]]; then
+        is_proxy=true
+    fi
+    if [[ "${arguments[index]}" == "--listen=unix://" || \
+          ( "${arguments[index]}" == "--listen" && \
+            "${arguments[index + 1]:-}" == "unix://" ) ]]; then
+        is_default_control_server=true
+    fi
+done
+if [[ -e "$MIGRATION_MARKER" && \
+      ( "$is_proxy" == true || \
+        ( "$is_code_mode_host" == true && "$is_default_control_server" == true ) ) ]]; then
+    echo "Codex daemon migration is in progress; retry after it completes" >&2
     exit 75
+fi
+if [[ -e "$REMOTE_CONTROL_MARKER" && -x "$MANAGED" ]]; then
+    if [[ "$is_code_mode_host" == true && "$is_default_control_server" == true ]]; then
+        exec "$REAL" app-server daemon start
+    fi
+    if [[ "$is_proxy" == true ]]; then
+        "$REAL" app-server daemon start
+    fi
 fi
 exec "$REAL" "$@"

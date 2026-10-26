@@ -263,11 +263,27 @@ fi
 if [ -L /usr/local/bin/codex ] && [ ! -e /usr/local/bin/codex ]; then
     sudo rm /usr/local/bin/codex
 fi
-# Guard on the release, not the command: once Remote Control is enabled,
-# ~/.local/bin/codex is a dotfiles wrapper that delegates to this binary.
-if [ ! -x ~/.codex/packages/standalone/current/codex ]; then
+# Let the official installer repair its launcher before the optional feature
+# installs the transparent wrapper again.
+if [ -L "$HOME/.local/bin/codex" ] && \
+   [ "$(readlink "$HOME/.local/bin/codex")" = "${DOTFILES_DIR:-$HOME/.dot_files}/.local/bin/codex" ]; then
+    unlink -- "$HOME/.local/bin/codex"
+fi
+# Guard on the package entrypoint, not the command: once Remote Control is
+# enabled, ~/.local/bin/codex is a transparent dotfiles launcher.
+if [ ! -x ~/.codex/packages/standalone/current/bin/codex ] || \
+   [ ! -x "$HOME/.local/bin/codex" ]; then
     echo "Installing OpenAI Codex..."
     curl -fsSL https://chatgpt.com/codex/install.sh | CODEX_NON_INTERACTIVE=1 PATH="$HOME/.local/bin:$PATH" sh
+fi
+codex_package="$HOME/.codex/packages/standalone/current/bin/codex"
+[ -x "$codex_package" ] || {
+    echo "ERROR: packaged Codex CLI is missing: $codex_package" >&2
+    exit 1
+}
+if [ ! -e "$HOME/.local/bin/codex" ]; then
+    mkdir -p "$HOME/.local/bin"
+    ln -s "$codex_package" "$HOME/.local/bin/codex"
 fi
 
 link_file "$DOTFILES_DIR/global-AGENTS.md" ~/.codex/AGENTS.md
@@ -402,6 +418,9 @@ link_file "$DOTFILES_DIR/scripts/dotfiles" "$HOME/.local/bin/dotfiles"
 # Run one full sync now. Enable the timer only where systemd is the init system.
 if [ -d /run/systemd/system ]; then
     "$DOTFILES_DIR/scripts/dotfiles" sync-enable
+    if [ -e "$HOME/.config/dotfiles/features/ai-remote-control" ]; then
+        "$DOTFILES_DIR/scripts/dotfiles" feature-enable ai-remote-control
+    fi
 else
     DOTFILES_SKIP_SYSTEMD=1 "$DOTFILES_DIR/scripts/dotfiles" sync-enable
 fi
@@ -463,3 +482,7 @@ fi
 
 echo "Environment setup complete!"
 echo "Run 'dotfiles status' to verify symlinks."
+echo ""
+echo "Optional features:"
+echo "  Remote Control for Codex and Claude:"
+echo "    dotfiles feature-enable ai-remote-control"

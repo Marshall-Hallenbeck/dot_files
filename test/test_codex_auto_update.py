@@ -468,7 +468,7 @@ class CodexAutoUpdateTests(unittest.TestCase):
                 self.assertNotEqual(result.returncode, 0)
                 self.assertIn("finite positive number", result.stderr)
 
-    def test_updater_is_deployed_after_configuration_sync(self) -> None:
+    def test_custom_updater_is_not_scheduled_for_native_daemon(self) -> None:
         deployer = (REPO / "scripts/dotfiles").read_text()
         service = (REPO / ".config/systemd/user/agent-sync.service").read_text()
         maintenance = (
@@ -480,7 +480,7 @@ class CodexAutoUpdateTests(unittest.TestCase):
 
         self.assertIn(".local/bin/codex-auto-update", deployer)
         self.assertIn(sync_exec, service)
-        self.assertIn(updater_exec, maintenance)
+        self.assertNotIn(updater_exec, maintenance)
         updater = UPDATER.read_text()
         self.assertIn('"CODEX_RELEASE": target_version', updater)
         self.assertIn('DEFAULT_INSTALLER_URL = "https://chatgpt.com/codex/install.sh"', updater)

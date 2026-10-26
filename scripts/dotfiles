@@ -28,6 +28,7 @@ AI_REMOTE_CONTROL_PATHS=(
     .local/libexec/ai-config-audit.py
     .local/libexec/codex-app-server-watchdog.py
     .local/libexec/codex-rc-cleanup
+    .local/libexec/codex-rc-migrate
 )
 
 is_agent_sync_path() {
@@ -335,6 +336,96 @@ enable_agent_sync_timer() {
     systemctl --user enable --now agent-sync.timer
 }
 
+enable_user_linger() {
+    local account
+    account="$(id -un)"
+    if loginctl show-user "$account" -p Linger 2>/dev/null | grep -qx 'Linger=yes'; then
+        return
+    fi
+    if sudo -n loginctl enable-linger "$account" 2>/dev/null; then
+        return
+    fi
+    echo "Remote Control starts at login. For boot startup, run: sudo loginctl enable-linger $account" >&2
+}
+
+enable_remote_control_services() {
+    [ "${DOTFILES_SKIP_SYSTEMD:-0}" != "1" ] || return 0
+
+    local codex_bin="$HOME/.codex/packages/standalone/current/bin/codex"
+    local daemon_bin="$HOME/.codex/packages/app-server-daemon/current/bin/codex"
+    if [ -e "$DOTFILES_DIR/.config/systemd/user/codex-app-server.service" ]; then
+        [ -x "$codex_bin" ] || {
+            echo "Missing packaged Codex CLI: $codex_bin" >&2
+            return 1
+        }
+        local cleanup="$DOTFILES_DIR/.local/libexec/codex-rc-cleanup"
+        [ -x "$cleanup" ] || {
+            echo "Missing unmanaged Codex app-server cleanup: $cleanup" >&2
+            return 1
+        }
+        local cleanup_status=0
+        "$cleanup" --check || cleanup_status=$?
+        case "$cleanup_status" in
+            0)
+                if [ -x "$daemon_bin" ]; then
+                    "$codex_bin" app-server daemon enable-remote-control
+                else
+                "$codex_bin" app-server daemon bootstrap --remote-control
+                fi
+                systemctl --user enable --now codex-app-server.service
+                ;;
+            75)
+                command -v systemd-run >/dev/null 2>&1 || {
+                    echo "Missing command required for Codex daemon migration: systemd-run" >&2
+                    return 1
+                }
+                local migration="$DOTFILES_DIR/.local/libexec/codex-rc-migrate"
+                [ -f "$migration" ] || {
+                    echo "Missing Codex daemon migration script: $migration" >&2
+                    return 1
+                }
+                local migration_marker="$HOME/.codex/app-server-daemon-migrating"
+                mkdir -p "$(dirname "$migration_marker")"
+                : > "$migration_marker"
+                if ! systemd-run --user --unit=codex-app-server-migration \
+                    --collect --no-block /bin/bash "$migration"; then
+                    unlink -- "$migration_marker"
+                    return 1
+                fi
+                echo "The Codex daemon migration is running in the background. Current Remote Control clients will reconnect."
+                ;;
+            *) return "$cleanup_status" ;;
+        esac
+    fi
+
+    local projects_dir="$HOME/.config/claude-rc/projects"
+    local project project_count=0 project_name
+    if [ -e "$DOTFILES_DIR/.config/systemd/user/claude-rc@.service" ]; then
+        [ -x "$HOME/.local/bin/claude" ] || {
+            echo "Missing Claude Code CLI: $HOME/.local/bin/claude" >&2
+            return 1
+        }
+        mkdir -p "$projects_dir"
+        shopt -s nullglob
+        for project in "$projects_dir"/*; do
+            if [ ! -L "$project" ] || [ ! -d "$project" ]; then
+                echo "Invalid Claude Remote Control project link: $project" >&2
+                shopt -u nullglob
+                return 1
+            fi
+            project_name="$(basename "$project")"
+            systemctl --user enable --now "claude-rc@$project_name.service"
+            project_count=$((project_count + 1))
+        done
+        shopt -u nullglob
+        if [ "$project_count" -eq 0 ]; then
+            echo "No Claude Remote Control projects are registered under $projects_dir" >&2
+        fi
+    fi
+
+    enable_user_linger
+}
+
 cmd_sync_enable() {
     local rel_path
     for rel_path in "${AGENT_SYNC_PATHS[@]}"; do
@@ -362,13 +453,19 @@ cmd_feature_enable() {
         exit 1
     fi
 
+    if [ -e "$DOTFILES_DIR/.config/systemd/user/codex-app-server.service" ] && \
+       [ ! -x "$HOME/.codex/packages/standalone/current/bin/codex" ]; then
+        echo "Missing packaged Codex CLI: $HOME/.codex/packages/standalone/current/bin/codex" >&2
+        exit 1
+    fi
     provision_codex_config_sync
     deploy_managed_paths "$feature" "${AI_REMOTE_CONTROL_PATHS[@]}"
     mkdir -p "$(dirname "$AI_REMOTE_CONTROL_MARKER")"
     : > "$AI_REMOTE_CONTROL_MARKER"
     enable_agent_sync_timer
+    enable_remote_control_services
 
-    echo "Enabled $feature: $DEPLOY_CHANGED link(s) updated; consolidated synchronization timer enabled; no agent services were restarted."
+    echo "Enabled $feature: $DEPLOY_CHANGED link(s) updated; managed Remote Control services are enabled."
     if [ -n "$DEPLOY_BACKUP_ROOT" ]; then
         echo "Backups: $DEPLOY_BACKUP_ROOT"
     fi

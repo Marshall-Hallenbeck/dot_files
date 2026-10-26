@@ -102,7 +102,7 @@ echo "── Codex ──"
 # The Remote Control wrapper and codex-app-server.service run this path. A
 # wildcard match on any vendor bin directory once linked it to the vendored
 # zsh, which holds no codex binary.
-check "codex binary published at packages/standalone/current" test -x ~/.codex/packages/standalone/current/codex
+check "codex binary published at packages/standalone/current/bin" test -x ~/.codex/packages/standalone/current/bin/codex
 
 echo "── Default shell ──"
 check "zsh is default shell" grep -q "testuser.*/zsh" /etc/passwd
