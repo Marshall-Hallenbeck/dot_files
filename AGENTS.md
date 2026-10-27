@@ -47,7 +47,7 @@ shellcheck install_environment.sh security.sh
 - Never create `-team`, `-max`, or model-variant copies of skills. Subagents inherit the parent session's model and effort level. Variant skills drift silently from the canonical version.
 - Agent frontmatter `model: haiku` (or any explicit model) overrides session inheritance. Omit the `model` field to inherit from the session.
 - `/ship` is the review-to-merge pipeline. Its phases are numbered and cross-referenced (`until` targets, "returns to Phase 4 or Phase 6"); when inserting or removing a phase, update every phase reference. It orchestrates project procedures (`run-tests`, `safe-commit`, `create-pr`) when a repository ships them; add project-specific mechanics to those project files, not to `/ship`.
-- Multiple skills use the same test runner detection table (fix-tests, write-tests, run-unit-tests, review). Keep them in sync when adding runners.
+- Test, review, and test-writing skills share `.claude/skills/run-tests/references/runner-selection.md`. Update that guide when changing runner selection.
 - Docker tests need `.dockerignore` (excludes `.git`) and `COPY --chown=testuser:testuser` in the Dockerfile — `git init` inside the container fails without correct ownership.
 - Plugins are declared in `settings.json` (`enabledPlugins`) but NOT yet installed by the script — `claude plugin install` commands are still needed.
 - `settings.local.json` contains machine-specific permissions — don't put global settings there.

@@ -27,18 +27,19 @@ Use when skills/agents drift, overlap, or routing behavior becomes confusing.
 1. **Inventory**
    - Skills (`.claude/skills/*/SKILL.md`)
    - Agents (`.claude/agents/*.md`)
-   - Hooks (`.claude/hooks.json`, `hookify*.md`)
+   - Hook commands in `.claude/settings.json`, hook scripts, and `hookify*.md`
    - Global instructions (`global-AGENTS.md`)
 2. **Detect overlaps**
    - Multiple skills trying to own the same command intent
    - Test workflows mixing unit/integration/full-gate responsibilities
    - Commit workflows mixing scoped vs full-worktree behavior
 3. **Normalize boundaries**
-   - Commit group: `/safe-commit`, `/safe-commit-all`
+   - Commit group: `/commit` (session scope) and `/safe-commit-all` (all changes), sharing one commit procedure
    - Test group: `/run-unit-tests`, `/run-integration-tests`, `/run-quality-gate`, `/run-tests`
    - Review group: `/ship` (review-to-merge pipeline) + `/review` + `/security-review` + `/overcautious-check`
 4. **Validate install wiring (dotfiles repo)**
-   - Ensure `install_environment.sh` includes every canonical skill in `SKILL_DIRS`.
+   - Check directory loops in `install_environment.sh` and `.local/libexec/codex-config-sync.py`.
+   - Verify links resolve and managed exclusions survive updates. Keep account downloads out of Git.
 5. **Report**
    - What overlapped
    - What changed

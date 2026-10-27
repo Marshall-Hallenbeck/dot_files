@@ -21,17 +21,9 @@ If called from a composite skill (e.g., `/ship`) that already has test failure o
 
 ### 0. Detect Test Runner
 
-Auto-detect from project files:
-
-| Indicator | Runner | Run command | Single test command |
-|-----------|--------|-------------|---------------------|
-| `pyproject.toml`, `pytest.ini`, `conftest.py` | pytest | `pytest tests/ -v 2>&1` | `pytest <file>::<test> -v 2>&1` |
-| `jest.config.*`, `package.json` scripts | Jest | `npx jest --verbose --no-coverage 2>&1` | `npx jest --testPathPattern="<file>" --testNamePattern="<test>" 2>&1` |
-| `vitest.config.*` | Vitest | `npx vitest run 2>&1` | `npx vitest run <file> -t "<test>" 2>&1` |
-| `Cargo.toml` | cargo | `cargo test 2>&1` | `cargo test <test_name> 2>&1` |
-| `go.mod` | go | `go test ./... 2>&1` | `go test -run <TestName> ./path/... 2>&1` |
-
-If the project uses `uv` (check for `uv.lock`), prefix pytest with `uv run`.
+Read [runner selection](../run-tests/references/runner-selection.md).
+Select the project wrapper and requested suites once. Use the selected runner's
+filter syntax for individual failures. Preserve configured setup and scope.
 
 ### 1. Run Full Test Suite
 
@@ -71,7 +63,7 @@ Edit the source code (or test, with justification). Keep the fix minimal -- don'
 
 #### e) Re-run that specific test
 
-Use the single test command from the runner detection table above.
+Use the selected runner's single-test filter through the project wrapper.
 
 **If it passes:** Record the fix and move to the next failure.
 

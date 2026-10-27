@@ -1,99 +1,28 @@
 ---
 name: run-quality-gate
-description: "Run full quality gate: linting, type checks, unit tests, and integration tests — all in parallel."
+description: "Run the project's applicable lint, type, unit, and integration checks within available resource limits."
 disable-model-invocation: false
 ---
 
 # Run Quality Gate
 
-Runs the full verification pipeline for high-confidence changes. All gates run **in parallel via background agents** for maximum speed.
+Use `/run-quality-gate` for full validation of the requested work.
+Read [runner selection](../run-tests/references/runner-selection.md) first.
 
-## Project assumptions — detect and adapt before running
+Use the project's documented quality-gate wrapper when it provides the requested
+checks. Otherwise, select applicable checks from the project's configuration.
+Do not assume a Python backend or a `frontend/` directory.
 
-The gate commands below assume a Python-backend (`uv`, `src/`, `tests/`) plus `frontend/` (Jest + Playwright) layout. Before running, detect the actual project and **skip or adapt any gate that does not apply**:
-- No `uv.lock` → drop the `uv run` prefix (use plain `pytest`/`ruff`/`pyright`, or the project's package manager).
-- No `frontend/` dir → skip Gates 3, 5, 6 (TypeScript, Jest, Playwright).
-- Source dir isn't `src/` → substitute the real path; detect the test runner via the same table `/run-unit-tests` uses.
-- No Playwright / no `test:e2e:safe` script → skip Gate 6.
+Run independent checks in parallel within available process and agent limits.
+Use batches or sequential execution when needed. If subagents are unavailable,
+run the same checks directly. Do not require a fixed number of agents.
 
-Run only the gates that match the project. A gate skipped because its tooling is absent is a PASS, not a failure.
+Complete file-changing fixes before checks that consume those files.
+Do not stage changes as part of validation.
 
-## Usage
+Resolve failures within the authorized scope. Do not hide warnings, omit failing
+suites, or change assertions solely to pass. Report external blockers or required
+scope decisions directly. Re-run affected checks after a fix.
 
-```text
-/run-quality-gate
-```
-
-## Execution Strategy
-
-**IMPORTANT: Run all 6 gates in parallel as background agents in a single message.** Do not run them sequentially. Each gate is independent — spawn all 6 agents at once and wait for results.
-
-### Gate 1: Lint/format (Python)
-```bash
-# Auto-detect: if project has uv.lock, use uv run
-uv run ruff check --fix src/ tests/ && uv run ruff format src/ tests/
-# If ruff --fix made changes, stage them
-```
-Agent prompt: "Run ruff check --fix and ruff format on src/ and tests/. Stage any auto-fixed files. Report errors that couldn't be auto-fixed."
-
-### Gate 2: Python type checking
-```bash
-uv run pyright src/
-```
-Agent prompt: "Run pyright on src/. Report all type errors with file:line locations."
-
-### Gate 3: TypeScript type checking
-```bash
-cd frontend && npx tsc --noEmit
-```
-Agent prompt: "Run tsc --noEmit in the frontend/ directory. Report all type errors."
-
-### Gate 4: Python unit tests
-```bash
-uv run pytest tests/ -q
-```
-Agent prompt: "Run the full pytest suite. Report pass/fail counts and any failures with tracebacks."
-
-### Gate 5: Frontend unit tests (Jest)
-```bash
-cd frontend && npx jest --no-coverage
-```
-Agent prompt: "Run the full Jest test suite in frontend/. Report pass/fail counts and any failures."
-
-### Gate 6: E2E tests (Playwright)
-```bash
-cd frontend && npm run test:e2e:safe
-```
-This runs `playwright test --grep-invert @mutation` (read-only, skips mutation tests).
-Agent prompt: "Run Playwright E2E tests via npm run test:e2e:safe in frontend/. Report pass/fail counts and any failures."
-
-## After All Gates Complete
-
-1. Collect results from all 6 agents
-2. Present the summary table
-3. If ANY gate failed, fix the errors — do not just report them
-4. Re-run only the failed gates after fixing
-5. Repeat until all gates pass
-
-## Enforcement
-
-- Any failing gate means overall failure.
-- **Fix ALL errors AND warnings** — lint errors, lint warnings, type errors, and test failures must all be fixed regardless of when they were introduced. "Pre-existing" is not a valid reason to skip, and a warning is not a valid thing to leave behind. A gate passes only at **zero errors and zero warnings**.
-- **Never silence to pass.** No inline `eslint-disable` / `@ts-ignore` / `@ts-expect-error`, no `.skip` / `.only`, no skipping failing suites. Fix the underlying cause. If a lint rule is genuinely wrong for this codebase, change the lint *config* deliberately and say so — don't suppress inline.
-- Do not report errors and move on — fix them before claiming the gate passed.
-
-## Output Format
-
-```markdown
-## Quality Gate Results
-
-| Gate | Result | Details |
-|------|--------|---------|
-| Ruff lint/format | PASS/FAIL | N errors |
-| Pyright | PASS/FAIL | N errors |
-| TypeScript | PASS/FAIL | N errors |
-| Pytest | PASS/FAIL | N passed, N failed |
-| Jest | PASS/FAIL | N passed, N failed |
-| Playwright E2E | PASS/FAIL | N passed, N failed |
-| **Final verdict** | **PASS/FAIL** | |
-```
+Report exact commands, workspaces, and results. Distinguish NOT APPLICABLE from
+PASS. The final result fails if a required check fails or remains unrun.

@@ -67,6 +67,11 @@
     ],
     "defaultMode": "auto"
   },
+  "skillOverrides": {
+    "anthropic-skills:import-memory": "off",
+    "anthropic-skills:learn": "off",
+    "anthropic-skills:morning": "off"
+  },
   "hooks": {
     "SessionStart": [
       {

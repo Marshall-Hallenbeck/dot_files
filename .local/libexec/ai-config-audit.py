@@ -2,6 +2,7 @@
 '''exec' "$HOME/.local/share/codex-config-sync-venv-current/bin/python" "$0" "$@"
 ' '''
 """Monthly no-agent audit for the local Claude/Codex/Hermes configuration."""
+import argparse
 import json
 import re
 import stat
@@ -11,6 +12,7 @@ import urllib.request
 from pathlib import Path
 from typing import Any
 
+import tomlkit
 import yaml
 
 HOME = Path.home()
@@ -91,9 +93,104 @@ def report(findings: list[str], checks: list[str]) -> int:
     return 0
 
 
-def main() -> int:
+def claude_codex_findings(home: Path) -> list[str]:
     findings: list[str] = []
+    for relative in (
+        ".claude/hooks", ".claude/agents", ".claude/commands",
+        ".codex/hooks", ".agents/skills",
+    ):
+        for path in sorted((home / relative).glob("*")):
+            if path.is_symlink() and not path.exists():
+                findings.append(f"broken AI config link: {path}")
+
+    settings_path = home / ".claude/settings.json"
+    config_path = home / ".codex/config.toml"
+    try:
+        settings = json.loads(settings_path.read_text())
+    except (OSError, ValueError) as error:
+        findings.append(f"cannot read {settings_path}: {type(error).__name__}")
+        return findings
+    try:
+        codex = tomlkit.parse(config_path.read_text())
+    except (OSError, ValueError) as error:
+        findings.append(f"cannot read {config_path}: {type(error).__name__}")
+        return findings
+    entries = codex.get("skills", {}).get("config", [])
+    disabled = {entry["path"] for entry in entries if entry.get("enabled") is False}
+    for path in disabled:
+        if "/plugins/cache/" in path and not Path(path).is_file():
+            findings.append(f"stale Codex plugin skill exclusion: {path}")
+
+    excluded = {
+        name.removeprefix("anthropic-skills:")
+        for name, value in settings.get("skillOverrides", {}).items()
+        if name.startswith("anthropic-skills:") and value == "off"
+    }
+    for account in sorted((home / ".claude/skills/synced").glob("*")):
+        if not account.is_dir() or account.is_symlink():
+            continue
+        manifest_path = account / "manifest.json"
+        try:
+            manifest = json.loads(manifest_path.read_text())
+        except (OSError, ValueError) as error:
+            findings.append(f"cannot read {manifest_path}: {type(error).__name__}")
+            continue
+        listed = {skill["skillId"] for skill in manifest.get("skills", [])}
+        for name in sorted(excluded):
+            path = account / name / "SKILL.md"
+            if name in listed or path.exists():
+                findings.append(f"excluded synced skill returned: {account.name}/{name}")
+            if str(path.resolve()) not in disabled:
+                findings.append(f"missing Codex skill exclusion: {path}")
+        creator = account / "skill-creator/SKILL.md"
+        if (
+            (home / ".codex/skills/.system/skill-creator/SKILL.md").is_file()
+            and str(creator.resolve()) not in disabled
+        ):
+            findings.append(f"missing Codex duplicate exclusion: {creator}")
+
+    for name in ("brainstorming", "systematic-debugging"):
+        if not (home / f".claude/skills/{name}/SKILL.md").is_file():
+            continue
+        for path in (home / ".codex/plugins/cache").glob(
+            f"*/superpowers/*/skills/{name}/SKILL.md"
+        ):
+            if str(path.resolve()) not in disabled:
+                findings.append(f"missing Codex duplicate exclusion: {path}")
+
+    registry_path = home / ".claude/plugins/installed_plugins.json"
+    if registry_path.is_file():
+        registry = json.loads(registry_path.read_text())
+        for name, records in registry.get("plugins", {}).items():
+            if any(record["scope"] == "user" for record in records):
+                projects = {
+                    record["projectPath"] for record in records
+                    if record["scope"] == "project"
+                }
+                for project in sorted(projects):
+                    findings.append(f"duplicate user/project plugin: {name} in {project}")
+
+    root = home / ".claude/skills"
+    for skill in sorted(root.glob("*/SKILL.md")):
+        for path in [skill, *sorted((skill.parent / "references").glob("*.md"))]:
+            for target in re.findall(r"\]\(([^\s)#]+)(?:#[^)]*)?\)", path.read_text()):
+                if "://" in target or target.startswith(("/", "#")):
+                    continue
+                if not (path.parent / target).exists():
+                    findings.append(f"broken skill reference: {path} -> {target}")
+    return findings
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--static-only", action="store_true", help="check local Claude/Codex files only")
+    args = parser.parse_args()
+    findings = claude_codex_findings(HOME)
     checks: list[str] = []
+    if not findings:
+        checks.append("Claude/Codex links, skill policy, plugin scopes, and skill references checked")
+    if args.static_only:
+        return report(findings, checks)
     config_path = HOME / ".hermes/config.yaml"
     try:
         loaded_config = yaml.safe_load(config_path.read_text())

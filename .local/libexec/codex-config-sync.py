@@ -103,7 +103,7 @@ def sync_skills(previous_managed: set[str]) -> tuple[list[str], list[str]]:
     self_referential: set[str] = set()
     if source_root.is_dir():
         for path in source_root.iterdir():
-            if not path.is_dir():
+            if path.name.startswith(".") or not path.is_dir():
                 continue
             if resolved_target in path.resolve().parents:
                 self_referential.add(path.name)
@@ -124,6 +124,112 @@ def sync_skills(previous_managed: set[str]) -> tuple[list[str], list[str]]:
         if replace_path_with_link_or_copy(source, target):
             changed.append(f"{'copied' if os.name == 'nt' else 'linked'}:{name}")
     return sorted(current), changed
+
+
+def disabled_synced_skills() -> set[str]:
+    overrides = load_json(HOME / ".claude/settings.json").get("skillOverrides", {})
+    return {
+        name.removeprefix("anthropic-skills:")
+        for name, value in overrides.items()
+        if name.startswith("anthropic-skills:")
+        and value == "off"
+        and pathlib.Path(name.removeprefix("anthropic-skills:")).name
+        == name.removeprefix("anthropic-skills:")
+        and name.removeprefix("anthropic-skills:") not in {".", "..", ""}
+    }
+
+
+def prune_synced_skills() -> list[str]:
+    excluded = disabled_synced_skills()
+    changed: list[str] = []
+    root = HOME / ".claude/skills/synced"
+    for account in sorted(root.glob("*")):
+        if not account.is_dir() or account.is_symlink():
+            continue
+        manifest_path = account / "manifest.json"
+        manifest = load_json(manifest_path)
+        skills = manifest.get("skills", [])
+        retained = [skill for skill in skills if skill["skillId"] not in excluded]
+        for name in sorted(excluded):
+            target = account / name
+            if target.is_symlink():
+                target.unlink()
+            elif target.is_dir():
+                shutil.rmtree(target)
+            else:
+                continue
+            changed.append(f"removed:synced/{account.name}/{name}")
+        if retained != skills:
+            manifest["skills"] = retained
+            manifest_path.write_text(json.dumps(manifest, indent=2) + "\n")
+            changed.append(f"filtered:synced/{account.name}/manifest.json")
+    return changed
+
+
+def prune_owned_links() -> list[str]:
+    changed: list[str] = []
+    owners = [
+        (HOME / f".claude/{kind}", HOME / f".dot_files/.claude/{kind}")
+        for kind in ("hooks", "agents", "commands")
+    ]
+    owners.append((HOME / ".codex/hooks", HOME / ".claude/hooks"))
+    for directory, source in owners:
+        for link in sorted(directory.glob("*")):
+            if not link.is_symlink() or link.exists():
+                continue
+            target = pathlib.Path(os.path.abspath(link.parent / link.readlink()))
+            if target == source / link.name:
+                link.unlink()
+                changed.append(f"removed:{link.relative_to(HOME)}")
+    return changed
+
+
+def desired_skill_exclusions() -> set[str]:
+    paths: set[str] = set()
+    for account in (HOME / ".claude/skills/synced").glob("*"):
+        if not account.is_dir() or account.is_symlink():
+            continue
+        names = disabled_synced_skills()
+        if (HOME / ".codex/skills/.system/skill-creator/SKILL.md").is_file():
+            names.add("skill-creator")
+        paths.update(str((account / name / "SKILL.md").resolve()) for name in names)
+    for name in ("brainstorming", "systematic-debugging"):
+        if (HOME / f".claude/skills/{name}/SKILL.md").is_file():
+            paths.update(
+                str(path.resolve()) for path in (HOME / ".codex/plugins/cache").glob(
+                    f"*/superpowers/*/skills/{name}/SKILL.md"
+                )
+            )
+    return paths
+
+
+def sync_skill_exclusions(previous: set[str]) -> tuple[list[str], list[str]]:
+    path = HOME / ".codex/config.toml"
+    doc = tomlkit.parse(path.read_text()) if path.is_file() else tomlkit.document()
+    desired = desired_skill_exclusions()
+    skills = doc.setdefault("skills", tomlkit.table())
+    entries = skills.setdefault("config", tomlkit.aot())
+    changed: list[str] = []
+    for index in range(len(entries) - 1, -1, -1):
+        entry_path = str(entries[index].get("path", ""))
+        if entry_path in previous - desired:
+            del entries[index]
+            changed.append(f"removed:{entry_path}")
+    for excluded in sorted(desired):
+        existing = next((entry for entry in entries if entry.get("path") == excluded), None)
+        if existing is None:
+            entry = tomlkit.table()
+            entry["path"] = excluded
+            entry["enabled"] = False
+            entries.append(entry)
+            changed.append(f"disabled:{excluded}")
+        elif existing.get("enabled") is not False:
+            existing["enabled"] = False
+            changed.append(f"disabled:{excluded}")
+    if changed:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(tomlkit.dumps(doc))
+    return sorted(desired), changed
 
 
 def sync_plugins() -> list[str]:
@@ -236,19 +342,28 @@ def main() -> int:
     state_file = STATE_DIR / "compat.json"
     with file_lock(STATE_DIR / "compat.lock"):
         state = load_json(state_file)
+        link_changes = prune_owned_links()
+        synced_changes = prune_synced_skills()
         hook_changes = sync_hook_scripts()
         skills, skill_changes = sync_skills(set(state.get("skillNames", [])))
         feature_changes = sync_global_settings(HOME / ".codex/config.toml")
         plugin_changes = sync_plugins()
+        exclusions, exclusion_changes = sync_skill_exclusions(
+            set(state.get("excludedSkillPaths", []))
+        )
         result = {
             "status": "ok",
             "skills": skill_changes,
             "features": feature_changes,
             "plugins": plugin_changes,
             "hooks": hook_changes,
+            "links": link_changes,
+            "syncedSkills": synced_changes,
+            "skillExclusions": exclusion_changes,
         }
         state.update({
             "skillNames": skills,
+            "excludedSkillPaths": exclusions,
             "updatedAt": int(time.time()),
             "lastCompatResult": result,
         })

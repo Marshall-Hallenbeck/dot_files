@@ -359,8 +359,7 @@ for hook_file in "$DOTFILES_DIR"/.claude/hooks/*; do
     link_file "$hook_file" ~/.claude/hooks/"$(basename "$hook_file")"
 done
 
-# Remove dangling symlinks left behind by hooks/settings deleted from the repo
-find ~/.claude/hooks -maxdepth 1 -xtype l -delete || true
+# Managed hook, agent, and command links are pruned by codex-config-sync below.
 if [ -L ~/.claude/settings.local.json ] && [ ! -e ~/.claude/settings.local.json ]; then
     rm ~/.claude/settings.local.json
 fi

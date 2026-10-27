@@ -91,15 +91,9 @@ For each finding:
 
 If a finding is a pure style/naming issue (P3) that doesn't affect behavior, skip the regression test.
 
-Run tests after all fixes to verify nothing broke. Auto-detect the test runner:
-
-| Indicator | Command |
-|-----------|---------|
-| `pyproject.toml`, `pytest.ini`, `conftest.py` | `pytest tests/ -x -q` (prefix with `uv run` if `uv.lock` exists) |
-| `jest.config.*`, `package.json` jest config | `npx jest --bail --no-coverage` |
-| `vitest.config.*` | `npx vitest run` |
-| `Cargo.toml` | `cargo test` |
-| `go.mod` | `go test ./...` |
+Run affected tests after fixes. Read
+[runner selection](../run-tests/references/runner-selection.md) and use the
+project's wrappers. Reuse current passing results unless a fix changed inputs.
 
 If tests fail due to a fix, adjust the fix until tests pass.
 
