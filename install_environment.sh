@@ -22,6 +22,26 @@ have_command() {
     return 0
 }
 
+# Non-login SSH does not load ~/.local/bin onto PATH. Always link through the
+# user launchers so optional wrappers and future updates remain in effect.
+install_codex_ssh_links() {
+    local system_bin="${1:-/usr/local/bin}" name src dest
+    sudo mkdir -p -- "$system_bin"
+    for name in codex codex-rc; do
+        src="$HOME/.local/bin/$name"
+        dest="$system_bin/$name"
+        [ -x "$src" ] || continue
+        if [ -L "$dest" ]; then
+            [ "$(readlink "$dest")" != "$src" ] || continue
+        elif [ -e "$dest" ]; then
+            echo "ERROR: refusing to replace non-symlink: $dest" >&2
+            return 1
+        fi
+        # -nT replaces directory symlinks themselves, never their contents.
+        sudo ln -sfnT -- "$src" "$dest"
+    done
+}
+
 # Create a symlink from repo file to destination, backing up existing non-link files.
 link_file() {
     local src="$1" dest="$2"
@@ -285,6 +305,7 @@ if [ ! -e "$HOME/.local/bin/codex" ]; then
     mkdir -p "$HOME/.local/bin"
     ln -s "$codex_package" "$HOME/.local/bin/codex"
 fi
+install_codex_ssh_links /usr/local/bin
 
 link_file "$DOTFILES_DIR/global-AGENTS.md" ~/.codex/AGENTS.md
 link_file "$DOTFILES_DIR/.codex/hooks.json" ~/.codex/hooks.json
@@ -423,6 +444,7 @@ if [ -d /run/systemd/system ]; then
 else
     DOTFILES_SKIP_SYSTEMD=1 "$DOTFILES_DIR/scripts/dotfiles" sync-enable
 fi
+install_codex_ssh_links /usr/local/bin
 
 # ── Commit-reference hooks and Codex trust gate ──────────────────
 # This gate exits nonzero when Codex has not trusted the hooks, so it runs after

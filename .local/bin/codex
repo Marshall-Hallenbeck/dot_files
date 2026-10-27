@@ -38,7 +38,7 @@ if [[ -e "$REMOTE_CONTROL_MARKER" && -x "$MANAGED" ]]; then
         exec "$REAL" app-server daemon start
     fi
     if [[ "$is_proxy" == true ]]; then
-        "$REAL" app-server daemon start
+        "$REAL" app-server daemon start >&2
     fi
 fi
 exec "$REAL" "$@"
