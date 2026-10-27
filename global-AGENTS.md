@@ -82,10 +82,7 @@ These rules apply to Claude and Codex in all projects and collaboration modes, i
 
 ## Git and Publishing
 
-- For requested changes to `~/.dot_files`, including shared Claude and Codex configuration, the user gives standing authority to commit and push the in-scope changes after relevant tests and an independent review pass. Do not wait for a separate commit or push request unless the user explicitly asks to keep the changes local.
-- Verify that the remote branch contains the commit before reporting the update complete. If tests, review, authentication, branch policy, or push fails, report the blocker. Do not bypass checks or force-push.
-- Do not include unrelated user changes, secrets, credentials, or host-local files. Keep public-repository content safe to publish.
-- For other repositories, do not commit unless the user explicitly asks to commit or invokes a skill that explicitly includes a commit.
+- Never run `git commit` unless the user explicitly asks to commit or invokes a skill that explicitly includes a commit.
 - Never add AI attribution, session links, or AI co-author lines to commits, pull requests, issues, code, or documentation unless a repository template requires a specific disclosure.
 - Do not use `--no-verify` or `git commit -n`.
 - Use Conventional Commit subjects. Add only real issue, pull request, and Sentry references.

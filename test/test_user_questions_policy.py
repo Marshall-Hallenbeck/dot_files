@@ -20,13 +20,10 @@ class UserQuestionsPolicyTests(unittest.TestCase):
         self.assertIn("autoResolutionMs", text)
         self.assertIn("do not perform work that depends on it", text)
 
-    def test_dotfiles_changes_have_standing_publish_authority(self):
+    def test_question_policy_does_not_grant_publish_authority(self):
         text = (REPO / "global-AGENTS.md").read_text()
-        self.assertIn("For requested changes to `~/.dot_files`", text)
-        self.assertIn("commit and push the in-scope changes", text)
-        self.assertIn("Verify that the remote branch contains the commit", text)
-        self.assertIn("For other repositories, do not commit", text)
-        self.assertIn("Do not include unrelated user changes", text)
+        self.assertIn("Never run `git commit` unless the user explicitly asks", text)
+        self.assertNotIn("standing authority to commit and push", text)
 
     def test_claude_disables_both_question_and_forwarded_dialog_expiry(self):
         settings = json.loads((REPO / ".claude/settings.json").read_text())
