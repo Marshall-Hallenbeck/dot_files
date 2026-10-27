@@ -12,14 +12,19 @@ These instructions apply to all projects. Project instructions add to or overrid
 - Give concise progress updates during tool work. State failures, causes, and fixes directly.
 - Do not agree only to be polite. State corrections with evidence.
 
-## Codex Questions
+## User Questions (Claude and Codex)
 
-These rules apply to Codex in all projects and collaboration modes.
+These rules apply to Claude and Codex in all projects and collaboration modes, including planning and implementation.
 
+- Whenever you need an answer, choice, clarification, or approval from the user, Claude must use `AskUserQuestion`. Codex must use `request_user_input`. Use the native structured question tool, not a shell prompt or a text list of choices.
+- Do not ask answer-required questions in ordinary chat text when the native question tool is available. This includes questions at the end of progress updates and final responses. Do not add optional closing questions in prose.
+- If a subagent needs a user decision, return it to the main agent. The main agent must ask through its native question tool.
+- If the native question tool is unavailable or fails, state that limitation. Leave the decision unresolved. Do not invent a tool call or perform work that requires the answer.
 - Never include `autoResolutionMs` or `auto_resolution_ms` when calling `request_user_input` or another user-question tool. Omit the parameter entirely; do not set it to zero or another value.
 - Do not set a timeout, deadline, or automatic answer for a user question. Wait for the user's explicit answer or cancellation, regardless of elapsed time.
 - Do not treat an empty response, a timeout, or a preselected option as the user's answer or approval. Keep the decision unresolved and do not perform work that depends on it.
 - Do not cancel or replace an unanswered question unless the user explicitly asks to cancel or replace it.
+- If the client closes or times out a question, do not select an answer or continue dependent work. Report the client limitation and wait for an explicit user answer.
 
 ## Environment
 
@@ -77,7 +82,10 @@ These rules apply to Codex in all projects and collaboration modes.
 
 ## Git and Publishing
 
-- Never run `git commit` unless the user explicitly asks to commit or invokes a skill that explicitly includes a commit.
+- For requested changes to `~/.dot_files`, including shared Claude and Codex configuration, the user gives standing authority to commit and push the in-scope changes after relevant tests and an independent review pass. Do not wait for a separate commit or push request unless the user explicitly asks to keep the changes local.
+- Verify that the remote branch contains the commit before reporting the update complete. If tests, review, authentication, branch policy, or push fails, report the blocker. Do not bypass checks or force-push.
+- Do not include unrelated user changes, secrets, credentials, or host-local files. Keep public-repository content safe to publish.
+- For other repositories, do not commit unless the user explicitly asks to commit or invokes a skill that explicitly includes a commit.
 - Never add AI attribution, session links, or AI co-author lines to commits, pull requests, issues, code, or documentation unless a repository template requires a specific disclosure.
 - Do not use `--no-verify` or `git commit -n`.
 - Use Conventional Commit subjects. Add only real issue, pull request, and Sentry references.

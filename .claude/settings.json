@@ -198,6 +198,7 @@
       "effortLevel": "high"
     }
   },
+  "askUserQuestionTimeout": "never",
   "dialogExpiry": "never",
   "pluginConfigs": {
     "agents-md@builtin": {
