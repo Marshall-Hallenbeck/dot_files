@@ -37,6 +37,7 @@ These rules apply to Claude and Codex in all projects and collaboration modes, i
 
 - Treat requests to implement, build, fix, or change as authority to complete the in-scope work.
 - Continue until the requested result is implemented and verified. Do not stop at a plan or partial implementation.
+- For a clear implementation request, use any needed plan internally and then implement it. Do not ask the user to approve a plan or choose an execution method.
 - Do not ask for information available in the repository, logs, issue, current system, or prior conversation.
 - Ask before a choice that materially changes user-visible behavior, scope, architecture, security, privacy, compatibility, deployment, or irreversible state.
 - Do not ask again for authority the user already gave. Do not ask permission for routine, reversible edits, fixes, or tests.
