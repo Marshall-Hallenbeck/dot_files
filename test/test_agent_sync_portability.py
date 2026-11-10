@@ -891,16 +891,13 @@ class AgentSyncPortabilityTests(unittest.TestCase):
             self.assertEqual(
                 systemctl_log.read_text().splitlines(),
                 [
-                    "--user disable --now dotfiles-update.timer",
                     "--user daemon-reload",
-                    "--user enable --now agent-sync.timer",
                     "--user daemon-reload",
-                    "--user enable --now agent-sync.timer",
                 ],
             )
             self.assertNotIn("restart", systemctl_log.read_text())
-            self.assertFalse(legacy_timer.exists())
-            self.assertFalse(legacy_timer.is_symlink())
+            # Timer migration belongs to explicit sync-enable, not deployment.
+            self.assertTrue(legacy_timer.is_symlink())
 
     def test_feature_enable_validates_managed_python_before_changes(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

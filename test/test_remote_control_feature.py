@@ -57,7 +57,7 @@ class RemoteControlFeatureTests(unittest.TestCase):
         self.assertEqual(managed, [])
         self.assertEqual(proxies, [42424243])
 
-    def test_feature_enable_uses_native_codex_and_registered_claude_services(
+    def test_feature_enable_only_deploys_even_with_unmanaged_workload(
         self,
     ) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -144,91 +144,26 @@ class RemoteControlFeatureTests(unittest.TestCase):
             )
 
             self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertEqual(cleanup_log.read_text(), "--check\n")
-            codex_calls = codex_log.read_text() if codex_log.exists() else ""
-            self.assertIn("app-server daemon bootstrap --remote-control", codex_calls)
-            calls = systemctl_log.read_text()
-            self.assertIn("--user enable --now codex-app-server.service", calls)
-            self.assertIn("--user enable --now claude-rc@example.service", calls)
-            wrapper_result = subprocess.run(
-                [str(installed_wrapper), "app-server", "daemon", "start"],
-                env=env,
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-            self.assertEqual(wrapper_result.returncode, 0, wrapper_result.stderr)
-            self.assertIn("app-server daemon start", codex_log.read_text())
-            self.assertNotIn("codex-rc", installed_wrapper.read_text())
+            self.assertEqual(systemctl_log.read_text(), "--user daemon-reload\n")
+            self.assertFalse(cleanup_log.exists())
+            self.assertFalse(codex_log.exists())
+            self.assertFalse(systemd_run_log.exists())
+            self.assertTrue(installed_wrapper.is_symlink())
+            self.assertIn("managed daemon package is missing", result.stderr)
+            self.assertIn("update --from-cli --yes", result.stderr)
 
-            self.make_executable(
-                home / ".codex/packages/app-server-daemon/current/bin/codex",
-                "#!/usr/bin/env bash\nexit 0\n",
-            )
-            codex_log.unlink()
-            code_mode_result = subprocess.run(
-                [
-                    str(installed_wrapper),
-                    "-c",
-                    "features.code_mode_host=true",
-                    "app-server",
-                    "--listen",
-                    "unix://",
-                ],
-                env=env,
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-            self.assertEqual(code_mode_result.returncode, 0, code_mode_result.stderr)
-            self.assertEqual(
-                codex_log.read_text(), "app-server daemon start\n"
-            )
-            codex_log.unlink()
-            proxy_result = subprocess.run(
-                [str(installed_wrapper), "app-server", "proxy"],
-                env=env,
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-            self.assertEqual(proxy_result.returncode, 0, proxy_result.stderr)
-            self.assertEqual(
-                codex_log.read_text(),
-                "app-server daemon start\napp-server proxy\n",
-            )
-
-            codex_log.unlink()
-            cleanup_log.unlink()
+            # Reconciliation must not migrate/terminate an existing workload.
             env["CLEANUP_STATUS"] = "75"
             result = subprocess.run(
                 [str(REPO / "scripts/dotfiles"), "feature-enable", "ai-remote-control"],
-                env=env,
-                capture_output=True,
-                text=True,
-                check=False,
+                env=env, capture_output=True, text=True, timeout=10, check=False,
             )
-
             self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertEqual(cleanup_log.read_text(), "--check\n")
+            self.assertEqual(systemctl_log.read_text(), "--user daemon-reload\n" * 2)
+            self.assertFalse(cleanup_log.exists())
             self.assertFalse(codex_log.exists())
-            self.assertIn(
-                "--user --unit=codex-app-server-migration --collect --no-block",
-                systemd_run_log.read_text(),
-            )
-            proxy_result = subprocess.run(
-                [str(installed_wrapper), "app-server", "proxy"],
-                env=env,
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-            self.assertEqual(proxy_result.returncode, 75)
-            self.assertIn("daemon migration is in progress", proxy_result.stderr)
-
-            migration = (REPO / ".local/libexec/codex-rc-migrate").read_text()
-            self.assertIn("codex-rc-cleanup\" --force", migration)
-            self.assertIn("app-server daemon bootstrap --remote-control", migration)
+            self.assertFalse(systemd_run_log.exists())
+            self.assertFalse((home / ".codex/app-server-daemon-migrating").exists())
 
 
 if __name__ == "__main__":

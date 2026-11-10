@@ -283,11 +283,13 @@ fi
 if [ -L /usr/local/bin/codex ] && [ ! -e /usr/local/bin/codex ]; then
     sudo rm /usr/local/bin/codex
 fi
-# Let the official installer repair its launcher before the optional feature
-# installs the transparent wrapper again.
+# Let the official installer handle only unguarded fresh installations.
+# Never unlink a deployed Desktop guard, including on failed package repair.
 if [ -L "$HOME/.local/bin/codex" ] && \
-   [ "$(readlink "$HOME/.local/bin/codex")" = "${DOTFILES_DIR:-$HOME/.dot_files}/.local/bin/codex" ]; then
-    unlink -- "$HOME/.local/bin/codex"
+   [ "$(readlink -f "$HOME/.local/bin/codex")" = "${DOTFILES_DIR:-$HOME/.dot_files}/.local/bin/codex" ] && \
+   [ ! -x "$HOME/.codex/packages/standalone/current/bin/codex" ]; then
+    echo "ERROR: guarded Codex package needs explicit maintenance repair; wrapper preserved." >&2
+    exit 1
 fi
 # Guard on the package entrypoint, not the command: once Remote Control is
 # enabled, ~/.local/bin/codex is a transparent dotfiles launcher.
@@ -438,8 +440,11 @@ link_file "$DOTFILES_DIR/scripts/dotfiles" "$HOME/.local/bin/dotfiles"
 # Run one full sync now. Enable the timer only where systemd is the init system.
 if [ -d /run/systemd/system ]; then
     "$DOTFILES_DIR/scripts/dotfiles" sync-enable
-    if [ -e "$HOME/.config/dotfiles/features/ai-remote-control" ]; then
+    if [ -e "$HOME/.config/dotfiles/features/ai-remote-control" ] || [ "${DOTFILES_SETUP_REMOTE_CONTROL:-0}" = "1" ]; then
         "$DOTFILES_DIR/scripts/dotfiles" feature-enable ai-remote-control
+    fi
+    if [ "${DOTFILES_SETUP_REMOTE_CONTROL:-0}" = "1" ]; then
+        "$DOTFILES_DIR/scripts/dotfiles" feature-setup ai-remote-control
     fi
 else
     DOTFILES_SKIP_SYSTEMD=1 "$DOTFILES_DIR/scripts/dotfiles" sync-enable
@@ -485,3 +490,4 @@ echo ""
 echo "Optional features:"
 echo "  Remote Control for Codex and Claude:"
 echo "    dotfiles feature-enable ai-remote-control"
+echo "    dotfiles feature-setup ai-remote-control  # fresh idle host; pins managed Codex to CLI"
