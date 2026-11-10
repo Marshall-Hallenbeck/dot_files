@@ -27,13 +27,20 @@ for ((index = 0; index < ${#arguments[@]}; index++)); do
         is_default_control_server=true
     fi
 done
-if [[ -e "$MIGRATION_MARKER" && \
+if [[ ( -e "$MIGRATION_MARKER" || -e "$HOME/.codex/app-server-daemon-setup-started" ) && \
       ( "$is_proxy" == true || \
         ( "$is_code_mode_host" == true && "$is_default_control_server" == true ) ) ]]; then
     echo "Codex daemon migration is in progress; retry after it completes" >&2
     exit 75
 fi
-if [[ -e "$REMOTE_CONTROL_MARKER" && -x "$MANAGED" ]]; then
+if [[ -e "$REMOTE_CONTROL_MARKER" ]]; then
+    if [[ ! -x "$MANAGED" && \
+          ( "$is_proxy" == true || \
+            ( "$is_code_mode_host" == true && "$is_default_control_server" == true ) ) ]]; then
+        echo "Codex managed daemon package is missing: $MANAGED" >&2
+        echo "Refusing an unmanaged Desktop server. Provision the managed daemon during an idle maintenance window; bootstrap alone may not install its package." >&2
+        exit 75
+    fi
     if [[ "$is_code_mode_host" == true && "$is_default_control_server" == true ]]; then
         exec "$REAL" app-server daemon start
     fi

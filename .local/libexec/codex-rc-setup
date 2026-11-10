@@ -1,0 +1,119 @@
+#!/usr/bin/env python3
+"""Explicit fresh-host provisioning; never migrate or stop existing servers."""
+
+import fcntl
+import os
+import runpy
+import subprocess
+import sys
+from pathlib import Path
+
+collect_servers = runpy.run_path(str(Path(__file__).with_name("codex-rc-cleanup")))[
+    "collect_servers"
+]
+
+
+def main():
+    home = Path.home()
+    codex_home = os.environ.get("CODEX_HOME")
+    if codex_home and Path(codex_home).resolve() != (home / ".codex").resolve():
+        print(
+            f"Refusing setup: CODEX_HOME must resolve to {home / '.codex'}; no services changed.",
+            file=sys.stderr,
+        )
+        return 75
+    (home / ".codex").mkdir(parents=True, exist_ok=True)
+    # Keep this inode: unlinking a flock file lets new callers bypass its lock.
+    # Acquire before *any* preflight and retain through marker removal/return.
+    with (home / ".codex/app-server-daemon-setup.lock").open("a") as lock:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            print(
+                "Refusing setup: another setup is in progress; no services changed.",
+                file=sys.stderr,
+            )
+            return 75
+        return setup_locked(home)
+
+
+def setup_locked(home):
+    cli = home / ".codex/packages/standalone/current/bin/codex"
+    managed = home / ".codex/packages/app-server-daemon/current/bin/codex"
+    unmanaged, servers, proxies = collect_servers(home)
+    if unmanaged:
+        print(
+            "Refusing setup: unmanaged Codex server exists; no services changed.",
+            file=sys.stderr,
+        )
+        return 75
+    if any(
+        (home / ".codex" / name).exists() or (home / ".codex" / name).is_symlink()
+        for name in ("app-server-daemon-setup-started", "app-server-daemon-migrating")
+    ):
+        print(
+            "Refusing setup: incomplete setup or migration requires maintenance inspection.",
+            file=sys.stderr,
+        )
+        return 75
+    if servers and os.access(managed, os.X_OK):
+        try:
+            subprocess.run([str(managed), "--version"], check=True, stdout=sys.stderr)
+        except (OSError, subprocess.CalledProcessError) as error:
+            print(
+                f"Managed daemon validation failed: {managed}: {error}", file=sys.stderr
+            )
+            return 75
+        print("Managed daemon already running; no changes.", file=sys.stderr)
+        return 0
+    partial_paths = [
+        home / ".codex/app-server-control/app-server-control.sock",
+        home / ".codex/app-server-daemon-migrating",
+        home / ".codex/app-server-daemon-setup-started",
+        home / ".codex/packages/app-server-daemon",
+    ]
+    if servers or proxies or any(p.exists() or p.is_symlink() for p in partial_paths):
+        print(
+            "Refusing setup: busy or partial/existing daemon state; inspect during maintenance.",
+            file=sys.stderr,
+        )
+        return 75
+    if not os.access(cli, os.X_OK):
+        print(f"Missing packaged Codex CLI: {cli}", file=sys.stderr)
+        return 1
+    # Durable partial-failure marker is separate from the OS concurrency lock.
+    marker = home / ".codex/app-server-daemon-setup-started"
+    try:
+        marker.touch(exist_ok=False)
+    except FileExistsError:
+        return 75
+    print(
+        "Provisioning pins the managed daemon to the installed CLI version (update --from-cli --yes).",
+        file=sys.stderr,
+    )
+    try:
+        subprocess.run(
+            [str(cli), "app-server", "daemon", "bootstrap", "--remote-control"],
+            check=True,
+            stdout=sys.stderr,
+        )
+        subprocess.run(
+            [str(cli), "app-server", "daemon", "update", "--from-cli", "--yes"],
+            check=True,
+            stdout=sys.stderr,
+        )
+        if not os.access(managed, os.X_OK):
+            raise RuntimeError(f"Managed daemon executable is missing: {managed}")
+        subprocess.run([str(managed), "--version"], check=True, stdout=sys.stderr)
+    except (OSError, RuntimeError, subprocess.CalledProcessError) as error:
+        print(
+            f"Setup failed; partial state retained, no cleanup or rollback attempted: {error}",
+            file=sys.stderr,
+        )
+        return 1
+    marker.unlink()
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
