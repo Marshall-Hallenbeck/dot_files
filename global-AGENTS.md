@@ -65,6 +65,7 @@ These rules apply to Claude and Codex in all projects and collaboration modes, i
 - Surface required-file, key, binary, service, and configuration failures with the exact missing item.
 - When the user asks to remove code, delete it. Do not leave a compatibility stub, pointer, or explanatory comment.
 - Add comments only when the code cannot state the necessary fact. Keep comments short and current.
+- Do not hard-wrap comments or Markdown prose at a formatter width. Write one sentence per line and break only past about 120 to 140 characters, at punctuation.
 - Use `.yml` unless the project already uses `.yaml`.
 - In Python, use direct attribute access and f-strings. Do not use constant-name `getattr` or `setattr` calls.
 - Do not add leading underscores to names for privacy. Do not add `type: ignore` or `pyright: ignore` unless a third-party interface makes it unavoidable.
